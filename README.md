@@ -23,7 +23,7 @@ Hệ thống quản lý giải đấu cầu lông toàn diện với khả năng
 
 ### 📊 Thông tin kỹ thuật
 - **Phiên bản**: 2.0.0
-- **Tác giả**: Nguyen Viet Hau
+- **Tác giả**: Nguyen Viet Hau - Tran Van Hung
 - **Ngôn ngữ**: Java 17
 - **Framework**: Spring Boot 3.2.6
 - **Cổng mặc định**: 2345
@@ -172,8 +172,8 @@ spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.SQLServerDialect
 #### Từ source code:
 ```bash
 # Clone repository
-git clone https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV.git
-cd Badminton_Tournament_Management_System_DB_SQLSRV
+git clone https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System.git
+cd Badminton_Tournament_Management_System
 
 # Build và chạy
 mvn clean package -DskipTests
@@ -593,8 +593,8 @@ We welcome contributions! Các areas cần hỗ trợ:
 ### 🛠️ Development Setup
 ```bash
 # Clone repository
-git clone https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV.git
-cd Badminton_Tournament_Management_System_DB_SQLSRV
+git clone https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System.git
+cd Badminton_Tournament_Management_System
 
 # Setup database configuration
 cp application.properties.copy src/main/resources/application.properties
@@ -622,14 +622,14 @@ mvn spring-boot:run
 ## 📞 Support & Contact
 
 ### 👨‍💻 Author
-- **Name**: Nguyen Viet Hau
+- **Name**: Nguyen Viet Hau - Tran Van Hung
 - **GitHub**: [@NguyenHau-IT](https://github.com/NguyenHau-IT)
-- **Email**: [Contact via GitHub Issues](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV/issues)
+- **Email**: [Contact via GitHub Issues](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System/issues)
 
 ### 🆘 Getting Help
-- **Bug Reports**: [GitHub Issues](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV/issues)
-- **Feature Requests**: [GitHub Discussions](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV/discussions)
-- **Documentation**: [Wiki](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV/wiki)
+- **Bug Reports**: [GitHub Issues](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System/issues)
+- **Feature Requests**: [GitHub Discussions](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System/discussions)
+- **Documentation**: [Wiki](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System/wiki)
 
 ### 📚 Additional Documentation
 - [`HUONG_DAN_SU_DUNG.md`](HUONG_DAN_SU_DUNG.md) - Detailed user guide (Vietnamese)
@@ -655,8 +655,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **🎉 Happy Tournament Management! 🏸**
 
-Made with ❤️ by [Nguyen Viet Hau](https://github.com/NguyenHau-IT)
+Made with ❤️ by [Nguyen Viet Hau - Tran Van Hung](https://github.com/NguyenHau-IT)
 
-[⭐ Star this repo](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV) | [🐛 Report Bug](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV/issues) | [💡 Request Feature](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV/issues)
+[⭐ Star this repo](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System) | [🐛 Report Bug](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System/issues) | [💡 Request Feature](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System/issues)
 
 </div>
