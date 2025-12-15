@@ -3,6 +3,7 @@ package com.example.btms.service.referee;
 import com.example.btms.model.referee.TrongTai;
 import com.example.btms.repository.referee.TrongTaiRepository;
 import com.example.btms.service.db.DatabaseService;
+import com.example.btms.model.db.SQLSRVConnectionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -19,12 +20,19 @@ import java.util.Optional;
 public class TrongTaiService {
 
     private static final Logger logger = LoggerFactory.getLogger(TrongTaiService.class);
-    private final DatabaseService databaseService;
+    private final SQLSRVConnectionManager manager = new SQLSRVConnectionManager();
+    private final DatabaseService databaseService = new DatabaseService(manager);
     private TrongTaiRepository repository;
 
-    public TrongTaiService(DatabaseService databaseService) {
-        this.databaseService = databaseService;
+    public TrongTaiService() {
         initializeRepository();
+    }
+
+    /**
+     * Get DatabaseService để MainFrame có thể set config
+     */
+    public DatabaseService getDatabaseService() {
+        return databaseService;
     }
 
     /**

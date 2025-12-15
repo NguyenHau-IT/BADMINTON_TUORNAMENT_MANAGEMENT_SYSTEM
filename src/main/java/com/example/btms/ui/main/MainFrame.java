@@ -137,6 +137,7 @@ public class MainFrame extends JFrame {
     private CauLacBoService cauLacBoService;
     private VanDongVienService vdvService;
     private TrongTaiService trongTaiService;
+    private com.example.btms.service.referee.PhanCongTrongTaiService phanCongTrongTaiService;
     private DangKiCaNhanService dkCaNhanService;
     private DangKiDoiService dkDoiService;
     private ChiTietDoiService chiTietDoiService;
@@ -543,6 +544,15 @@ public class MainFrame extends JFrame {
         return service;
     }
 
+    /**
+     * Get current connection config to share with other services
+     */
+    private ConnectionConfig currentConnectionConfig;
+
+    public ConnectionConfig getCurrentConnectionConfig() {
+        return currentConnectionConfig;
+    }
+
     /* -------------------- Auth wiring -------------------- */
     private void updateAuthService(Connection c) {
         this.authService = (c != null) ? new AuthService(c) : null;
@@ -651,6 +661,7 @@ public class MainFrame extends JFrame {
                 }
 
                 service.setConfig(runtimeCfg);
+                currentConnectionConfig = runtimeCfg; // Save for sharing with other services
                 Connection conn = service.connect();
                 // Ẩn/đóng cửa sổ kết nối trước khi chuyển bước chọn giải
                 try {
@@ -772,7 +783,30 @@ public class MainFrame extends JFrame {
 
             // ---- Trọng tài
             trongTaiService = applicationContext.getBean(TrongTaiService.class);
+            // Set cùng config với MainFrame's DatabaseService
+            ConnectionConfig currentConfig = getCurrentConnectionConfig();
+            if (currentConfig != null) {
+                trongTaiService.getDatabaseService().setConfig(currentConfig);
+                try {
+                    trongTaiService.getDatabaseService().connect();
+                } catch (SQLException ignore) {
+                    // Connection already established, ignore connection errors
+                }
+            }
             trongTaiPanel = new TrongTaiManagementPanel(trongTaiService, clbService);
+
+            // ---- Phân công trọng tài
+            phanCongTrongTaiService = applicationContext
+                    .getBean(com.example.btms.service.referee.PhanCongTrongTaiService.class);
+            // Set cùng config với MainFrame's DatabaseService
+            if (currentConfig != null) {
+                phanCongTrongTaiService.getDatabaseService().setConfig(currentConfig);
+                try {
+                    phanCongTrongTaiService.getDatabaseService().connect();
+                } catch (SQLException ignore) {
+                    // Connection already established, ignore connection errors
+                }
+            }
 
             // ---- Giám sát thiết bị
             com.example.btms.service.device.DeviceSessionService deviceSessionService = applicationContext

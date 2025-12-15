@@ -417,6 +417,11 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             // Đồng bộ xoá khỏi listModel ngay lập tức theo sid để cập nhật UI tức thời
             if (sid != null && !sid.isEmpty()) {
                 for (int i = listModel.size() - 1; i >= 0; i--) {
+                    // Check if index is still valid (prevent race condition)
+                    if (i >= listModel.size()) {
+                        continue;
+                    }
+
                     Row r = listModel.getElementAt(i);
                     if (r != null && java.util.Objects.equals(r.sid, sid)) {
                         try {
