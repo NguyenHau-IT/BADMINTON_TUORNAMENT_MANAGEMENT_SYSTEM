@@ -61,6 +61,11 @@ public class ScoreboardPinController {
     @Autowired
     private com.example.btms.service.device.DeviceSessionService deviceSessionService;
 
+    // 🏸 Phân công trọng tài service để lưu kết quả phân công khi trận đấu hoàn
+    // thành
+    @Autowired
+    private com.example.btms.service.referee.PhanCongTrongTaiService phanCongTrongTaiService;
+
     public ScoreboardPinController() {
         controllerInstance = this;
         // Không cần add listener cho match chung nữa
@@ -433,6 +438,7 @@ public class ScoreboardPinController {
                 String header = court.header;
 
                 Map<String, Object> courtInfo = new HashMap<>();
+                courtInfo.put("matchId", pinMatches.get(pin) != null ? pinMatches.get(pin).getMatchId() : null);
                 courtInfo.put("pin", pin);
                 courtInfo.put("courtId", courtId);
                 courtInfo.put("header", header != null ? header : "Chưa có trận đấu");
@@ -450,6 +456,7 @@ public class ScoreboardPinController {
                 if (match != null) {
                     BadmintonMatch.Snapshot snapshot = match.snapshot();
                     Map<String, Object> matchInfo = Map.of(
+                            "matchId", match.getMatchId(),
                             "score", snapshot.score,
                             "games", snapshot.games,
                             "gameNumber", snapshot.gameNumber,
@@ -559,6 +566,10 @@ public class ScoreboardPinController {
                 }
 
                 broadcastSnapshotToPin(pin);
+
+                // 🏸 Kiểm tra và lưu phân công trọng tài nếu trận đấu hoàn thành
+                checkAndSaveRefereeAssignmentOnMatchComplete(pin, session);
+
                 Map<String, Integer> result = view(pin);
                 log.info("Returning result for PIN {}: {}", pin, result);
                 return ResponseEntity.ok(result);
@@ -621,6 +632,10 @@ public class ScoreboardPinController {
                 }
 
                 broadcastSnapshotToPin(pin);
+
+                // 🏸 Kiểm tra và lưu phân công trọng tài nếu trận đấu hoàn thành
+                checkAndSaveRefereeAssignmentOnMatchComplete(pin, session);
+
                 Map<String, Integer> result = view(pin);
                 log.info("Returning result for PIN {}: {}", pin, result);
                 return ResponseEntity.ok(result);
@@ -917,6 +932,96 @@ public class ScoreboardPinController {
                 log.error("Error in action {} for PIN {}: {}", action, pin, e.getMessage(), e);
                 return ResponseEntity.status(500).body(Map.of("teamAScore", 0, "teamBScore", 0));
             }
+        }
+    }
+
+    /**
+     * 🏸 Kiểm tra và lưu phân công trọng tài khi trận đấu hoàn thành
+     */
+    private void checkAndSaveRefereeAssignmentOnMatchComplete(String pin, jakarta.servlet.http.HttpSession session) {
+        try {
+            BadmintonMatch match = pinMatches.get(pin);
+            if (match == null)
+                return;
+
+            BadmintonMatch.Snapshot snapshot = match.snapshot();
+            if (!snapshot.matchFinished)
+                return; // Trận đấu chưa hoàn thành
+
+            // Lấy thông tin trận đấu từ court manager
+            String maTranDau = getMaTranDauFromPin(pin);
+            String maTrongTai = getMaTrongTaiFromSession(session);
+
+            if (maTranDau != null && maTrongTai != null) {
+                // Kiểm tra xem đã có phân công chưa
+                var existingAssignment = phanCongTrongTaiService.getAssignment(maTrongTai, maTranDau);
+
+                if (existingAssignment.isEmpty()) {
+                    // Tạo phân công mới
+                    var assignment = new com.example.btms.model.referee.PhanCongTrongTai();
+                    assignment.setMaPhanCong("PC_" + System.currentTimeMillis()); // ID tự động
+                    assignment.setMaTrongTai(maTrongTai);
+                    assignment.setMaTranDau(maTranDau);
+                    assignment.setVaiTro("CHIEF"); // Trọng tài chính
+                    assignment.setGhiChu("Tự động lưu khi hoàn thành trận đấu trên web - PIN: " + pin);
+
+                    phanCongTrongTaiService.createAssignment(assignment);
+                    log.info("✅ Saved referee assignment: {} -> {} (Match completed via web PIN: {})",
+                            maTrongTai, maTranDau, pin);
+                } else {
+                    log.info("ℹ️ Referee assignment already exists: {} -> {}", maTrongTai, maTranDau);
+                }
+            } else {
+                log.warn("⚠️ Cannot save referee assignment - missing data: maTranDau={}, maTrongTai={}, PIN={}",
+                        maTranDau, maTrongTai, pin);
+            }
+        } catch (Exception e) {
+            log.error("Error saving referee assignment for PIN {}: {}", pin, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 🔍 Lấy mã trận đấu từ PIN (từ match ID)
+     */
+    private String getMaTranDauFromPin(String pin) {
+        try {
+            // Lấy match từ PIN và trả về match ID
+            BadmintonMatch match = getOrCreateMatch(pin);
+            if (match != null) {
+                String matchId = match.getMatchId();
+                log.debug("Retrieved match ID from match object: {} for PIN: {}", matchId, pin);
+                return matchId;
+            }
+
+            // Fallback nếu không lấy được match
+            String fallbackMatchCode = "WEB_MATCH_" + pin + "_" + System.currentTimeMillis();
+            log.warn("Using fallback match code: {} for PIN: {}", fallbackMatchCode, pin);
+            return fallbackMatchCode;
+
+        } catch (Exception e) {
+            log.error("Error getting match ID from PIN {}: {}", pin, e.getMessage());
+            return "ERROR_MATCH_" + pin;
+        }
+    }
+
+    /**
+     * 🔍 Lấy mã trọng tài từ session (từ referee login session)
+     */
+    private String getMaTrongTaiFromSession(jakarta.servlet.http.HttpSession session) {
+        try {
+            if (session != null) {
+                String maTrongTai = (String) session.getAttribute("loggedInReferee");
+                if (maTrongTai != null && !maTrongTai.trim().isEmpty()) {
+                    log.debug("Found referee in session: {}", maTrongTai);
+                    return maTrongTai;
+                }
+            }
+
+            log.warn("No referee found in session");
+            return null;
+        } catch (Exception e) {
+            log.error("Error getting referee code from session: {}", e.getMessage());
+            return null;
         }
     }
 

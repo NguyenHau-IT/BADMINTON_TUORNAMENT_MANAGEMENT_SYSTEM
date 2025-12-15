@@ -3,6 +3,7 @@ package com.example.btms.service.tournament;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -129,7 +130,7 @@ public class GiaiDauService {
         }
 
         // Cập nhật timestamp
-        giaiDau.updatestamp();
+        giaiDau.setNgayCapNhat(LocalDateTime.now());
 
         return repository.update(giaiDau);
     }

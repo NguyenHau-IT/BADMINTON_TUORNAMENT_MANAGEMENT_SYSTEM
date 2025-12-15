@@ -2,32 +2,74 @@ package com.example.btms.service.referee;
 
 import com.example.btms.model.referee.TrongTai;
 import com.example.btms.repository.referee.TrongTaiRepository;
+import com.example.btms.service.db.DatabaseService;
+import com.example.btms.model.db.SQLSRVConnectionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Service class for managing TrongTai (Referee) operations
+ * Service class for managing TrongTai (Referee) operations using JDBC
  */
 @Service
 public class TrongTaiService {
 
     private static final Logger logger = LoggerFactory.getLogger(TrongTaiService.class);
+    private final SQLSRVConnectionManager manager = new SQLSRVConnectionManager();
+    private final DatabaseService databaseService = new DatabaseService(manager);
+    private TrongTaiRepository repository;
 
-    @Autowired
-    private TrongTaiRepository trongTaiRepository;
+    public TrongTaiService() {
+        initializeRepository();
+    }
+
+    /**
+     * Get DatabaseService để MainFrame có thể set config
+     */
+    public DatabaseService getDatabaseService() {
+        return databaseService;
+    }
+
+    /**
+     * Khởi tạo repository với connection hiện tại
+     */
+    private void initializeRepository() {
+        Connection connection = databaseService.current();
+        if (connection != null) {
+            this.repository = new TrongTaiRepository(connection);
+        }
+    }
+
+    /**
+     * Đảm bảo repository được khởi tạo
+     */
+    private void ensureRepository() throws SQLException {
+        if (repository == null) {
+            Connection connection = databaseService.current();
+            if (connection == null) {
+                throw new SQLException("No database connection available");
+            }
+            repository = new TrongTaiRepository(connection);
+        }
+    }
 
     /**
      * Get all referees
      */
     public List<TrongTai> getAllTrongTai() {
         logger.info("Fetching all referees");
-        return trongTaiRepository.findAll();
+        try {
+            ensureRepository();
+            return repository.findAll();
+        } catch (SQLException e) {
+            logger.error("Error fetching all referees", e);
+            throw new RuntimeException("Failed to fetch referees", e);
+        }
     }
 
     /**
@@ -35,7 +77,13 @@ public class TrongTaiService {
      */
     public Optional<TrongTai> getTrongTaiById(String maTrongTai) {
         logger.info("Fetching referee with ID: {}", maTrongTai);
-        return trongTaiRepository.findById(maTrongTai);
+        try {
+            ensureRepository();
+            return repository.findById(maTrongTai);
+        } catch (SQLException e) {
+            logger.error("Error fetching referee by ID: " + maTrongTai, e);
+            throw new RuntimeException("Failed to fetch referee", e);
+        }
     }
 
     /**
@@ -43,157 +91,120 @@ public class TrongTaiService {
      */
     public Optional<TrongTai> getTrongTaiByEmail(String email) {
         logger.info("Fetching referee with email: {}", email);
-        return trongTaiRepository.findByEmail(email);
-    }
-
-    /**
-     * Get referee by phone number
-     */
-    public Optional<TrongTai> getTrongTaiBySoDienThoai(String soDienThoai) {
-        logger.info("Fetching referee with phone: {}", soDienThoai);
-        return trongTaiRepository.findBySoDienThoai(soDienThoai);
-    }
-
-    /**
-     * Get all referees by club
-     */
-    public List<TrongTai> getTrongTaiByClub(Integer idClb) {
-        logger.info("Fetching referees for club ID: {}", idClb);
-        return trongTaiRepository.findByIdClb(idClb);
-    }
-
-    /**
-     * Get all referees by gender
-     */
-    public List<TrongTai> getTrongTaiByGioiTinh(Boolean gioiTinh) {
-        String gender = (gioiTinh != null && gioiTinh) ? "Nam" : "Nữ";
-        logger.info("Fetching referees with gender: {}", gender);
-        return trongTaiRepository.findByGioiTinh(gioiTinh);
-    }
-
-    /**
-     * Search referees by name
-     */
-    public List<TrongTai> searchTrongTaiByName(String hoTen) {
-        logger.info("Searching referees with name containing: {}", hoTen);
-        return trongTaiRepository.searchByHoTen(hoTen);
-    }
-
-    /**
-     * Get referees without club
-     */
-    public List<TrongTai> getRefereesWithoutClub() {
-        logger.info("Fetching referees without club assignment");
-        return trongTaiRepository.findRefereesWithoutClub();
+        try {
+            ensureRepository();
+            return repository.findByEmail(email);
+        } catch (SQLException e) {
+            logger.error("Error fetching referee by email: " + email, e);
+            throw new RuntimeException("Failed to fetch referee", e);
+        }
     }
 
     /**
      * Create new referee
      */
-    @Transactional
     public TrongTai createTrongTai(TrongTai trongTai) {
         logger.info("Creating new referee: {}", trongTai.getMaTrongTai());
 
-        // Validate unique constraints
-        if (trongTai.getEmail() != null && trongTaiRepository.existsByEmail(trongTai.getEmail())) {
-            throw new IllegalArgumentException("Email đã tồn tại: " + trongTai.getEmail());
-        }
+        try {
+            ensureRepository();
 
-        if (trongTai.getSoDienThoai() != null && trongTaiRepository.existsBySoDienThoai(trongTai.getSoDienThoai())) {
-            throw new IllegalArgumentException("Số điện thoại đã tồn tại: " + trongTai.getSoDienThoai());
-        }
+            // Validate unique constraints
+            if (trongTai.getEmail() != null && repository.existsByEmail(trongTai.getEmail())) {
+                throw new IllegalArgumentException("Email đã tồn tại: " + trongTai.getEmail());
+            }
 
-        TrongTai saved = trongTaiRepository.save(trongTai);
-        logger.info("✅ Referee created successfully - ID: {}", saved.getMaTrongTai());
-        return saved;
+            TrongTai saved = repository.save(trongTai);
+            logger.info("✅ Referee created successfully - ID: {}", saved.getMaTrongTai());
+            return saved;
+        } catch (SQLException e) {
+            logger.error("Error creating referee", e);
+            throw new RuntimeException("Failed to create referee", e);
+        }
     }
 
     /**
      * Update referee
      */
-    @Transactional
     public TrongTai updateTrongTai(String maTrongTai, TrongTai trongTai) {
         logger.info("Updating referee: {}", maTrongTai);
 
-        Optional<TrongTai> existingOpt = trongTaiRepository.findById(maTrongTai);
-        if (existingOpt.isEmpty()) {
-            throw new IllegalArgumentException("Không tìm thấy trọng tài với mã: " + maTrongTai);
-        }
+        try {
+            ensureRepository();
 
-        TrongTai existing = existingOpt.get();
+            Optional<TrongTai> existingOpt = repository.findById(maTrongTai);
+            if (existingOpt.isEmpty()) {
+                throw new IllegalArgumentException("Không tìm thấy trọng tài với mã: " + maTrongTai);
+            }
 
-        // Update fields
-        if (trongTai.getHoTen() != null) {
-            existing.setHoTen(trongTai.getHoTen());
-        }
-        if (trongTai.getNgaySinh() != null) {
-            existing.setNgaySinh(trongTai.getNgaySinh());
-        }
-        if (trongTai.getGioiTinh() != null) {
-            existing.setGioiTinh(trongTai.getGioiTinh());
-        }
-        if (trongTai.getSoDienThoai() != null) {
-            existing.setSoDienThoai(trongTai.getSoDienThoai());
-        }
-        if (trongTai.getEmail() != null) {
-            existing.setEmail(trongTai.getEmail());
-        }
-        if (trongTai.getMatKhau() != null) {
-            existing.setMatKhau(trongTai.getMatKhau());
-        }
-        if (trongTai.getIdClb() != null) {
-            existing.setIdClb(trongTai.getIdClb());
-        }
-        if (trongTai.getGhiChu() != null) {
-            existing.setGhiChu(trongTai.getGhiChu());
-        }
+            TrongTai existing = existingOpt.get();
 
-        TrongTai updated = trongTaiRepository.save(existing);
-        logger.info("✅ Referee updated successfully - ID: {}", updated.getMaTrongTai());
-        return updated;
+            // Update fields
+            if (trongTai.getHoTen() != null) {
+                existing.setHoTen(trongTai.getHoTen());
+            }
+            if (trongTai.getNgaySinh() != null) {
+                existing.setNgaySinh(trongTai.getNgaySinh());
+            }
+            if (trongTai.getGioiTinh() != null) {
+                existing.setGioiTinh(trongTai.getGioiTinh());
+            }
+            if (trongTai.getSoDienThoai() != null) {
+                existing.setSoDienThoai(trongTai.getSoDienThoai());
+            }
+            if (trongTai.getEmail() != null) {
+                existing.setEmail(trongTai.getEmail());
+            }
+            if (trongTai.getMatKhau() != null) {
+                existing.setMatKhau(trongTai.getMatKhau());
+            }
+            if (trongTai.getIdClb() != null) {
+                existing.setIdClb(trongTai.getIdClb());
+            }
+            if (trongTai.getGhiChu() != null) {
+                existing.setGhiChu(trongTai.getGhiChu());
+            }
+
+            TrongTai updated = repository.save(existing);
+            logger.info("✅ Referee updated successfully - ID: {}", updated.getMaTrongTai());
+            return updated;
+        } catch (SQLException e) {
+            logger.error("Error updating referee", e);
+            throw new RuntimeException("Failed to update referee", e);
+        }
     }
 
     /**
      * Delete referee
      */
-    @Transactional
     public void deleteTrongTai(String maTrongTai) {
         logger.info("Deleting referee: {}", maTrongTai);
 
-        if (!trongTaiRepository.existsById(maTrongTai)) {
-            throw new IllegalArgumentException("Không tìm thấy trọng tài với mã: " + maTrongTai);
+        try {
+            ensureRepository();
+
+            if (!repository.existsById(maTrongTai)) {
+                throw new IllegalArgumentException("Không tìm thấy trọng tài với mã: " + maTrongTai);
+            }
+
+            repository.deleteById(maTrongTai);
+            logger.info("✅ Referee deleted successfully - ID: {}", maTrongTai);
+        } catch (SQLException e) {
+            logger.error("Error deleting referee", e);
+            throw new RuntimeException("Failed to delete referee", e);
         }
-
-        trongTaiRepository.deleteById(maTrongTai);
-        logger.info("✅ Referee deleted successfully - ID: {}", maTrongTai);
     }
 
-    /**
-     * Check if referee exists by ID
-     */
-    public boolean existsById(String maTrongTai) {
-        return trongTaiRepository.existsById(maTrongTai);
+    // Legacy methods để maintain compatibility với existing code
+    public List<TrongTai> findAll() {
+        return getAllTrongTai();
     }
 
-    /**
-     * Count total referees
-     */
-    public long countTotalReferees() {
-        return trongTaiRepository.count();
+    public Optional<TrongTai> findById(String id) {
+        return getTrongTaiById(id);
     }
 
-    /**
-     * Count referees by club
-     */
-    public long countRefereesByClub(Integer idClb) {
-        return trongTaiRepository.countByIdClb(idClb);
-    }
-
-    /**
-     * Get referees by club and gender
-     */
-    public List<TrongTai> getTrongTaiByClubAndGender(Integer idClb, Boolean gioiTinh) {
-        logger.info("Fetching referees for club: {} with gender: {}", idClb, gioiTinh);
-        return trongTaiRepository.findByIdClbAndGioiTinh(idClb, gioiTinh);
+    public Optional<TrongTai> findByEmail(String email) {
+        return getTrongTaiByEmail(email);
     }
 }

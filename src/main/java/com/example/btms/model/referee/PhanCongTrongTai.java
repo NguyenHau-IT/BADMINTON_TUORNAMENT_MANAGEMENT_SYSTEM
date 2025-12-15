@@ -1,30 +1,17 @@
 package com.example.btms.model.referee;
 
-import jakarta.persistence.*;
 import java.util.Objects;
 
 /**
- * Entity class representing referee assignment (Phân công trọng tài)
+ * POJO class representing referee assignment (Phân công trọng tài)
  * Maps to the PHAN_CONG_TRONG_TAI table in the database
  */
-@Entity
-@Table(name = "PHAN_CONG_TRONG_TAI")
 public class PhanCongTrongTai {
 
-    @Id
-    @Column(name = "MA_PHAN_CONG", length = 30, nullable = false)
     private String maPhanCong;
-
-    @Column(name = "MA_TRONG_TAI", length = 30, nullable = false)
     private String maTrongTai;
-
-    @Column(name = "MA_TRAN_DAU", length = 36, columnDefinition = "CHAR(36)")
     private String maTranDau;
-
-    @Column(name = "VAI_TRO", length = 100, columnDefinition = "NVARCHAR(100)")
     private String vaiTro;
-
-    @Column(name = "GHI_CHU", columnDefinition = "NVARCHAR(MAX)")
     private String ghiChu;
 
     // Constructors

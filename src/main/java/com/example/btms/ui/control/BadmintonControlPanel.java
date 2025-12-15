@@ -1448,6 +1448,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     String existing = resolveExistingMatchId(header, /* isDoubles */ true, null, null, ta, tb);
                     if (existing != null && !existing.isBlank()) {
                         currentMatchId = existing;
+                        match.setMatchId(currentMatchId);
                         logger.logTs("Dùng lại ID_TRẬN đã có: %s", currentMatchId);
                         // Hỏi người dùng có muốn đặt lại (xóa chi tiết ván) hay không
                         try {
@@ -1464,6 +1465,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     } else {
                         ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
                         currentMatchId = msvc.createV7(LocalDateTime.now(), theThuc, san);
+                        match.setMatchId(currentMatchId);
                         logger.logTs("Tạo CHI_TIET_TRAN_DAU (UUIDv7) = %s", currentMatchId);
                         // Bản ghi đã vừa được tạo: không cần align thêm
                     }
@@ -1518,6 +1520,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     String existing = resolveExistingMatchId(header, /* isDoubles */ false, idAVal, idBVal, null, null);
                     if (existing != null && !existing.isBlank()) {
                         currentMatchId = existing;
+                        match.setMatchId(currentMatchId);
                         logger.logTs("Dùng lại ID_TRẬN đã có: %s", currentMatchId);
                         // Hỏi người dùng có muốn đặt lại (xóa chi tiết ván) hay không
                         try {
@@ -1533,6 +1536,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     } else {
                         ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
                         currentMatchId = msvc.createV7(java.time.LocalDateTime.now(), theThuc, san);
+                        match.setMatchId(currentMatchId);
                         logger.logTs("Tạo CHI_TIET_TRAN_DAU (UUIDv7) = %s", currentMatchId);
                         // Bản ghi đã vừa được tạo: không cần align thêm
                     }
