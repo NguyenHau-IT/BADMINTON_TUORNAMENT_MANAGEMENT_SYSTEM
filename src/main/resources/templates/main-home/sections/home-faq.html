@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!-- FAQ Section - Accordion Style (Pure CSS) -->
+    <section th:fragment="faq" class="faq-section py-5 position-relative">
+        <div class="container py-4">
+            <!-- Section Header -->
+            <div class="row mb-4">
+                <div class="col-lg-8 mx-auto text-center">
+                    <h2 class="section-title text-white mb-2" data-aos="fade-up">
+                        Câu hỏi <span class="text-accent">thường gặp</span>
+                    </h2>
+                    <p class="section-description text-muted mb-0" data-aos="fade-up" data-aos-delay="100">
+                        Click vào câu hỏi để xem câu trả lời
+                    </p>
+                </div>
+            </div>
+            
+            <!-- FAQ Accordion Container -->
+            <div class="faq-accordion" data-aos="fade-up" data-aos-delay="200">
+                
+                <!-- FAQ Item 1 -->
+                <div class="faq-item">
+                    <input type="checkbox" id="faq1" class="faq-checkbox" />
+                    <label for="faq1" class="faq-question">
+                        <span class="faq-icon"><i class="bi bi-info-circle"></i></span>
+                        <span class="faq-text">BTMS là gì?</span>
+                        <span class="faq-toggle"><i class="bi bi-plus-lg"></i></span>
+                    </label>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            <strong>BTMS</strong> (Badminton Tournament Management System) - Hệ thống quản lý giải đấu cầu lông chuyên nghiệp với Desktop App điều khiển 5 sân và Web Platform cập nhật real-time.
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FAQ Item 2 -->
+                <div class="faq-item">
+                    <input type="checkbox" id="faq2" class="faq-checkbox" />
+                    <label for="faq2" class="faq-question">
+                        <span class="faq-icon"><i class="bi bi-cash-coin"></i></span>
+                        <span class="faq-text">BTMS có miễn phí không?</span>
+                        <span class="faq-toggle"><i class="bi bi-plus-lg"></i></span>
+                    </label>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            <strong>100% Miễn phí!</strong> Không giới hạn giải đấu, VĐV, thời gian sử dụng. Tất cả tính năng đều miễn phí vĩnh viễn.
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FAQ Item 3 -->
+                <div class="faq-item">
+                    <input type="checkbox" id="faq3" class="faq-checkbox" />
+                    <label for="faq3" class="faq-question">
+                        <span class="faq-icon"><i class="bi bi-pc-display"></i></span>
+                        <span class="faq-text">Yêu cầu hệ thống?</span>
+                        <span class="faq-toggle"><i class="bi bi-plus-lg"></i></span>
+                    </label>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            <strong>OS:</strong> Windows 10/11 (64-bit)<br>
+                            <strong>RAM:</strong> 4GB+<br>
+                            <strong>CPU:</strong> Intel Core i3+<br>
+                            <strong>DB:</strong> SQL Server 2016+<br>
+                            <strong>Java:</strong> JRE 21+ (tự động cài đặt)
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FAQ Item 4 -->
+                <div class="faq-item">
+                    <input type="checkbox" id="faq4" class="faq-checkbox" />
+                    <label for="faq4" class="faq-question">
+                        <span class="faq-icon"><i class="bi bi-phone-fill"></i></span>
+                        <span class="faq-text">Làm sao để điều khiển từ xa?</span>
+                        <span class="faq-toggle"><i class="bi bi-plus-lg"></i></span>
+                    </label>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            <ol class="faq-steps mb-0">
+                                <li>Bật Server trong App</li>
+                                <li>Lấy mã PIN 4 số</li>
+                                <li>Mở browser nhập địa chỉ IP</li>
+                                <li>Nhập PIN → Bắt đầu cập nhật điểm</li>
+                            </ol>
+                            <p class="mt-2 mb-0"><i class="bi bi-qr-code me-1"></i> Dùng QR Code để truy cập nhanh!</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FAQ Item 5 -->
+                <div class="faq-item">
+                    <input type="checkbox" id="faq5" class="faq-checkbox" />
+                    <label for="faq5" class="faq-question">
+                        <span class="faq-icon"><i class="bi bi-grid-3x3"></i></span>
+                        <span class="faq-text">Hỗ trợ bao nhiêu sân?</span>
+                        <span class="faq-toggle"><i class="bi bi-plus-lg"></i></span>
+                    </label>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Hỗ trợ <strong>5 sân đồng thời</strong>:
+                            <ul class="mt-2 mb-0">
+                                <li>Mỗi sân có bảng điện tử riêng full-screen</li>
+                                <li>Mã PIN độc lập cho từng sân</li>
+                                <li>Hỗ trợ đơn & đôi</li>
+                                <li>Cập nhật real-time</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FAQ Item 6 -->
+                <div class="faq-item">
+                    <input type="checkbox" id="faq6" class="faq-checkbox" />
+                    <label for="faq6" class="faq-question">
+                        <span class="faq-icon"><i class="bi bi-shield-check"></i></span>
+                        <span class="faq-text">Dữ liệu có an toàn không?</span>
+                        <span class="faq-toggle"><i class="bi bi-plus-lg"></i></span>
+                    </label>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            <strong>Hoàn toàn an toàn!</strong>
+                            <ul class="mt-2 mb-0">
+                                <li>Dữ liệu lưu local trên máy bạn</li>
+                                <li>SQL Server với ACID Transactions</li>
+                                <li>Auto Backup/Restore</li>
+                                <li>Mã PIN bảo vệ, chỉ trong LAN</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FAQ Item 7 -->
+                <div class="faq-item">
+                    <input type="checkbox" id="faq7" class="faq-checkbox" />
+                    <label for="faq7" class="faq-question">
+                        <span class="faq-icon"><i class="bi bi-headset"></i></span>
+                        <span class="faq-text">Làm sao để được hỗ trợ?</span>
+                        <span class="faq-toggle"><i class="bi bi-plus-lg"></i></span>
+                    </label>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            <ul class="mb-2">
+                                <li><i class="bi bi-github me-1"></i> GitHub Issues</li>
+                                <li><i class="bi bi-book me-1"></i> Documentation</li>
+                                <li><i class="bi bi-play-circle me-1"></i> Video Tutorials</li>
+                                <li><i class="bi bi-envelope me-1"></i> Email: support@btms.com</li>
+                            </ul>
+                            <small class="text-muted">Phản hồi trong 24-48 giờ</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FAQ Item 8 -->
+                <div class="faq-item">
+                    <input type="checkbox" id="faq8" class="faq-checkbox" />
+                    <label for="faq8" class="faq-question">
+                        <span class="faq-icon"><i class="bi bi-windows"></i></span>
+                        <span class="faq-text">Hỗ trợ hệ điều hành nào?</span>
+                        <span class="faq-toggle"><i class="bi bi-plus-lg"></i></span>
+                    </label>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            <p class="mb-2"><strong>Desktop App:</strong> Windows 10/11</p>
+                            <p class="mb-2"><strong>Web Platform:</strong> Mọi OS (Windows, macOS, Linux, Android, iOS)</p>
+                            <small class="text-muted"><i class="bi bi-signpost-split me-1"></i> Cross-platform trong roadmap</small>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+            
+            <!-- Contact CTA -->
+            <div class="text-center mt-4" data-aos="fade-up" data-aos-delay="500">
+                <p class="text-muted mb-2">Không tìm thấy câu trả lời?</p>
+                <a th:href="@{/contact}" class="btn btn-accent px-4 py-2">
+                    <i class="bi bi-envelope me-2"></i>
+                    Liên hệ với chúng tôi
+                </a>
+            </div>
+        </div>
+    </section>
+</body>
+</html>

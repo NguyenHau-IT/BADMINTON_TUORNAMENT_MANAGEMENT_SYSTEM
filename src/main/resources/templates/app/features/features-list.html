@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="vi" 
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title th:text="${pageTitle}">Tính năng BTMS</title>
+    <meta name="description" th:content="${pageDescription}">
+    
+    <!-- Page-specific CSS -->
+    <th:block layout:fragment="css">
+        <link rel="stylesheet" th:href="@{/css/pages/app-hub.css}">
+        <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    </th:block>
+</head>
+<body>
+    <div layout:fragment="content">
+        <!-- Hero Section -->
+        <section class="features-hero bg-gradient-primary text-white py-5">
+            <div class="container text-center">
+                <div data-aos="fade-down">
+                    <i class="fas fa-star fa-4x mb-4"></i>
+                    <h1 class="display-4 fw-bold mb-3">Tính năng BTMS</h1>
+                    <p class="lead mb-4">
+                        Khám phá <span class="fw-bold" th:text="${featuresCount}">10</span> tính năng mạnh mẽ 
+                        của ứng dụng quản lý giải đấu cầu lông chuyên nghiệp
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Filter Section -->
+        <section class="features-filter py-4 bg-light border-bottom">
+            <div class="container">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="category-filters d-flex flex-wrap gap-2">
+                            <a th:href="@{/app/features}" 
+                               class="btn btn-sm"
+                               th:classappend="${selectedCategory == 'Tất cả' ? 'btn-primary' : 'btn-outline-primary'}">
+                                <i class="fas fa-th"></i> Tất cả
+                            </a>
+                            <a th:each="cat : ${categories}"
+                               th:if="${cat != 'Tất cả'}"
+                               th:href="@{/app/features(category=${cat})}" 
+                               class="btn btn-sm"
+                               th:classappend="${selectedCategory == cat ? 'btn-primary' : 'btn-outline-primary'}"
+                               th:text="${cat}">
+                                Category
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                        <span class="text-muted">
+                            <i class="fas fa-check-circle text-success"></i>
+                            <span th:text="${featuresCount}">10</span> tính năng
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Grid -->
+        <section class="features-grid py-5">
+            <div class="container">
+                <div class="row g-4">
+                    <div class="col-lg-4 col-md-6"
+                         th:each="feature, iterStat : ${features}"
+                         data-aos="fade-up"
+                         th:attr="data-aos-delay=${iterStat.index * 50}">
+                        <div class="feature-card card h-100 border-0 shadow-sm hover-lift">
+                            <div class="card-body p-4">
+                                <!-- Feature Icon & Badge -->
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div class="feature-icon-small">
+                                        <i class="fas fa-3x" 
+                                           th:classappend="${feature.icon}"
+                                           th:class="${feature.category == 'Quản lý' ? 'text-primary' : 
+                                                      (feature.category == 'Scoreboard' ? 'text-success' : 
+                                                      (feature.category == 'Database' ? 'text-info' : 
+                                                      (feature.category == 'Network' ? 'text-warning' : 'text-purple')))}"></i>
+                                    </div>
+                                    <span class="badge"
+                                          th:classappend="${feature.level == 'beginner' ? 'bg-success' : 
+                                                          (feature.level == 'intermediate' ? 'bg-warning text-dark' : 'bg-danger')}"
+                                          th:text="${feature.level == 'beginner' ? 'Dễ' : 
+                                                    (feature.level == 'intermediate' ? 'Trung bình' : 'Nâng cao')}">
+                                        Level
+                                    </span>
+                                </div>
+                                
+                                <!-- Feature Title -->
+                                <h5 class="card-title fw-bold mb-3" th:text="${feature.title}">
+                                    Feature Title
+                                </h5>
+                                
+                                <!-- Feature Category -->
+                                <p class="text-muted small mb-3">
+                                    <i class="fas fa-tag me-1"></i>
+                                    <span th:text="${feature.category}">Category</span>
+                                </p>
+                                
+                                <!-- Feature Description -->
+                                <p class="card-text text-muted mb-4" th:text="${feature.description}">
+                                    Feature description goes here
+                                </p>
+                                
+                                <!-- Highlights -->
+                                <div class="feature-highlights mb-4">
+                                    <ul class="list-unstyled small mb-0">
+                                        <li class="mb-2" th:each="highlight : ${feature.highlights}">
+                                            <i class="fas fa-check-circle text-success me-2"></i>
+                                            <span th:text="${highlight}">Highlight</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                                
+                                <!-- View Details Button -->
+                                <a th:href="@{/app/features/{slug}(slug=${feature.slug})}" 
+                                   class="btn btn-outline-primary w-100">
+                                    <i class="fas fa-info-circle"></i> Xem chi tiết
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Empty State -->
+                <div class="text-center py-5" th:if="${features.isEmpty()}">
+                    <i class="fas fa-search fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">Không tìm thấy tính năng nào</h4>
+                    <p class="text-muted">Thử chọn danh mục khác</p>
+                    <a th:href="@{/app/features}" class="btn btn-primary">
+                        <i class="fas fa-th"></i> Xem tất cả
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="features-cta py-5 bg-light">
+            <div class="container text-center">
+                <div data-aos="zoom-in">
+                    <h2 class="fw-bold mb-3">Sẵn sàng trải nghiệm?</h2>
+                    <p class="text-muted mb-4">
+                        Tải xuống BTMS ngay hôm nay và khám phá tất cả tính năng mạnh mẽ
+                    </p>
+                    <div class="d-flex flex-wrap justify-content-center gap-3">
+                        <a th:href="@{/app/download}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-download"></i> Tải xuống Miễn phí
+                        </a>
+                        <a th:href="@{/app/learn-more}" class="btn btn-outline-primary btn-lg">
+                            <i class="fas fa-book-open"></i> Tìm hiểu thêm
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+    
+    <!-- Page-specific JS -->
+    <th:block layout:fragment="scripts">
+        <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+        <script>
+            AOS.init({
+                duration: 600,
+                easing: 'ease-in-out',
+                once: true,
+                offset: 100
+            });
+        </script>
+    </th:block>
+</body>
+</html>

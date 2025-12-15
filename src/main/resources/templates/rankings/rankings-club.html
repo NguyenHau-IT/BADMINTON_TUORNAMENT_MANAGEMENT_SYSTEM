@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title th:text="${pageTitle}">Xếp hạng CLB - BTMS</title>
+    <link rel="stylesheet" th:href="@{/css/rankings/rankings.css}">
+</head>
+<body>
+<div layout:fragment="content">
+    <!-- Page Header -->
+    <section class="page-header">
+        <div class="container">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/">Trang chủ</a></li>
+                    <li class="breadcrumb-item"><a href="/rankings">Xếp hạng</a></li>
+                    <li class="breadcrumb-item active">Câu lạc bộ</li>
+                </ol>
+            </nav>
+            <h1 class="page-title">Xếp hạng Câu lạc bộ</h1>
+        </div>
+    </section>
+
+    <!-- Club Rankings -->
+    <section class="club-rankings-section section-padding">
+        <div class="container">
+            <!-- Filter -->
+            <div class="filter-bar" data-aos="fade-up">
+                <form class="filter-form">
+                    <select name="province" class="form-select">
+                        <option value="">Tất cả tỉnh thành</option>
+                        <th:block th:each="prov : ${provinces}">
+                            <option th:value="${prov}" th:text="${prov}" 
+                                    th:selected="${prov == selectedProvince}">Tỉnh</option>
+                        </th:block>
+                    </select>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-filter"></i> Lọc
+                    </button>
+                </form>
+            </div>
+
+            <!-- Club Cards Grid -->
+            <div class="club-rankings-grid">
+                <th:block th:each="club, stat : ${clubs}">
+                    <div class="club-ranking-card" data-aos="fade-up" th:data-aos-delay="${(stat.index % 4) * 50}">
+                        <div class="card-rank" th:classappend="${club.rank <= 3} ? 'top-' + ${club.rank}">
+                            <span th:text="${club.rank}">1</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="club-logo">
+                                <img th:src="${club.logo}" alt="Logo"
+                                     onerror="this.src='/images/clubs/default-logo.png'">
+                            </div>
+                            <h4 class="club-name" th:text="${club.name}">CLB Cầu lông Hà Nội</h4>
+                            <div class="club-meta">
+                                <span><i class="bi bi-people"></i> <span th:text="${club.members}">25</span> VĐV</span>
+                                <span><i class="bi bi-trophy"></i> <span th:text="${club.titles}">8</span> danh hiệu</span>
+                            </div>
+                            <div class="club-points">
+                                <span class="points-label">Điểm xếp hạng</span>
+                                <span class="points-value" th:text="${#numbers.formatInteger(club.points, 0, 'COMMA')}">5,000</span>
+                            </div>
+                        </div>
+                    </div>
+                </th:block>
+            </div>
+
+            <!-- Pagination -->
+            <nav class="pagination-wrapper" th:if="${totalPages > 1}">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item" th:classappend="${currentPage == 1} ? 'disabled'">
+                        <a class="page-link" th:href="@{/rankings/club(page=${currentPage - 1}, province=${selectedProvince})}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    <th:block th:each="i : ${#numbers.sequence(1, totalPages > 5 ? 5 : totalPages)}">
+                        <li class="page-item" th:classappend="${i == currentPage} ? 'active'">
+                            <a class="page-link" th:href="@{/rankings/club(page=${i}, province=${selectedProvince})}" 
+                               th:text="${i}">1</a>
+                        </li>
+                    </th:block>
+                    <li class="page-item" th:classappend="${currentPage == totalPages} ? 'disabled'">
+                        <a class="page-link" th:href="@{/rankings/club(page=${currentPage + 1}, province=${selectedProvince})}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </section>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script src="/js/rankings/rankings.js"></script>
+</th:block>
+</body>
+</html>

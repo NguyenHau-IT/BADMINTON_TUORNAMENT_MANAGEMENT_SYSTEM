@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="vi" 
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title th:text="${pageTitle}">Feature Detail</title>
+    <meta name="description" th:content="${pageDescription}">
+    
+    <th:block layout:fragment="css">
+        <link rel="stylesheet" th:href="@{/css/pages/app-hub.css}">
+        <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    </th:block>
+</head>
+<body>
+    <div layout:fragment="content">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="bg-light py-3">
+            <div class="container">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a th:href="@{/app}">App Hub</a></li>
+                    <li class="breadcrumb-item"><a th:href="@{/app/features}">Tính năng</a></li>
+                    <li class="breadcrumb-item active" th:text="${feature.title}">Feature</li>
+                </ol>
+            </div>
+        </nav>
+
+        <!-- Feature Hero -->
+        <section class="feature-detail-hero py-5">
+            <div class="container">
+                <div class="row align-items-center">
+                    <div class="col-lg-8 mx-auto text-center" data-aos="fade-down">
+                        <div class="feature-icon-large mb-4">
+                            <i class="fas fa-5x" th:classappend="${feature.icon} + ' text-primary'"></i>
+                        </div>
+                        <h1 class="display-4 fw-bold mb-3" th:text="${feature.title}">Feature Title</h1>
+                        <p class="lead text-muted" th:text="${feature.description}">Short description</p>
+                        <div class="feature-meta mt-4">
+                            <span class="badge bg-primary me-2">
+                                <i class="fas fa-tag"></i> <span th:text="${feature.category}">Category</span>
+                            </span>
+                            <span class="badge"
+                                  th:classappend="${feature.level == 'beginner' ? 'bg-success' : 
+                                                  (feature.level == 'intermediate' ? 'bg-warning text-dark' : 'bg-danger')}"
+                                  th:text="${feature.level == 'beginner' ? 'Dễ sử dụng' : 
+                                            (feature.level == 'intermediate' ? 'Trung bình' : 'Nâng cao')}">
+                                Level
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Feature Content -->
+        <section class="feature-content py-5">
+            <div class="container">
+                <div class="row">
+                    <div class="col-lg-8 mx-auto">
+                        <!-- Full Description -->
+                        <div class="card border-0 shadow-sm mb-4" data-aos="fade-up">
+                            <div class="card-body p-5">
+                                <h3 class="fw-bold mb-4">Giới thiệu</h3>
+                                <p class="text-muted lead" th:text="${feature.fullDescription}">
+                                    Full description of the feature
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Key Highlights -->
+                        <div class="card border-0 shadow-sm mb-4" data-aos="fade-up" data-aos-delay="100">
+                            <div class="card-body p-5">
+                                <h3 class="fw-bold mb-4">
+                                    <i class="fas fa-star text-warning me-2"></i>
+                                    Điểm nổi bật
+                                </h3>
+                                <ul class="highlights-list">
+                                    <li th:each="highlight : ${feature.highlights}" class="mb-3">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        <span th:text="${highlight}">Highlight point</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Related Features -->
+        <section class="related-features py-5 bg-light" th:if="${!relatedFeatures.isEmpty()}">
+            <div class="container">
+                <div class="text-center mb-5">
+                    <h2 class="fw-bold">Tính năng Liên quan</h2>
+                </div>
+                <div class="row g-4">
+                    <div class="col-md-4" th:each="related : ${relatedFeatures}" data-aos="fade-up">
+                        <div class="card h-100 border-0 shadow-sm hover-lift">
+                            <div class="card-body p-4 text-center">
+                                <i class="fas fa-3x mb-3 text-primary" th:classappend="${related.icon}"></i>
+                                <h5 class="fw-bold mb-2" th:text="${related.title}">Related Feature</h5>
+                                <p class="text-muted small" th:text="${related.description}">Description</p>
+                                <a th:href="@{/app/features/{slug}(slug=${related.slug})}" class="btn btn-sm btn-outline-primary">
+                                    Xem chi tiết
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA -->
+        <section class="py-5">
+            <div class="container text-center">
+                <h3 class="fw-bold mb-4">Trải nghiệm ngay hôm nay!</h3>
+                <a th:href="@{/app/download}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-download"></i> Tải xuống BTMS
+                </a>
+            </div>
+        </section>
+    </div>
+    
+    <th:block layout:fragment="scripts">
+        <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+        <script>AOS.init({duration: 600, once: true});</script>
+    </th:block>
+</body>
+</html>

@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="vi" 
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title th:text="${pageTitle}">BTMS Desktop App</title>
+    <meta name="description" th:content="${pageDescription}">
+    <meta name="keywords" th:content="${pageKeywords}">
+    
+    <!-- Page-specific CSS -->
+    <th:block layout:fragment="css">
+        <link rel="stylesheet" th:href="@{/css/pages/app-hub.css}">
+        <!-- Animation library -->
+        <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    </th:block>
+</head>
+<body>
+    <div layout:fragment="content">
+        <!-- Hero Section -->
+        <section class="app-hero bg-gradient-primary text-white py-5">
+            <div class="container">
+                <div class="row align-items-center">
+                    <div class="col-lg-6" data-aos="fade-right">
+                        <div class="app-logo mb-4">
+                            <i class="fas fa-shuttle-van fa-4x mb-3"></i>
+                            <h1 class="display-4 fw-bold">BTMS Desktop App</h1>
+                        </div>
+                        <p class="lead mb-4">
+                            Hệ thống quản lý giải đấu cầu lông chuyên nghiệp với giao diện desktop mạnh mẽ, 
+                            điều khiển từ xa qua web, và real-time scoring.
+                        </p>
+                        <div class="app-meta mb-4">
+                            <span class="badge bg-success me-2">
+                                <i class="fas fa-check-circle"></i> Phiên bản <span th:text="${appVersion}">1.0.0</span>
+                            </span>
+                            <span class="badge bg-info me-2">
+                                <i class="fas fa-calendar"></i> Cập nhật: <span th:text="${lastUpdate}">25/11/2025</span>
+                            </span>
+                            <span class="badge bg-warning">
+                                <i class="fas fa-star"></i> <span th:text="${averageRating}">4.7</span>/5.0
+                            </span>
+                        </div>
+                        <div class="cta-buttons">
+                            <a th:href="@{/app/download}" class="btn btn-light btn-lg me-3 shadow-sm">
+                                <i class="fas fa-download"></i> Tải xuống Miễn phí
+                            </a>
+                            <a th:href="@{/app/learn-more}" class="btn btn-outline-light btn-lg">
+                                <i class="fas fa-book-open"></i> Tìm hiểu thêm
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-lg-6" data-aos="fade-left" data-aos-delay="200">
+                        <div class="app-screenshot-wrapper">
+                            <!-- Placeholder for app screenshot -->
+                            <img src="/images/app/btms-screenshot-main.png" 
+                                 alt="BTMS Desktop Screenshot" 
+                                 class="img-fluid rounded shadow-lg"
+                                 loading="lazy"
+                                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22800%22 height=%22600%22%3E%3Crect fill=%22%23f8f9fa%22 width=%22800%22 height=%22600%22/%3E%3Ctext fill=%22%236c757d%22 font-family=%22Arial%22 font-size=%2224%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22%3EBTMS Desktop Screenshot%3C/text%3E%3C/svg%3E'">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats Section -->
+        <section class="app-stats py-4 bg-light">
+            <div class="container">
+                <div class="row text-center">
+                    <div class="col-md-3 col-6 mb-3 mb-md-0" data-aos="fade-up">
+                        <div class="stat-item">
+                            <h3 class="stat-number text-primary fw-bold" th:text="${#numbers.formatInteger(downloadCount, 0, 'COMMA')}">5,247</h3>
+                            <p class="stat-label text-muted mb-0">Lượt tải xuống</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3 mb-md-0" data-aos="fade-up" data-aos-delay="100">
+                        <div class="stat-item">
+                            <h3 class="stat-number text-success fw-bold" th:text="${#numbers.formatInteger(activeUsers, 0, 'COMMA')}">1,823</h3>
+                            <p class="stat-label text-muted mb-0">Người dùng Hoạt động</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6" data-aos="fade-up" data-aos-delay="200">
+                        <div class="stat-item">
+                            <h3 class="stat-number text-info fw-bold" th:text="${#numbers.formatInteger(tournamentsManaged, 0, 'COMMA')}">342</h3>
+                            <p class="stat-label text-muted mb-0">Giải đấu Quản lý</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6" data-aos="fade-up" data-aos-delay="300">
+                        <div class="stat-item">
+                            <h3 class="stat-number text-warning fw-bold">
+                                <span th:text="${averageRating}">4.7</span>/5.0
+                            </h3>
+                            <p class="stat-label text-muted mb-0">Đánh giá Trung bình</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Key Features Section -->
+        <section class="key-features py-5">
+            <div class="container">
+                <div class="text-center mb-5" data-aos="fade-up">
+                    <h2 class="section-title fw-bold">Tính năng Nổi bật</h2>
+                    <p class="text-muted">Khám phá các tính năng mạnh mẽ của BTMS Desktop Application</p>
+                </div>
+                <div class="row g-4">
+                    <div class="col-lg-4 col-md-6" 
+                         th:each="feature, iterStat : ${keyFeatures}"
+                         data-aos="fade-up" 
+                         th:attr="data-aos-delay=${iterStat.index * 100}">
+                        <div class="feature-card card h-100 border-0 shadow-sm hover-lift">
+                            <div class="card-body text-center p-4">
+                                <div class="feature-icon mb-3">
+                                    <i class="fas" th:classappend="${feature.icon} + ' fa-3x text-primary'"></i>
+                                </div>
+                                <h5 class="card-title fw-bold" th:text="${feature.title}">Feature Title</h5>
+                                <p class="card-text text-muted" th:text="${feature.description}">Feature description</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center mt-5" data-aos="fade-up">
+                    <a th:href="@{/app/features}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-list"></i> Xem tất cả Tính năng
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- System Requirements Section -->
+        <section class="system-requirements py-5 bg-light">
+            <div class="container">
+                <div class="row align-items-center">
+                    <div class="col-lg-6 mb-4 mb-lg-0" data-aos="fade-right">
+                        <h2 class="section-title fw-bold mb-4">Yêu cầu Hệ thống</h2>
+                        <p class="text-muted mb-4">
+                            BTMS được tối ưu để chạy mượt mà trên các máy tính phổ thông. 
+                            Kiểm tra yêu cầu hệ thống dưới đây trước khi tải xuống.
+                        </p>
+                        <div class="requirements-list">
+                            <div class="requirement-item d-flex align-items-start mb-3">
+                                <i class="fas fa-desktop fa-2x text-primary me-3 mt-1"></i>
+                                <div>
+                                    <h6 class="fw-bold mb-1">Hệ điều hành</h6>
+                                    <p class="text-muted mb-0" th:text="${systemRequirements.os}">Windows 10/11 (64-bit)</p>
+                                </div>
+                            </div>
+                            <div class="requirement-item d-flex align-items-start mb-3">
+                                <i class="fas fa-microchip fa-2x text-primary me-3 mt-1"></i>
+                                <div>
+                                    <h6 class="fw-bold mb-1">Bộ xử lý</h6>
+                                    <p class="text-muted mb-0" th:text="${systemRequirements.processor}">Intel Core i3 hoặc tương đương</p>
+                                </div>
+                            </div>
+                            <div class="requirement-item d-flex align-items-start mb-3">
+                                <i class="fas fa-memory fa-2x text-primary me-3 mt-1"></i>
+                                <div>
+                                    <h6 class="fw-bold mb-1">RAM</h6>
+                                    <p class="text-muted mb-0" th:text="${systemRequirements.ram}">4 GB (khuyến nghị 8 GB)</p>
+                                </div>
+                            </div>
+                            <div class="requirement-item d-flex align-items-start mb-3">
+                                <i class="fas fa-hdd fa-2x text-primary me-3 mt-1"></i>
+                                <div>
+                                    <h6 class="fw-bold mb-1">Dung lượng</h6>
+                                    <p class="text-muted mb-0" th:text="${systemRequirements.storage}">500 MB</p>
+                                </div>
+                            </div>
+                            <div class="requirement-item d-flex align-items-start">
+                                <i class="fas fa-tv fa-2x text-primary me-3 mt-1"></i>
+                                <div>
+                                    <h6 class="fw-bold mb-1">Màn hình</h6>
+                                    <p class="text-muted mb-0" th:text="${systemRequirements.screen}">1280x720 trở lên</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6" data-aos="fade-left" data-aos-delay="200">
+                        <div class="card border-0 shadow-lg">
+                            <div class="card-body p-4">
+                                <h5 class="card-title fw-bold mb-3">
+                                    <i class="fas fa-info-circle text-info"></i> Lưu ý quan trọng
+                                </h5>
+                                <ul class="list-unstyled mb-0">
+                                    <li class="mb-3">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        Java Runtime tự động cài đặt cùng ứng dụng
+                                    </li>
+                                    <li class="mb-3">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        Không cần cài đặt SQL Server riêng (embedded H2)
+                                    </li>
+                                    <li class="mb-3">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        Tương thích với Windows Defender
+                                    </li>
+                                    <li class="mb-3">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        Hỗ trợ nhiều màn hình (multi-monitor)
+                                    </li>
+                                    <li class="mb-0">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        Offline mode - không cần internet để chạy
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Release Highlights Section -->
+        <section class="release-highlights py-5">
+            <div class="container">
+                <div class="text-center mb-5" data-aos="fade-up">
+                    <h2 class="section-title fw-bold">Phiên bản <span th:text="${appVersion}">1.0.0</span></h2>
+                    <p class="text-muted">Phát hành <span th:text="${releaseDate}">Tháng 11, 2025</span></p>
+                </div>
+                <div class="row justify-content-center">
+                    <div class="col-lg-8">
+                        <div class="card border-0 shadow" data-aos="zoom-in">
+                            <div class="card-body p-5">
+                                <h5 class="card-title fw-bold mb-4">
+                                    <i class="fas fa-rocket text-primary"></i> Điểm mới trong phiên bản này
+                                </h5>
+                                <ul class="release-list list-unstyled">
+                                    <li class="mb-3" th:each="highlight : ${releaseHighlights}">
+                                        <i class="fas fa-star text-warning me-2"></i>
+                                        <span th:text="${highlight}">Release highlight</span>
+                                    </li>
+                                </ul>
+                                <hr class="my-4">
+                                <div class="text-center">
+                                    <a th:href="@{/app/download}" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-download"></i> Tải xuống Ngay
+                                    </a>
+                                    <a href="#" class="btn btn-outline-secondary btn-lg ms-3">
+                                        <i class="fas fa-clipboard-list"></i> Xem Release Notes Đầy đủ
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screenshots Gallery Section -->
+        <section class="screenshots-gallery py-5 bg-light">
+            <div class="container">
+                <div class="text-center mb-5" data-aos="fade-up">
+                    <h2 class="section-title fw-bold">Giao diện Ứng dụng</h2>
+                    <p class="text-muted">Một số hình ảnh về giao diện BTMS Desktop</p>
+                </div>
+                <div class="row g-4">
+                    <div class="col-lg-4 col-md-6" data-aos="fade-up">
+                        <div class="screenshot-item">
+                            <img src="/images/app/screenshot-1.png" 
+                                 alt="Tournament Management" 
+                                 class="img-fluid rounded shadow"
+                                 loading="lazy"
+                                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22600%22 height=%22400%22%3E%3Crect fill=%22%23e9ecef%22 width=%22600%22 height=%22400%22/%3E%3Ctext fill=%22%236c757d%22 font-family=%22Arial%22 font-size=%2218%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22%3ETournament Management%3C/text%3E%3C/svg%3E'">
+                            <p class="text-center mt-2 text-muted">Quản lý Giải đấu</p>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="100">
+                        <div class="screenshot-item">
+                            <img src="/images/app/screenshot-2.png" 
+                                 alt="Scoreboard Interface" 
+                                 class="img-fluid rounded shadow"
+                                 loading="lazy"
+                                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22600%22 height=%22400%22%3E%3Crect fill=%22%23e9ecef%22 width=%22600%22 height=%22400%22/%3E%3Ctext fill=%22%236c757d%22 font-family=%22Arial%22 font-size=%2218%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22%3EScoreboard Interface%3C/text%3E%3C/svg%3E'">
+                            <p class="text-center mt-2 text-muted">Giao diện Scoreboard</p>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="200">
+                        <div class="screenshot-item">
+                            <img src="/images/app/screenshot-3.png" 
+                                 alt="Remote Control" 
+                                 class="img-fluid rounded shadow"
+                                 loading="lazy"
+                                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22600%22 height=%22400%22%3E%3Crect fill=%22%23e9ecef%22 width=%22600%22 height=%22400%22/%3E%3Ctext fill=%22%236c757d%22 font-family=%22Arial%22 font-size=%2218%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22%3ERemote Control%3C/text%3E%3C/svg%3E'">
+                            <p class="text-center mt-2 text-muted">Điều khiển Từ xa</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="cta-section py-5 bg-gradient-primary text-white">
+            <div class="container text-center">
+                <div data-aos="zoom-in">
+                    <h2 class="display-5 fw-bold mb-4">Sẵn sàng Bắt đầu?</h2>
+                    <p class="lead mb-4">
+                        Tải xuống BTMS Desktop Application miễn phí và trải nghiệm quản lý giải đấu chuyên nghiệp
+                    </p>
+                    <div class="cta-buttons">
+                        <a th:href="@{/app/download}" class="btn btn-light btn-lg me-3 shadow">
+                            <i class="fas fa-download"></i> Tải xuống Miễn phí
+                        </a>
+                        <a th:href="@{/app/features}" class="btn btn-outline-light btn-lg">
+                            <i class="fas fa-info-circle"></i> Khám phá Tính năng
+                        </a>
+                    </div>
+                    <p class="mt-4 mb-0 text-white-50">
+                        <i class="fas fa-shield-alt me-2"></i>
+                        100% miễn phí · Không quảng cáo · Không yêu cầu đăng ký
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Support Section -->
+        <section class="support-section py-5">
+            <div class="container">
+                <div class="row text-center">
+                    <div class="col-md-4 mb-4 mb-md-0" data-aos="fade-up">
+                        <div class="support-item">
+                            <i class="fas fa-book fa-3x text-primary mb-3"></i>
+                            <h5 class="fw-bold">Documentation</h5>
+                            <p class="text-muted">Hướng dẫn sử dụng chi tiết và API docs</p>
+                            <a th:href="@{/app/learn-more/manual}" class="btn btn-sm btn-outline-primary">
+                                Xem Hướng dẫn
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-4 mb-md-0" data-aos="fade-up" data-aos-delay="100">
+                        <div class="support-item">
+                            <i class="fas fa-comments fa-3x text-success mb-3"></i>
+                            <h5 class="fw-bold">Community</h5>
+                            <p class="text-muted">Tham gia cộng đồng người dùng BTMS</p>
+                            <a href="#" class="btn btn-sm btn-outline-success">
+                                Join Discord
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                        <div class="support-item">
+                            <i class="fas fa-life-ring fa-3x text-danger mb-3"></i>
+                            <h5 class="fw-bold">Support</h5>
+                            <p class="text-muted">Cần giúp đỡ? Liên hệ team hỗ trợ</p>
+                            <a href="mailto:support@btms.com" class="btn btn-sm btn-outline-danger">
+                                Contact Us
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+    
+    <!-- Page-specific JS -->
+    <th:block layout:fragment="scripts">
+        <!-- AOS Animation -->
+        <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+        <script>
+            // Initialize AOS
+            AOS.init({
+                duration: 800,
+                easing: 'ease-in-out',
+                once: true,
+                offset: 100
+            });
+            
+            // Hover lift effect for feature cards
+            document.querySelectorAll('.hover-lift').forEach(card => {
+                card.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-10px)';
+                    this.style.transition = 'transform 0.3s ease';
+                });
+                card.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                });
+            });
+        </script>
+    </th:block>
+</body>
+</html>

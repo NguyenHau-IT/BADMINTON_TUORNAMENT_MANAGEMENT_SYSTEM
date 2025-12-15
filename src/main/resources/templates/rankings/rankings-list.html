@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title th:text="${pageTitle}">Bảng xếp hạng - BTMS</title>
+    <link rel="stylesheet" th:href="@{/css/rankings/rankings.css}">
+</head>
+<body>
+<div layout:fragment="content">
+    <!-- Page Header -->
+    <section class="page-header">
+        <div class="container">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/">Trang chủ</a></li>
+                    <li class="breadcrumb-item"><a href="/rankings">Xếp hạng</a></li>
+                    <li class="breadcrumb-item active" th:text="${scope == 'world'} ? 'Thế giới' : 'Quốc gia'">Quốc gia</li>
+                </ol>
+            </nav>
+            <h1 class="page-title">
+                Xếp hạng <span th:text="${scope == 'world'} ? 'Thế giới' : 'Quốc gia'">Quốc gia</span>
+            </h1>
+        </div>
+    </section>
+
+    <!-- Rankings Content -->
+    <section class="rankings-list-section section-padding">
+        <div class="container">
+            <!-- Category Filter -->
+            <div class="filter-bar" data-aos="fade-up">
+                <div class="category-tabs">
+                    <a th:href="@{/rankings/{scope}(scope=${scope}, category='men-singles')}" 
+                       class="tab-btn" th:classappend="${category == 'men-singles'} ? 'active'">
+                        Đơn Nam
+                    </a>
+                    <a th:href="@{/rankings/{scope}(scope=${scope}, category='women-singles')}" 
+                       class="tab-btn" th:classappend="${category == 'women-singles'} ? 'active'">
+                        Đơn Nữ
+                    </a>
+                    <a th:href="@{/rankings/{scope}(scope=${scope}, category='men-doubles')}" 
+                       class="tab-btn" th:classappend="${category == 'men-doubles'} ? 'active'">
+                        Đôi Nam
+                    </a>
+                    <a th:href="@{/rankings/{scope}(scope=${scope}, category='women-doubles')}" 
+                       class="tab-btn" th:classappend="${category == 'women-doubles'} ? 'active'">
+                        Đôi Nữ
+                    </a>
+                    <a th:href="@{/rankings/{scope}(scope=${scope}, category='mixed-doubles')}" 
+                       class="tab-btn" th:classappend="${category == 'mixed-doubles'} ? 'active'">
+                        Đôi Nam Nữ
+                    </a>
+                </div>
+            </div>
+
+            <!-- Rankings Table -->
+            <div class="rankings-table-wrapper" data-aos="fade-up">
+                <table class="rankings-table full-table">
+                    <thead>
+                        <tr>
+                            <th width="80">Hạng</th>
+                            <th>VĐV</th>
+                            <th th:if="${scope == 'world'}" width="150">Quốc gia</th>
+                            <th th:if="${scope == 'national'}" width="150">CLB</th>
+                            <th width="120">Điểm</th>
+                            <th width="100">Xu hướng</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="player : ${rankings}">
+                            <td class="rank-cell">
+                                <span class="rank-badge" th:classappend="${player.rank <= 3} ? 'top-' + ${player.rank}"
+                                      th:text="${player.rank}">1</span>
+                            </td>
+                            <td class="player-cell">
+                                <img th:src="${player.avatar}" alt="Avatar" class="player-avatar"
+                                     onerror="this.src='/images/players/default-avatar.png'">
+                                <a th:href="@{/rankings/player/{id}(id=${player.rank})}" th:text="${player.name}">
+                                    Tên VĐV
+                                </a>
+                            </td>
+                            <td th:if="${scope == 'world'}" class="country-cell" th:text="${player.country}">Việt Nam</td>
+                            <td th:if="${scope == 'national'}" class="club-cell" th:text="${player.club}">CLB Hà Nội</td>
+                            <td class="points-cell" th:text="${#numbers.formatInteger(player.points, 0, 'COMMA')}">10,000</td>
+                            <td class="trend-cell">
+                                <span th:if="${player.trend == 'up'}" class="trend up">
+                                    <i class="bi bi-arrow-up"></i> +2
+                                </span>
+                                <span th:if="${player.trend == 'down'}" class="trend down">
+                                    <i class="bi bi-arrow-down"></i> -1
+                                </span>
+                                <span th:if="${player.trend == 'same'}" class="trend same">
+                                    <i class="bi bi-dash"></i>
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <nav class="pagination-wrapper" th:if="${totalPages > 1}">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item" th:classappend="${currentPage == 1} ? 'disabled'">
+                        <a class="page-link" th:href="@{/rankings/{scope}(scope=${scope}, category=${category}, page=${currentPage - 1})}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    <th:block th:each="i : ${#numbers.sequence(1, totalPages > 5 ? 5 : totalPages)}">
+                        <li class="page-item" th:classappend="${i == currentPage} ? 'active'">
+                            <a class="page-link" th:href="@{/rankings/{scope}(scope=${scope}, category=${category}, page=${i})}" 
+                               th:text="${i}">1</a>
+                        </li>
+                    </th:block>
+                    <li class="page-item" th:if="${totalPages > 5}">
+                        <span class="page-link">...</span>
+                    </li>
+                    <li class="page-item" th:classappend="${currentPage == totalPages} ? 'disabled'">
+                        <a class="page-link" th:href="@{/rankings/{scope}(scope=${scope}, category=${category}, page=${currentPage + 1})}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </section>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script src="/js/rankings/rankings.js"></script>
+</th:block>
+</body>
+</html>

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title th:text="${pageTitle}">Tin tức Cầu lông - BTMS</title>
+    <meta name="description" th:content="${pageDescription}">
+    <link rel="stylesheet" th:href="@{/css/news/news.css}">
+</head>
+<body>
+<div layout:fragment="content">
+    <!-- Hero Section -->
+    <section class="news-hero">
+        <div class="container">
+            <div class="hero-content text-center">
+                <h1 class="hero-title" data-aos="fade-up">
+                    <i class="bi bi-newspaper"></i> Tin tức Cầu lông
+                </h1>
+                <p class="hero-subtitle" data-aos="fade-up" data-aos-delay="100">
+                    Cập nhật tin tức, sự kiện và kết quả giải đấu mới nhất
+                </p>
+                <div class="hero-stats" data-aos="fade-up" data-aos-delay="200">
+                    <div class="stat-item">
+                        <span class="stat-number" th:text="${totalNews}">156</span>
+                        <span class="stat-label">Bài viết</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" th:text="${thisWeek}">12</span>
+                        <span class="stat-label">Tuần này</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Featured News -->
+    <section class="featured-news section-padding">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="bi bi-star-fill"></i> Tin nổi bật
+                </h2>
+            </div>
+            
+            <div class="featured-grid">
+                <th:block th:each="news, stat : ${featuredNews}">
+                    <article class="featured-card" th:classappend="${stat.first} ? 'featured-main'" 
+                             data-aos="fade-up" th:data-aos-delay="${stat.index * 100}">
+                        <div class="card-image">
+                            <img th:src="${news.image}" th:alt="${news.title}" 
+                                 onerror="this.src='/images/news/default-news.jpg'">
+                            <span class="card-category" th:text="${news.categoryName}">Sự kiện</span>
+                        </div>
+                        <div class="card-content">
+                            <h3 class="card-title">
+                                <a th:href="@{/news/{id}(id=${news.id})}" th:text="${news.title}">
+                                    Tiêu đề bài viết
+                                </a>
+                            </h3>
+                            <p class="card-excerpt" th:text="${news.excerpt}">Tóm tắt nội dung...</p>
+                            <div class="card-meta">
+                                <span class="meta-date">
+                                    <i class="bi bi-calendar3"></i>
+                                    <span th:text="${news.publishDate}">01/12/2025</span>
+                                </span>
+                                <span class="meta-views">
+                                    <i class="bi bi-eye"></i>
+                                    <span th:text="${news.views}">1250</span>
+                                </span>
+                            </div>
+                        </div>
+                    </article>
+                </th:block>
+            </div>
+        </div>
+    </section>
+
+    <!-- Categories -->
+    <section class="news-categories section-padding bg-light">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="bi bi-grid"></i> Danh mục
+                </h2>
+            </div>
+            
+            <div class="categories-grid">
+                <th:block th:each="cat, stat : ${categories}">
+                    <a th:href="@{/news/category/{slug}(slug=${cat.slug})}" 
+                       class="category-card" data-aos="zoom-in" th:data-aos-delay="${stat.index * 50}">
+                        <div class="category-icon">
+                            <i th:class="'bi ' + ${cat.icon}"></i>
+                        </div>
+                        <h3 class="category-name" th:text="${cat.name}">Sự kiện</h3>
+                        <span class="category-count">
+                            <span th:text="${cat.count}">45</span> bài viết
+                        </span>
+                    </a>
+                </th:block>
+            </div>
+        </div>
+    </section>
+
+    <!-- Latest News -->
+    <section class="latest-news section-padding">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="bi bi-clock-history"></i> Tin mới nhất
+                </h2>
+                <a href="/news/category/all" class="view-all-btn">
+                    Xem tất cả <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+            
+            <div class="news-grid">
+                <th:block th:each="news, stat : ${latestNews}">
+                    <article class="news-card" data-aos="fade-up" th:data-aos-delay="${(stat.index % 4) * 100}">
+                        <div class="card-image">
+                            <img th:src="${news.image}" th:alt="${news.title}"
+                                 onerror="this.src='/images/news/default-news.jpg'">
+                            <span class="card-category" th:text="${news.categoryName}">Tin tức</span>
+                        </div>
+                        <div class="card-content">
+                            <h3 class="card-title">
+                                <a th:href="@{/news/{id}(id=${news.id})}" th:text="${news.title}">
+                                    Tiêu đề bài viết
+                                </a>
+                            </h3>
+                            <p class="card-excerpt" th:text="${news.excerpt}">Tóm tắt...</p>
+                            <div class="card-meta">
+                                <span class="meta-date">
+                                    <i class="bi bi-calendar3"></i>
+                                    <span th:text="${news.publishDate}">01/12/2025</span>
+                                </span>
+                                <span class="meta-views">
+                                    <i class="bi bi-eye"></i>
+                                    <span th:text="${news.views}">500</span>
+                                </span>
+                            </div>
+                        </div>
+                    </article>
+                </th:block>
+            </div>
+        </div>
+    </section>
+
+    <!-- Newsletter -->
+    <section class="newsletter-section section-padding bg-gradient">
+        <div class="container">
+            <div class="newsletter-content text-center" data-aos="fade-up">
+                <h2 class="newsletter-title">Đăng ký nhận tin</h2>
+                <p class="newsletter-text">Nhận thông báo về tin tức và sự kiện mới nhất</p>
+                <form class="newsletter-form">
+                    <div class="form-group">
+                        <input type="email" placeholder="Nhập email của bạn" required>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send"></i> Đăng ký
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script src="/js/news/news.js"></script>
+</th:block>
+</body>
+</html>

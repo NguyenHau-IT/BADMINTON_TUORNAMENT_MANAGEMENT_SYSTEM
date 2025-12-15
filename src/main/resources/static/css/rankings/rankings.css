@@ -1,0 +1,823 @@
+/* ============================================
+   Rankings Module CSS
+   BTMS - Badminton Tournament Management System
+   ============================================ */
+
+/* ====================================
+   CSS Variables - BTMS Design System
+   Monochrome Black + Orange Accent
+   ==================================== */
+:root {
+    /* Primary - Monochrome Black */
+    --rankings-primary: #0A0A0A;
+    --rankings-secondary: #1A1A1A;
+    --rankings-primary-light: #2D3748;
+    
+    /* Accent - Orange */
+    --rankings-accent: #FF6B35;
+    --rankings-accent-dark: #E85A28;
+    --rankings-accent-light: #FF8C61;
+    
+    /* Medal Colors */
+    --rankings-gold: #FFD700;
+    --rankings-silver: #C0C0C0;
+    --rankings-bronze: #CD7F32;
+    
+    /* Text Colors */
+    --rankings-text-dark: #0A0A0A;
+    --rankings-text-medium: #4a5568;
+    --rankings-text-light: #718096;
+    
+    /* Background */
+    --rankings-bg-light: #f8f9fa;
+    --rankings-bg-gradient: linear-gradient(135deg, #0A0A0A 0%, #2D3748 100%);
+    --rankings-accent-gradient: linear-gradient(135deg, #FF6B35 0%, #E85A28 100%);
+    
+    /* Border & Shadows */
+    --rankings-border: #e2e8f0;
+    --rankings-shadow-sm: 0 2px 8px rgba(0,0,0,0.08);
+    --rankings-shadow-md: 0 4px 16px rgba(0,0,0,0.12);
+    --rankings-shadow-lg: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+/* ====================================
+   COMMON STYLES
+   ==================================== */
+.section-padding {
+    padding: 60px 0;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.section-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--rankings-text-dark);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+}
+
+.section-title i {
+    color: var(--rankings-accent);
+    font-size: 1.5rem;
+}
+
+.view-all-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--rankings-accent);
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.view-all-btn:hover {
+    color: var(--rankings-accent-dark);
+    gap: 12px;
+}
+
+/* ====================================
+   HERO SECTION
+   ==================================== */
+.rankings-hero {
+    background: var(--rankings-bg-gradient);
+    padding: 120px 0 80px;
+    position: relative;
+    overflow: hidden;
+}
+
+.rankings-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" stroke="rgba(255,107,53,0.15)" fill="none" stroke-width="2"/></svg>') repeat;
+    background-size: 100px;
+    opacity: 0.3;
+}
+
+.rankings-hero::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--rankings-accent-gradient);
+}
+
+.rankings-hero .hero-content {
+    position: relative;
+    z-index: 1;
+}
+
+.rankings-hero .hero-title {
+    font-size: 3rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.rankings-hero .hero-title i {
+    font-size: 2.5rem;
+    color: var(--rankings-accent);
+    animation: floatIcon 3s ease-in-out infinite;
+}
+
+@keyframes floatIcon {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.rankings-hero .hero-subtitle {
+    font-size: 1.2rem;
+    color: rgba(255,255,255,0.9);
+    margin-bottom: 30px;
+}
+
+.rankings-hero .hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    flex-wrap: wrap;
+}
+
+.rankings-hero .stat-item {
+    text-align: center;
+    padding: 15px 25px;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.rankings-hero .stat-number {
+    display: block;
+    font-size: 2rem;
+    font-weight: 700;
+    color: white;
+}
+
+.rankings-hero .stat-label {
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.85);
+    margin-top: 5px;
+}
+
+/* ====================================
+   QUICK LINKS
+   ==================================== */
+.quick-links .links-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.link-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 30px 20px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: var(--rankings-shadow-sm);
+    text-decoration: none;
+    color: var(--rankings-text-dark);
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.link-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--rankings-shadow-md);
+    border-color: var(--rankings-accent);
+    color: var(--rankings-primary);
+}
+
+.link-card i {
+    font-size: 2.5rem;
+    color: var(--rankings-accent);
+}
+
+.link-card span {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+/* ====================================
+   RANKINGS TABLE
+   ==================================== */
+.rankings-table-wrapper {
+    background: white;
+    border-radius: 16px;
+    box-shadow: var(--rankings-shadow-sm);
+    overflow: hidden;
+}
+
+.rankings-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.rankings-table thead {
+    background: var(--rankings-bg-gradient);
+}
+
+.rankings-table th {
+    padding: 16px 20px;
+    text-align: left;
+    color: white;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.rankings-table tbody tr {
+    border-bottom: 1px solid var(--rankings-border);
+    transition: all 0.3s ease;
+}
+
+.rankings-table tbody tr:hover {
+    background-color: rgba(255, 107, 53, 0.05);
+}
+
+.rankings-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.rankings-table td {
+    padding: 16px 20px;
+    color: var(--rankings-text-medium);
+}
+
+/* Rank Cell */
+.rank-cell {
+    text-align: center;
+}
+
+.rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 1rem;
+    background: var(--rankings-bg-light);
+    color: var(--rankings-text-dark);
+}
+
+.rank-badge.top-1 {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    color: white;
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+}
+
+.rank-badge.top-2 {
+    background: linear-gradient(135deg, #E8E8E8, #C0C0C0);
+    color: #333;
+    box-shadow: 0 4px 15px rgba(192, 192, 192, 0.4);
+}
+
+.rank-badge.top-3 {
+    background: linear-gradient(135deg, #CD7F32, #A0522D);
+    color: white;
+    box-shadow: 0 4px 15px rgba(205, 127, 50, 0.4);
+}
+
+/* Player Cell */
+.player-cell {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.player-avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--rankings-border);
+}
+
+.player-cell a {
+    color: var(--rankings-text-dark);
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.player-cell a:hover {
+    color: var(--rankings-accent);
+}
+
+/* Points Cell */
+.points-cell {
+    font-weight: 700;
+    color: var(--rankings-accent);
+    font-size: 1.1rem;
+}
+
+/* Trend Cell */
+.trend-cell {
+    text-align: center;
+}
+
+.trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.trend.up {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.trend.down {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.trend.same {
+    background: rgba(107, 114, 128, 0.1);
+    color: #6b7280;
+}
+
+/* Full Table Styles */
+.full-table .country-cell,
+.full-table .club-cell {
+    color: var(--rankings-text-medium);
+}
+
+/* ====================================
+   CLUBS GRID
+   ==================================== */
+.clubs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 25px;
+}
+
+.club-card {
+    background: white;
+    border-radius: 16px;
+    padding: 25px;
+    box-shadow: var(--rankings-shadow-sm);
+    text-align: center;
+    position: relative;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.club-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--rankings-shadow-md);
+    border-color: var(--rankings-accent);
+}
+
+.club-rank {
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+    background: var(--rankings-bg-light);
+    color: var(--rankings-text-dark);
+    box-shadow: var(--rankings-shadow-sm);
+}
+
+.club-rank.top-1 {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    color: white;
+}
+
+.club-rank.top-2 {
+    background: linear-gradient(135deg, #E8E8E8, #C0C0C0);
+    color: #333;
+}
+
+.club-rank.top-3 {
+    background: linear-gradient(135deg, #CD7F32, #A0522D);
+    color: white;
+}
+
+.club-logo {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 15px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--rankings-bg-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.club-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.club-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--rankings-text-dark);
+    margin-bottom: 15px;
+}
+
+.club-stats {
+    display: flex;
+    justify-content: space-around;
+    padding-top: 15px;
+    border-top: 1px solid var(--rankings-border);
+}
+
+.club-stats .stat {
+    text-align: center;
+}
+
+.club-stats .value {
+    display: block;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--rankings-accent);
+}
+
+.club-stats .label {
+    font-size: 0.8rem;
+    color: var(--rankings-text-light);
+}
+
+/* ====================================
+   MINI RANKINGS (Doubles Section)
+   ==================================== */
+.mini-rankings {
+    background: white;
+    border-radius: 12px;
+    box-shadow: var(--rankings-shadow-sm);
+    overflow: hidden;
+}
+
+.mini-rank-item {
+    display: flex;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--rankings-border);
+    transition: background 0.3s ease;
+}
+
+.mini-rank-item:hover {
+    background: rgba(255, 107, 53, 0.05);
+}
+
+.mini-rank-item:last-child {
+    border-bottom: none;
+}
+
+.mini-rank-item .rank {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--rankings-accent);
+    color: white;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-right: 15px;
+}
+
+.mini-rank-item .name {
+    flex: 1;
+    font-weight: 600;
+    color: var(--rankings-text-dark);
+}
+
+.mini-rank-item .points {
+    font-weight: 700;
+    color: var(--rankings-accent);
+}
+
+/* ====================================
+   PAGE HEADER
+   ==================================== */
+.page-header {
+    background: var(--rankings-bg-gradient);
+    padding: 100px 0 40px;
+}
+
+.page-header .breadcrumb {
+    background: transparent;
+    padding: 0;
+    margin-bottom: 15px;
+}
+
+.page-header .breadcrumb-item a {
+    color: rgba(255,255,255,0.8);
+    text-decoration: none;
+}
+
+.page-header .breadcrumb-item a:hover {
+    color: white;
+}
+
+.page-header .breadcrumb-item.active {
+    color: rgba(255,255,255,0.6);
+}
+
+.page-header .breadcrumb-item + .breadcrumb-item::before {
+    color: rgba(255,255,255,0.5);
+}
+
+.page-title {
+    color: white;
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+/* ====================================
+   FILTER BAR (Rankings List)
+   ==================================== */
+.filter-bar {
+    margin-bottom: 30px;
+}
+
+.category-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+
+.tab-btn {
+    padding: 12px 24px;
+    background: white;
+    border: 2px solid var(--rankings-border);
+    border-radius: 30px;
+    color: var(--rankings-text-medium);
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+    border-color: var(--rankings-accent);
+    color: var(--rankings-accent);
+}
+
+.tab-btn.active {
+    background: var(--rankings-accent-gradient);
+    border-color: transparent;
+    color: white;
+}
+
+/* ====================================
+   PAGINATION
+   ==================================== */
+.pagination-wrapper {
+    margin-top: 40px;
+}
+
+.pagination {
+    gap: 8px;
+}
+
+.pagination .page-item .page-link {
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    border: 2px solid var(--rankings-border);
+    color: var(--rankings-text-medium);
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.pagination .page-item .page-link:hover {
+    border-color: var(--rankings-accent);
+    color: var(--rankings-accent);
+    background: rgba(255, 107, 53, 0.08);
+}
+
+.pagination .page-item.active .page-link {
+    background: var(--rankings-accent-gradient);
+    border-color: transparent;
+    color: white;
+}
+
+.pagination .page-item.disabled .page-link {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* ====================================
+   PLAYER RANKING DETAIL
+   ==================================== */
+.player-ranking-hero {
+    background: var(--rankings-bg-gradient);
+    padding: 120px 0 60px;
+    position: relative;
+}
+
+.player-ranking-card {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 40px;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.player-ranking-avatar {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid white;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.player-ranking-info h1 {
+    color: white;
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.player-ranking-info .club {
+    color: rgba(255,255,255,0.8);
+    font-size: 1.2rem;
+    margin-bottom: 15px;
+}
+
+.ranking-badges {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.ranking-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 25px;
+    color: white;
+    font-weight: 600;
+}
+
+.ranking-badge i {
+    font-size: 1.1rem;
+}
+
+/* ====================================
+   RESPONSIVE
+   ==================================== */
+@media (max-width: 992px) {
+    .rankings-hero .hero-title {
+        font-size: 2.5rem;
+    }
+    
+    .rankings-hero .hero-stats {
+        gap: 20px;
+    }
+    
+    .clubs-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    }
+    
+    .player-ranking-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 25px;
+    }
+}
+
+@media (max-width: 768px) {
+    .rankings-hero {
+        padding: 100px 0 60px;
+    }
+    
+    .rankings-hero .hero-title {
+        font-size: 2rem;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .rankings-hero .hero-stats {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .section-title {
+        font-size: 1.5rem;
+    }
+    
+    .rankings-table th,
+    .rankings-table td {
+        padding: 12px 15px;
+    }
+    
+    .player-cell {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .player-avatar {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .category-tabs {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 10px;
+    }
+    
+    .tab-btn {
+        white-space: nowrap;
+        padding: 10px 18px;
+        font-size: 0.9rem;
+    }
+    
+    .page-title {
+        font-size: 1.8rem;
+    }
+    
+    .clubs-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 576px) {
+    .section-padding {
+        padding: 40px 0;
+    }
+    
+    .rankings-hero .hero-title {
+        font-size: 1.75rem;
+    }
+    
+    .rank-badge {
+        width: 35px;
+        height: 35px;
+        font-size: 0.9rem;
+    }
+    
+    .points-cell {
+        font-size: 1rem;
+    }
+    
+    .link-card {
+        padding: 20px 15px;
+    }
+    
+    .link-card i {
+        font-size: 2rem;
+    }
+}
