@@ -78,7 +78,9 @@ public class BadmintonTournamentManagementSystemApplication {
 			dlg.setVisible(true);
 			NetworkConfig cfg = dlg.getSelected();
 			if (cfg == null) {
-				// Người dùng hủy: không mở UI
+				// Người dùng hủy: thoát ứng dụng
+				log.logTs("🚪 Người dùng hủy chọn network interface - thoát ứng dụng");
+				System.exit(0);
 				return;
 			}
 
