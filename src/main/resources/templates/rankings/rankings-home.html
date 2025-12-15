@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title th:text="${pageTitle}">Bảng xếp hạng - BTMS</title>
+    <meta name="description" th:content="${pageDescription}">
+    <link rel="stylesheet" th:href="@{/css/rankings/rankings.css}">
+</head>
+<body>
+<div layout:fragment="content">
+    <!-- Hero Section -->
+    <section class="rankings-hero">
+        <div class="container">
+            <div class="hero-content text-center">
+                <h1 class="hero-title" data-aos="fade-up">
+                    <i class="bi bi-bar-chart-line"></i> Bảng xếp hạng
+                </h1>
+                <p class="hero-subtitle" data-aos="fade-up" data-aos-delay="100">
+                    Xếp hạng VĐV và CLB cầu lông cập nhật mới nhất
+                </p>
+                <div class="hero-stats" data-aos="fade-up" data-aos-delay="200">
+                    <div class="stat-item">
+                        <span class="stat-number" th:text="${totalPlayers}">2450</span>
+                        <span class="stat-label">Vận động viên</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" th:text="${totalClubs}">156</span>
+                        <span class="stat-label">Câu lạc bộ</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Cập nhật:</span>
+                        <span class="stat-number" th:text="${lastUpdated}">01/12/2025</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Links -->
+    <section class="quick-links section-padding bg-light">
+        <div class="container">
+            <div class="links-grid">
+                <a href="/rankings/world" class="link-card" data-aos="zoom-in">
+                    <i class="bi bi-globe"></i>
+                    <span>Xếp hạng Thế giới</span>
+                </a>
+                <a href="/rankings/national" class="link-card" data-aos="zoom-in" data-aos-delay="100">
+                    <i class="bi bi-flag"></i>
+                    <span>Xếp hạng Quốc gia</span>
+                </a>
+                <a href="/rankings/club" class="link-card" data-aos="zoom-in" data-aos-delay="200">
+                    <i class="bi bi-people"></i>
+                    <span>Xếp hạng CLB</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Top Men Singles -->
+    <section class="rankings-section section-padding">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="bi bi-person"></i> Top Đơn Nam
+                </h2>
+                <a href="/rankings/national?category=men-singles" class="view-all-btn">
+                    Xem tất cả <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+            
+            <div class="rankings-table-wrapper" data-aos="fade-up">
+                <table class="rankings-table">
+                    <thead>
+                        <tr>
+                            <th width="80">Hạng</th>
+                            <th>VĐV</th>
+                            <th width="120">Điểm</th>
+                            <th width="100">Xu hướng</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="player : ${topMenSingles}">
+                            <td class="rank-cell">
+                                <span class="rank-badge" th:classappend="${player.rank <= 3} ? 'top-' + ${player.rank}"
+                                      th:text="${player.rank}">1</span>
+                            </td>
+                            <td class="player-cell">
+                                <img th:src="${player.avatar}" alt="Avatar" class="player-avatar"
+                                     onerror="this.src='/images/players/default-avatar.png'">
+                                <a th:href="@{/rankings/player/{id}(id=${player.rank})}" th:text="${player.name}">
+                                    Nguyễn Tiến Minh
+                                </a>
+                            </td>
+                            <td class="points-cell" th:text="${#numbers.formatInteger(player.points, 0, 'COMMA')}">10,000</td>
+                            <td class="trend-cell">
+                                <span th:if="${player.trend == 'up'}" class="trend up">
+                                    <i class="bi bi-arrow-up"></i>
+                                </span>
+                                <span th:if="${player.trend == 'down'}" class="trend down">
+                                    <i class="bi bi-arrow-down"></i>
+                                </span>
+                                <span th:if="${player.trend == 'same'}" class="trend same">
+                                    <i class="bi bi-dash"></i>
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Top Women Singles -->
+    <section class="rankings-section section-padding bg-light">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="bi bi-person"></i> Top Đơn Nữ
+                </h2>
+                <a href="/rankings/national?category=women-singles" class="view-all-btn">
+                    Xem tất cả <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+            
+            <div class="rankings-table-wrapper" data-aos="fade-up">
+                <table class="rankings-table">
+                    <thead>
+                        <tr>
+                            <th width="80">Hạng</th>
+                            <th>VĐV</th>
+                            <th width="120">Điểm</th>
+                            <th width="100">Xu hướng</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="player : ${topWomenSingles}">
+                            <td class="rank-cell">
+                                <span class="rank-badge" th:classappend="${player.rank <= 3} ? 'top-' + ${player.rank}"
+                                      th:text="${player.rank}">1</span>
+                            </td>
+                            <td class="player-cell">
+                                <img th:src="${player.avatar}" alt="Avatar" class="player-avatar"
+                                     onerror="this.src='/images/players/default-avatar.png'">
+                                <a th:href="@{/rankings/player/{id}(id=${player.rank})}" th:text="${player.name}">
+                                    Nguyễn Thùy Linh
+                                </a>
+                            </td>
+                            <td class="points-cell" th:text="${#numbers.formatInteger(player.points, 0, 'COMMA')}">10,000</td>
+                            <td class="trend-cell">
+                                <span th:if="${player.trend == 'up'}" class="trend up">
+                                    <i class="bi bi-arrow-up"></i>
+                                </span>
+                                <span th:if="${player.trend == 'down'}" class="trend down">
+                                    <i class="bi bi-arrow-down"></i>
+                                </span>
+                                <span th:if="${player.trend == 'same'}" class="trend same">
+                                    <i class="bi bi-dash"></i>
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Top Clubs -->
+    <section class="rankings-section section-padding">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="bi bi-building"></i> Top Câu lạc bộ
+                </h2>
+                <a href="/rankings/club" class="view-all-btn">
+                    Xem tất cả <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+            
+            <div class="clubs-grid">
+                <th:block th:each="club, stat : ${topClubs}">
+                    <div class="club-card" data-aos="fade-up" th:data-aos-delay="${stat.index * 50}">
+                        <div class="club-rank" th:classappend="${club.rank <= 3} ? 'top-' + ${club.rank}">
+                            <span th:text="${club.rank}">1</span>
+                        </div>
+                        <div class="club-logo">
+                            <img th:src="${club.logo}" alt="Logo"
+                                 onerror="this.src='/images/clubs/default-logo.png'">
+                        </div>
+                        <h4 class="club-name" th:text="${club.name}">CLB Cầu lông Hà Nội</h4>
+                        <div class="club-stats">
+                            <div class="stat">
+                                <span class="value" th:text="${club.members}">25</span>
+                                <span class="label">VĐV</span>
+                            </div>
+                            <div class="stat">
+                                <span class="value" th:text="${club.titles}">8</span>
+                                <span class="label">Danh hiệu</span>
+                            </div>
+                            <div class="stat">
+                                <span class="value" th:text="${#numbers.formatInteger(club.points, 0, 'COMMA')}">5,000</span>
+                                <span class="label">Điểm</span>
+                            </div>
+                        </div>
+                    </div>
+                </th:block>
+            </div>
+        </div>
+    </section>
+
+    <!-- Doubles Section -->
+    <section class="rankings-section section-padding bg-light">
+        <div class="container">
+            <div class="row">
+                <!-- Men Doubles -->
+                <div class="col-lg-6">
+                    <div class="section-header">
+                        <h2 class="section-title">
+                            <i class="bi bi-people"></i> Top Đôi Nam
+                        </h2>
+                    </div>
+                    <div class="mini-rankings" data-aos="fade-up">
+                        <th:block th:each="player : ${topMenDoubles}">
+                            <div class="mini-rank-item">
+                                <span class="rank" th:text="${player.rank}">1</span>
+                                <span class="name" th:text="${player.name}">Tên VĐV</span>
+                                <span class="points" th:text="${#numbers.formatInteger(player.points, 0, 'COMMA')}">10,000</span>
+                            </div>
+                        </th:block>
+                    </div>
+                </div>
+                <!-- Women Doubles -->
+                <div class="col-lg-6">
+                    <div class="section-header">
+                        <h2 class="section-title">
+                            <i class="bi bi-people"></i> Top Đôi Nữ
+                        </h2>
+                    </div>
+                    <div class="mini-rankings" data-aos="fade-up" data-aos-delay="100">
+                        <th:block th:each="player : ${topWomenDoubles}">
+                            <div class="mini-rank-item">
+                                <span class="rank" th:text="${player.rank}">1</span>
+                                <span class="name" th:text="${player.name}">Tên VĐV</span>
+                                <span class="points" th:text="${#numbers.formatInteger(player.points, 0, 'COMMA')}">10,000</span>
+                            </div>
+                        </th:block>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script src="/js/rankings/rankings.js"></script>
+</th:block>
+</body>
+</html>

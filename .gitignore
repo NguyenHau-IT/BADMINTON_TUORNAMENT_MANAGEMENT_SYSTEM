@@ -26,3 +26,12 @@ replay_pid*
 src/main/resources/application.properties
 
 target/classes/application.properties
+
+#database
+*.trace.db
+
+#target folder
+target/
+/nbproject/
+
+runtime/

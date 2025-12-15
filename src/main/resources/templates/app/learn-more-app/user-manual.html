@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="vi" 
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title th:text="${pageTitle}">User Manual - BTMS</title>
+    <meta name="description" th:content="${pageDescription}">
+    
+    <th:block layout:fragment="css">
+        <link rel="stylesheet" th:href="@{/css/pages/app-hub.css}">
+        <style>
+            .toc-sidebar {
+                position: sticky;
+                top: 80px;
+                max-height: calc(100vh - 100px);
+                overflow-y: auto;
+            }
+            .toc-sidebar .nav-link {
+                padding: 0.5rem 1rem;
+                color: #6c757d;
+                border-left: 3px solid transparent;
+            }
+            .toc-sidebar .nav-link:hover,
+            .toc-sidebar .nav-link.active {
+                color: #667eea;
+                border-left-color: #667eea;
+                background: #f8f9fa;
+            }
+            .manual-content h2 {
+                margin-top: 3rem;
+                padding-top: 2rem;
+                border-top: 2px solid #e9ecef;
+            }
+            .manual-content h2:first-child {
+                margin-top: 0;
+                border-top: none;
+                padding-top: 0;
+            }
+        </style>
+    </th:block>
+</head>
+<body>
+    <div layout:fragment="content">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="bg-light py-3">
+            <div class="container">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a th:href="@{/app}">App Hub</a></li>
+                    <li class="breadcrumb-item"><a th:href="@{/app/learn-more}">Tìm hiểu thêm</a></li>
+                    <li class="breadcrumb-item active">User Manual</li>
+                </ol>
+            </div>
+        </nav>
+
+        <section class="manual-section py-5">
+            <div class="container">
+                <div class="row">
+                    <!-- Table of Contents Sidebar -->
+                    <div class="col-lg-3">
+                        <div class="toc-sidebar">
+                            <h5 class="fw-bold mb-3">Mục lục</h5>
+                            <nav class="nav flex-column" id="tocNav">
+                                <a class="nav-link" 
+                                   th:each="section : ${tableOfContents}"
+                                   th:href="@{/app/learn-more/manual(section=${section.id})}"
+                                   th:text="${section.title}"
+                                   th:classappend="${currentSection == section.id ? 'active' : ''}">
+                                    Section Title
+                                </a>
+                            </nav>
+                            
+                            <hr class="my-4">
+                            
+                            <div class="d-grid gap-2">
+                                <a href="#" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-file-pdf"></i> Tải PDF
+                                </a>
+                                <a href="#" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-print"></i> In trang này
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Main Content -->
+                    <div class="col-lg-9">
+                        <div class="manual-content">
+                            <!-- Header -->
+                            <div class="mb-5">
+                                <h1 class="display-5 fw-bold mb-3">Hướng dẫn Sử dụng BTMS</h1>
+                                <p class="lead text-muted">
+                                    Tài liệu đầy đủ về cách sử dụng Badminton Tournament Management System
+                                </p>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Lưu ý:</strong> Tài liệu này được cập nhật cho phiên bản BTMS 1.0.0
+                                </div>
+                            </div>
+
+                            <!-- Section 1: Introduction -->
+                            <div id="intro" th:if="${currentSection == 'intro' || currentSection == null}">
+                                <h2><i class="fas fa-book-open text-primary me-2"></i> 1. Giới thiệu</h2>
+                                
+                                <h4 class="mt-4">1.1. Tổng quan</h4>
+                                <p>
+                                    BTMS (Badminton Tournament Management System) là hệ thống quản lý giải đấu cầu lông 
+                                    toàn diện với khả năng điều khiển đa sân và giao diện web real-time.
+                                </p>
+                                
+                                <h4 class="mt-4">1.2. Yêu cầu Hệ thống</h4>
+                                <div class="table-responsive">
+                                    <table class="table table-bordered">
+                                        <tbody>
+                                            <tr>
+                                                <td><strong>Hệ điều hành</strong></td>
+                                                <td>Windows 10/11 (64-bit)</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Bộ xử lý</strong></td>
+                                                <td>Intel Core i3 hoặc tương đương</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>RAM</strong></td>
+                                                <td>4 GB (khuyến nghị 8 GB)</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Dung lượng</strong></td>
+                                                <td>500 MB khả dụng</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Java</strong></td>
+                                                <td>Java 21 Runtime (tự động cài đặt)</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <h4 class="mt-4">1.3. Cài đặt</h4>
+                                <ol>
+                                    <li>Tải file cài đặt từ <a th:href="@{/app/download}">trang download</a></li>
+                                    <li>Chạy file <code>BTMS-Setup-1.0.0-x64.exe</code></li>
+                                    <li>Làm theo hướng dẫn trên màn hình</li>
+                                    <li>Khởi động BTMS từ Start Menu hoặc Desktop shortcut</li>
+                                </ol>
+                            </div>
+
+                            <!-- Section 2: Getting Started -->
+                            <div id="getting-started" th:if="${currentSection == 'getting-started'}">
+                                <h2><i class="fas fa-play-circle text-success me-2"></i> 2. Bắt đầu</h2>
+                                
+                                <h4 class="mt-4">2.1. Giao diện Chính</h4>
+                                <p>
+                                    Khi khởi động BTMS lần đầu, bạn sẽ thấy giao diện chính với các module:
+                                </p>
+                                <ul>
+                                    <li><strong>Quản lý Giải đấu:</strong> Tạo và quản lý các giải đấu</li>
+                                    <li><strong>Vận động viên:</strong> Quản lý thông tin VĐV</li>
+                                    <li><strong>Câu lạc bộ:</strong> Quản lý CLB tham gia</li>
+                                    <li><strong>Scoreboard:</strong> Điều khiển bảng điểm</li>
+                                    <li><strong>Kết quả:</strong> Xem và quản lý kết quả thi đấu</li>
+                                </ul>
+                                
+                                <h4 class="mt-4">2.2. Tạo Giải đấu Mới</h4>
+                                <ol>
+                                    <li>Click vào menu <strong>Giải đấu > Tạo giải mới</strong></li>
+                                    <li>Nhập thông tin cơ bản (tên, ngày, địa điểm)</li>
+                                    <li>Thêm nội dung thi đấu (Nam đơn, Nữ đơn, Đôi nam, v.v...)</li>
+                                    <li>Lưu giải đấu</li>
+                                </ol>
+                                
+                                <h4 class="mt-4">2.3. Cấu hình Ban đầu</h4>
+                                <p>
+                                    Truy cập <strong>Settings</strong> để cấu hình:
+                                </p>
+                                <ul>
+                                    <li>Database connection (SQL Server hoặc H2 embedded)</li>
+                                    <li>Network settings (port, IP address)</li>
+                                    <li>Display settings (theme, font size)</li>
+                                    <li>Backup settings</li>
+                                </ul>
+                            </div>
+
+                            <!-- Section 3: Tournament Management -->
+                            <div id="tournament" th:if="${currentSection == 'tournament'}">
+                                <h2><i class="fas fa-trophy text-warning me-2"></i> 3. Quản lý Giải đấu</h2>
+                                
+                                <p>Module quản lý giải đấu cho phép bạn tổ chức toàn bộ quy trình từ A-Z.</p>
+                                
+                                <h4 class="mt-4">3.1. Tạo Giải đấu</h4>
+                                <p>Tạo giải đấu mới với thông tin đầy đủ...</p>
+                                
+                                <h4 class="mt-4">3.2. Thêm Nội dung Thi đấu</h4>
+                                <p>Mỗi giải đấu có thể có nhiều nội dung (Nam đơn U19, Nữ đôi Open, v.v...)...</p>
+                                
+                                <h4 class="mt-4">3.3. Đăng ký Vận động viên</h4>
+                                <p>Cho phép VĐV đăng ký tham gia các nội dung...</p>
+                                
+                                <h4 class="mt-4">3.4. Bốc thăm</h4>
+                                <p>Hệ thống tự động bốc thăm và tạo sơ đồ thi đấu...</p>
+                            </div>
+
+                            <!-- Section 4: Scoreboard -->
+                            <div id="scoreboard" th:if="${currentSection == 'scoreboard'}">
+                                <h2><i class="fas fa-tv text-info me-2"></i> 4. Scoreboard</h2>
+                                
+                                <h4 class="mt-4">4.1. Thiết lập Sân</h4>
+                                <p>BTMS hỗ trợ quản lý đồng thời 5 sân với mã PIN độc lập...</p>
+                                
+                                <h4 class="mt-4">4.2. Điều khiển từ Desktop</h4>
+                                <p>Ghi điểm trực tiếp từ giao diện desktop...</p>
+                                
+                                <h4 class="mt-4">4.3. Remote Control qua Web</h4>
+                                <p>Truy cập <code>http://localhost:2345/pin</code> để điều khiển từ xa...</p>
+                                
+                                <h4 class="mt-4">4.4. QR Code Access</h4>
+                                <p>Generate QR code để truy cập nhanh trên mobile...</p>
+                            </div>
+
+                            <!-- Section 5: Database -->
+                            <div id="database" th:if="${currentSection == 'database'}">
+                                <h2><i class="fas fa-database text-primary me-2"></i> 5. Quản lý Database</h2>
+                                
+                                <h4 class="mt-4">5.1. Kết nối SQL Server</h4>
+                                <p>Cấu hình connection string để kết nối database...</p>
+                                
+                                <h4 class="mt-4">5.2. Backup và Restore</h4>
+                                <p>Backup database định kỳ để bảo vệ dữ liệu...</p>
+                                
+                                <h4 class="mt-4">5.3. Import/Export Data</h4>
+                                <p>Import dữ liệu từ Excel hoặc CSV...</p>
+                            </div>
+
+                            <!-- Section 6: Advanced -->
+                            <div id="advanced" th:if="${currentSection == 'advanced'}">
+                                <h2><i class="fas fa-cog text-secondary me-2"></i> 6. Tính năng Nâng cao</h2>
+                                
+                                <h4 class="mt-4">6.1. Network Settings</h4>
+                                <p>Cấu hình mạng cho remote access...</p>
+                                
+                                <h4 class="mt-4">6.2. Performance Optimization</h4>
+                                <p>Tối ưu hiệu năng cho hệ thống lớn...</p>
+                                
+                                <h4 class="mt-4">6.3. Troubleshooting</h4>
+                                <div class="alert alert-warning">
+                                    <strong>Lỗi thường gặp:</strong>
+                                    <ul class="mb-0 mt-2">
+                                        <li>Không kết nối được database</li>
+                                        <li>Port 2345 đã được sử dụng</li>
+                                        <li>Scoreboard không cập nhật real-time</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Navigation Buttons -->
+                            <div class="mt-5 pt-4 border-top d-flex justify-content-between">
+                                <a th:href="@{/app/learn-more}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-arrow-left"></i> Quay lại
+                                </a>
+                                <a th:href="@{/app/download}" class="btn btn-primary">
+                                    <i class="fas fa-download"></i> Tải xuống BTMS
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+    
+    <th:block layout:fragment="scripts">
+        <script>
+            // Smooth scroll for TOC links
+            document.querySelectorAll('#tocNav a').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    const href = this.getAttribute('href');
+                    if (href.includes('#')) {
+                        e.preventDefault();
+                        const targetId = href.split('#')[1];
+                        const target = document.getElementById(targetId);
+                        if (target) {
+                            target.scrollIntoView({ behavior: 'smooth' });
+                        }
+                    }
+                });
+            });
+        </script>
+    </th:block>
+</body>
+</html>

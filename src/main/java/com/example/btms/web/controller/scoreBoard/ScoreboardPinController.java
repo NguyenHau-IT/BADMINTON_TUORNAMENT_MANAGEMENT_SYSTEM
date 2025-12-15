@@ -1,0 +1,951 @@
+package com.example.btms.web.controller.scoreBoard;
+
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import com.example.btms.model.match.BadmintonMatch;
+import com.example.btms.service.match.CourtManagerService;
+import com.example.btms.service.scoreboard.ScoreboardRemote;
+import com.example.btms.service.threading.BackgroundTaskManager;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+@RestController
+@RequestMapping("/api/court")
+@CrossOrigin(origins = "*")
+public class ScoreboardPinController {
+
+    private static final Logger log = LoggerFactory.getLogger(ScoreboardPinController.class);
+
+    private final Object LOCK = ScoreboardRemote.get().lock();
+    private final com.example.btms.util.log.Log appLog = ScoreboardRemote.get().log();
+    private final CourtManagerService courtManager = CourtManagerService.getInstance();
+
+    // SSE clients cho từng mã PIN - sử dụng ConcurrentHashMap để thread-safe
+    private final Map<String, List<SseEmitter>> pinClients = new ConcurrentHashMap<>();
+    // BadmintonMatch riêng biệt cho từng mã PIN - sử dụng ConcurrentHashMap để
+    // thread-safe
+    private final Map<String, BadmintonMatch> pinMatches = new ConcurrentHashMap<>();
+    // Cache ObjectMapper để tái sử dụng, tránh tạo mới liên tục
+    private final ObjectMapper om = new ObjectMapper();
+
+    // 🚀 Performance optimization: JSON payload cache và throttling
+    private final Map<String, String> jsonPayloadCache = new ConcurrentHashMap<>();
+    private final Map<String, AtomicLong> lastBroadcastTime = new ConcurrentHashMap<>();
+    private static final long MIN_BROADCAST_INTERVAL_MS = 50; // Minimum 50ms between broadcasts
+
+    // 🚀 Enhanced Background Task Manager (Java 21 optimized)
+    @Autowired
+    private BackgroundTaskManager taskManager;
+
+    // 🔐 Device Session Service for verification check
+    @Autowired
+    private com.example.btms.service.device.DeviceSessionService deviceSessionService;
+
+    public ScoreboardPinController() {
+        controllerInstance = this;
+        // Không cần add listener cho match chung nữa
+
+        // 🧹 Cleanup task để dọn dẹp dead SSE clients và cache cũ
+        startCleanupTask();
+    }
+
+    /**
+     * 🧹 Background cleanup task để tối ưu performance
+     */
+    private void startCleanupTask() {
+        // Schedule cleanup every 30 seconds
+        new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(30000); // 30 seconds
+
+                    // Cleanup dead SSE clients
+                    pinClients.forEach((pin, clients) -> {
+                        if (clients != null) {
+                            // Tạo danh sách clients cần xóa trước, tránh ConcurrentModificationException
+                            List<SseEmitter> deadClients = new ArrayList<>();
+
+                            for (SseEmitter client : clients) {
+                                try {
+                                    // Test if client is still alive by sending ping
+                                    client.send(SseEmitter.event().name("ping").data(""));
+                                } catch (IOException e) {
+                                    // Client disconnected - this is normal, silently mark for removal
+                                    deadClients.add(client);
+                                } catch (Exception e) {
+                                    // Other exceptions - log and mark for removal
+                                    log.warn("Unexpected exception during SSE client ping: {}", e.getMessage());
+                                    deadClients.add(client);
+                                }
+                            }
+
+                            // Remove all dead clients at once
+                            if (!deadClients.isEmpty()) {
+                                clients.removeAll(deadClients);
+                                log.debug("Cleaned up {} dead SSE clients for PIN: {}", deadClients.size(), pin);
+                            }
+                        }
+                    });
+
+                    // Cleanup old JSON cache entries
+                    if (jsonPayloadCache.size() > 50) {
+                        jsonPayloadCache.clear();
+                    }
+
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (Exception e) {
+                    log.warn("Cleanup task error: {}", e.getMessage());
+                }
+            }
+        }, "SSE-Cleanup").start();
+    }
+
+    /* ---------- helpers ---------- */
+    private Map<String, Integer> view(String pinCode) {
+        BadmintonMatch match = getOrCreateMatch(pinCode);
+        var s = match.snapshot();
+        return Map.of("teamAScore", s.score[0], "teamBScore", s.score[1]);
+    }
+
+    private void broadcastSnapshotToPin(String pinCode) {
+        // 🚀 Throttling: Tránh broadcast quá nhiều trong thời gian ngắn
+        long currentTime = System.currentTimeMillis();
+        AtomicLong lastTime = lastBroadcastTime.computeIfAbsent(pinCode, k -> new AtomicLong(0));
+
+        if (currentTime - lastTime.get() < MIN_BROADCAST_INTERVAL_MS) {
+            return; // Skip broadcast nếu quá gần lần trước
+        }
+        lastTime.set(currentTime);
+
+        // 🚀 Sử dụng enhanced task manager cho SSE broadcast (Java 21 optimized)
+        taskManager.executeSseBroadcast(() -> {
+            try {
+                BadmintonMatch match = getOrCreateMatch(pinCode);
+
+                // 🚀 Cache JSON payload để tránh serialize lại liên tục
+                String payload = jsonPayloadCache.computeIfAbsent(pinCode + "_" + currentTime, k -> {
+                    try {
+                        return om.writeValueAsString(match.snapshot());
+                    } catch (Exception e) {
+                        log.warn("JSON serialization error for PIN {}: {}", pinCode, e.getMessage());
+                        return "{}";
+                    }
+                });
+
+                List<SseEmitter> clients = pinClients.get(pinCode);
+                if (clients != null && !clients.isEmpty()) {
+                    // Sử dụng CopyOnWriteArrayList để tránh ConcurrentModificationException
+                    clients.removeIf(client -> {
+                        try {
+                            client.send(SseEmitter.event().name("update").data(payload));
+                            return false;
+                        } catch (IOException ex) {
+                            // Client disconnected - this is normal behavior, handle silently
+                            try {
+                                client.complete();
+                            } catch (Exception ignore) {
+                                // Ignore any exceptions during cleanup
+                            }
+                            return true; // Remove disconnected client
+                        } catch (Exception ex) {
+                            // Unexpected exception during send
+                            log.warn("Unexpected SSE send error for PIN {}: {}", pinCode, ex.getMessage());
+                            try {
+                                client.complete();
+                            } catch (Exception ignore) {
+                            }
+                            return true;
+                        }
+                    });
+
+                    // 🧹 Cleanup old cache entries periodically
+                    if (jsonPayloadCache.size() > 100) {
+                        jsonPayloadCache.clear();
+                    }
+                }
+            } catch (RuntimeException e) {
+                // Other runtime issues - log but don't crash the task
+                log.warn("Error broadcasting to PIN {}: {}", pinCode, e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Tìm control panel theo PIN và gọi helper trong BadmintonControlPanel để
+     * ghi CHI_TIET_VAN khi +1 điểm (append "P1/P2@<millis>" và update tổng điểm).
+     * side = 0 (A), 1 (B)
+     */
+    private void tryUpdateChiTietVanOnPointForPin(String pinCode, int side) {
+        try {
+            Map<String, CourtManagerService.CourtStatus> all = courtManager.getAllCourtStatus();
+            String courtId = null;
+            for (var cs : all.values()) {
+                if (pinCode != null && pinCode.equals(cs.pinCode)) {
+                    courtId = cs.courtId;
+                    break;
+                }
+            }
+            if (courtId == null)
+                return;
+            var session = courtManager.getCourt(courtId);
+            if (session == null || session.controlPanel == null)
+                return;
+            Object panel = session.controlPanel;
+            try {
+                var m = panel.getClass().getDeclaredMethod("updateChiTietVanOnPoint", int.class);
+                m.setAccessible(true);
+                m.invoke(panel, side);
+            } catch (NoSuchMethodException ignore) {
+                // Control panel chưa có helper (phiên bản cũ) → bỏ qua nhẹ nhàng
+            }
+        } catch (ReflectiveOperationException ex) {
+            log.warn("CHI_TIET_VAN onPoint (web) reflection failed for PIN {}: {}", pinCode, ex.getMessage());
+        } catch (RuntimeException ex) {
+            log.warn("CHI_TIET_VAN onPoint (web) runtime failed for PIN {}: {}", pinCode, ex.getMessage());
+        }
+    }
+
+    /**
+     * Tìm control panel theo PIN và đồng bộ lại tổng điểm của set hiện tại (không
+     * thêm token). Dùng cho -1/undo từ web.
+     */
+    private void tryUpdateChiTietVanTotalsOnlyForPin(String pinCode) {
+        try {
+            Map<String, CourtManagerService.CourtStatus> all = courtManager.getAllCourtStatus();
+            String courtId = null;
+            for (var cs : all.values()) {
+                if (pinCode != null && pinCode.equals(cs.pinCode)) {
+                    courtId = cs.courtId;
+                    break;
+                }
+            }
+            if (courtId == null)
+                return;
+            var session = courtManager.getCourt(courtId);
+            if (session == null || session.controlPanel == null)
+                return;
+            Object panel = session.controlPanel;
+            try {
+                var m = panel.getClass().getDeclaredMethod("updateChiTietVanTotalsOnly");
+                m.setAccessible(true);
+                m.invoke(panel);
+            } catch (NoSuchMethodException ignore) {
+                // Control panel chưa có helper (phiên bản cũ) → bỏ qua nhẹ nhàng
+            }
+        } catch (ReflectiveOperationException ex) {
+            log.warn("CHI_TIET_VAN totalsOnly (web) reflection failed for PIN {}: {}", pinCode, ex.getMessage());
+        } catch (RuntimeException ex) {
+            log.warn("CHI_TIET_VAN totalsOnly (web) runtime failed for PIN {}: {}", pinCode, ex.getMessage());
+        }
+    }
+
+    /**
+     * Lấy hoặc tạo BadmintonMatch cho mã PIN cụ thể
+     * Sử dụng cache để tránh tạo mới liên tục
+     */
+    private BadmintonMatch getOrCreateMatch(String pinCode) {
+        return pinMatches.computeIfAbsent(pinCode, k -> {
+            BadmintonMatch newMatch = new BadmintonMatch();
+            // Add listener để broadcast khi match thay đổi
+            // Sử dụng weak reference để tránh memory leak
+            newMatch.addPropertyChangeListener(evt -> {
+                // Chỉ broadcast những thay đổi quan trọng
+                String propertyName = evt.getPropertyName();
+                if ("score".equals(propertyName) || "games".equals(propertyName) ||
+                        "gameNumber".equals(propertyName) || "server".equals(propertyName)) {
+                    broadcastSnapshotToPin(pinCode);
+                }
+            });
+            return newMatch;
+        });
+    }
+
+    /**
+     * 🔐 Kiểm tra xem thiết bị có được duyệt (verified) hay không
+     * 
+     * @param session HttpSession của request
+     * @return ResponseEntity với error nếu chưa verified, null nếu OK
+     */
+    private ResponseEntity<Map<String, String>> checkVerifiedStatus(jakarta.servlet.http.HttpSession session) {
+        if (deviceSessionService == null) {
+            log.warn("DeviceSessionService not initialized, skipping verification check");
+            return null;
+        }
+
+        String sessionId = session.getId();
+
+        // Kiểm tra session có tồn tại không
+        if (!deviceSessionService.sessionExists(sessionId)) {
+            log.warn("Session {} does not exist", sessionId);
+            return ResponseEntity.status(401).body(Map.of(
+                    "error", "Phiên đăng nhập không hợp lệ",
+                    "message", "Vui lòng đăng nhập lại"));
+        }
+
+        // Kiểm tra blocked
+        if (deviceSessionService.isBlocked(sessionId)) {
+            log.warn("Session {} is blocked", sessionId);
+            return ResponseEntity.status(403).body(Map.of(
+                    "error", "Thiết bị bị chặn",
+                    "message", "Thiết bị của bạn đã bị chặn bởi quản trị viên"));
+        }
+
+        // Kiểm tra verified
+        if (!deviceSessionService.isVerified(sessionId)) {
+            log.warn("Session {} is not verified", sessionId);
+            return ResponseEntity.status(403).body(Map.of(
+                    "error", "Chưa được duyệt",
+                    "message", "Đang chờ quản trị viên duyệt thiết bị của bạn"));
+        }
+
+        return null; // OK, đã verified
+    }
+
+    /* ---------- GET với mã PIN ---------- */
+    @GetMapping("/{pin}")
+    public ResponseEntity<Map<String, Integer>> getScoreboardWithPin(@PathVariable String pin) {
+        log.info("Received GET request for PIN: {}", pin);
+        synchronized (LOCK) {
+            try {
+
+                Map<String, Integer> result = view(pin);
+                log.info("Returning GET result for PIN {}: {}", pin, result);
+                return ResponseEntity.ok(result);
+            } catch (Exception e) {
+                log.error("Error in GET for PIN {}: {}", pin, e.getMessage(), e);
+                return ResponseEntity.status(500).body(Map.of("teamAScore", 0, "teamBScore", 0));
+            }
+        }
+    }
+
+    /* ---------- TEST endpoint ---------- */
+    @GetMapping("/{pin}/test")
+    public ResponseEntity<String> testPin(@PathVariable String pin) {
+        log.info("Received test request for PIN: {}", pin);
+        return ResponseEntity.ok("PIN " + pin + " is working! Controller is active.");
+    }
+
+    /* ---------- PIN Validation endpoint ---------- */
+    @GetMapping("/{pin}/status")
+    public ResponseEntity<Map<String, Object>> validatePin(@PathVariable String pin) {
+        try {
+            log.info("Validating PIN: {}", pin);
+
+            // Kiểm tra PIN có tồn tại trong CourtManagerService không
+            Map<String, CourtManagerService.CourtStatus> allCourts = courtManager.getAllCourtStatus();
+            boolean pinExists = allCourts.values().stream()
+                    .anyMatch(court -> pin.equals(court.pinCode));
+
+            if (pinExists) {
+                Map<String, Object> response = new java.util.HashMap<>();
+                response.put("valid", true);
+                response.put("pin", pin);
+                response.put("timestamp", System.currentTimeMillis());
+
+                // Lấy thông tin sân nếu có
+                for (CourtManagerService.CourtStatus court : allCourts.values()) {
+                    if (pin.equals(court.pinCode)) {
+                        response.put("courtId", court.courtId);
+                        response.put("header", court.header);
+                        break;
+                    }
+                }
+
+                log.info("PIN {} is valid", pin);
+                return ResponseEntity.ok(response);
+            } else {
+                log.warn("PIN {} not found", pin);
+                return ResponseEntity.notFound().build();
+            }
+        } catch (Exception e) {
+            log.error("Error validating PIN {}: {}", pin, e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /* ---------- Simple test endpoint ---------- */
+    @GetMapping("/health")
+    public ResponseEntity<String> health() {
+        log.info("Health check request received");
+        return ResponseEntity.ok("ScoreboardPinController is running!");
+    }
+
+    /**
+     * GET /api/court/connections
+     * Get all court SSE connections list
+     * 
+     * Shows detailed information about:
+     * - All courts with PIN codes
+     * - Active SSE connections per court
+     * - Match status and scores
+     * - Connection endpoints
+     * 
+     * @return Detailed court connections info
+     */
+    @GetMapping("/connections")
+    public ResponseEntity<?> getCourtConnections() {
+        try {
+            Map<String, Object> response = new HashMap<>();
+
+            // Summary statistics
+            int totalConnections = pinClients.values().stream()
+                    .mapToInt(List::size)
+                    .sum();
+            int activeCourts = pinClients.size();
+
+            Map<String, Object> summary = Map.of(
+                    "totalConnections", totalConnections,
+                    "activeCourts", activeCourts,
+                    "totalCourts", courtManager.getAllCourtStatus().size(),
+                    "timestamp", System.currentTimeMillis());
+
+            // Court details
+            Map<String, Object> courts = new HashMap<>();
+
+            // Get all court status from CourtManagerService
+            Map<String, CourtManagerService.CourtStatus> allCourts = courtManager.getAllCourtStatus();
+
+            for (CourtManagerService.CourtStatus court : allCourts.values()) {
+                String pin = court.pinCode;
+                String courtId = court.courtId;
+                String header = court.header;
+
+                Map<String, Object> courtInfo = new HashMap<>();
+                courtInfo.put("pin", pin);
+                courtInfo.put("courtId", courtId);
+                courtInfo.put("header", header != null ? header : "Chưa có trận đấu");
+                courtInfo.put("endpoint", "/api/court/" + pin + "/stream");
+
+                // Check SSE connections for this court
+                List<SseEmitter> clients = pinClients.get(pin);
+                int connectionCount = clients != null ? clients.size() : 0;
+
+                courtInfo.put("connections", connectionCount);
+                courtInfo.put("status", connectionCount > 0 ? "active" : "inactive");
+
+                // Get match data if exists
+                BadmintonMatch match = pinMatches.get(pin);
+                if (match != null) {
+                    BadmintonMatch.Snapshot snapshot = match.snapshot();
+                    Map<String, Object> matchInfo = Map.of(
+                            "score", snapshot.score,
+                            "games", snapshot.games,
+                            "gameNumber", snapshot.gameNumber,
+                            "finished", snapshot.matchFinished,
+                            "names", snapshot.names != null ? snapshot.names : new String[] { "Player A", "Player B" });
+                    courtInfo.put("match", matchInfo);
+                } else {
+                    courtInfo.put("match", null);
+                }
+
+                courtInfo.put("lastActivity", System.currentTimeMillis());
+
+                courts.put(courtId, courtInfo);
+            }
+
+            response.put("summary", summary);
+            response.put("courts", courts);
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Error getting court connections: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of(
+                    "error", "Failed to get court connections",
+                    "message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{pin}/sync")
+    public ResponseEntity<BadmintonMatch.Snapshot> getSnapshotWithPin(@PathVariable String pin) {
+        synchronized (LOCK) {
+
+            BadmintonMatch match = getOrCreateMatch(pin);
+            return ResponseEntity.ok(match.snapshot());
+        }
+    }
+
+    @GetMapping(value = "/{pin}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamWithPin(@PathVariable String pin) {
+
+        // 🚀 Shorter timeout để tránh zombie connections
+        SseEmitter em = new SseEmitter(300000L); // 5 minutes timeout thay vì vô hạn
+
+        // Thêm vào danh sách clients của mã PIN này
+        pinClients.computeIfAbsent(pin, k -> new CopyOnWriteArrayList<>()).add(em);
+
+        try {
+            BadmintonMatch match = getOrCreateMatch(pin);
+            em.send(SseEmitter.event().name("init")
+                    .data(om.writeValueAsString(match.snapshot())));
+        } catch (IOException ignore) {
+            // Remove failed client immediately
+            List<SseEmitter> clients = pinClients.get(pin);
+            if (clients != null) {
+                clients.remove(em);
+            }
+        }
+
+        em.onCompletion(() -> {
+            List<SseEmitter> clients = pinClients.get(pin);
+            if (clients != null) {
+                clients.remove(em);
+            }
+        });
+        em.onTimeout(() -> {
+            List<SseEmitter> clients = pinClients.get(pin);
+            if (clients != null) {
+                clients.remove(em);
+            }
+        });
+        em.onError(e -> {
+            List<SseEmitter> clients = pinClients.get(pin);
+            if (clients != null) {
+                clients.remove(em);
+            }
+        });
+
+        return em;
+    }
+
+    /* ---------- ACTIONS với mã PIN ---------- */
+    @PostMapping("/{pin}/increaseA")
+    public ResponseEntity<?> increaseAWithPin(@PathVariable String pin, jakarta.servlet.http.HttpSession session) {
+        log.info("Received increaseA request for PIN: {}", pin);
+
+        // 🔐 Check verified status
+        ResponseEntity<Map<String, String>> verifyCheck = checkVerifiedStatus(session);
+        if (verifyCheck != null) {
+            return verifyCheck;
+        }
+
+        synchronized (LOCK) {
+            try {
+
+                BadmintonMatch match = getOrCreateMatch(pin);
+                log.info("Got match for PIN {}: {}", pin, match);
+
+                match.pointTo(0);
+                log.info("Increased score for Team A (PIN: {}), new score: {}", pin, match.getScore()[0]);
+                // Ghi CHI_TIET_VAN cho +1 A
+                tryUpdateChiTietVanOnPointForPin(pin, 0);
+
+                try {
+                    appLog.plusA(match);
+                } catch (Exception ignore) {
+                    log.warn("Error logging plusA for PIN {}: {}", pin, ignore.getMessage());
+                }
+
+                broadcastSnapshotToPin(pin);
+                Map<String, Integer> result = view(pin);
+                log.info("Returning result for PIN {}: {}", pin, result);
+                return ResponseEntity.ok(result);
+            } catch (Exception e) {
+                log.error("Error in increaseA for PIN {}: {}", pin, e.getMessage(), e);
+                return ResponseEntity.status(500).body(Map.of("teamAScore", 0, "teamBScore", 0));
+            }
+        }
+    }
+
+    @PostMapping("/{pin}/decreaseA")
+    public ResponseEntity<?> decreaseAWithPin(@PathVariable String pin, jakarta.servlet.http.HttpSession session) {
+        // 🔐 Check verified status
+        ResponseEntity<Map<String, String>> verifyCheck = checkVerifiedStatus(session);
+        if (verifyCheck != null) {
+            return verifyCheck;
+        }
+
+        synchronized (LOCK) {
+
+            BadmintonMatch match = getOrCreateMatch(pin);
+            match.pointDown(0, -1);
+            log.info("Decreased score for Team A (PIN: {})", pin);
+            // Đồng bộ tổng điểm set hiện tại (không thêm token)
+            tryUpdateChiTietVanTotalsOnlyForPin(pin);
+            try {
+                appLog.minusA(match);
+            } catch (Exception ignore) {
+            }
+            broadcastSnapshotToPin(pin);
+            return ResponseEntity.ok(view(pin));
+        }
+    }
+
+    @PostMapping("/{pin}/increaseB")
+    public ResponseEntity<?> increaseBWithPin(@PathVariable String pin, jakarta.servlet.http.HttpSession session) {
+        log.info("Received increaseB request for PIN: {}", pin);
+
+        // 🔐 Check verified status
+        ResponseEntity<Map<String, String>> verifyCheck = checkVerifiedStatus(session);
+        if (verifyCheck != null) {
+            return verifyCheck;
+        }
+
+        synchronized (LOCK) {
+            try {
+
+                BadmintonMatch match = getOrCreateMatch(pin);
+                log.info("Got match for PIN {}: {}", pin, match);
+
+                match.pointTo(1);
+                log.info("Increased score for Team B (PIN: {}), new score: {}", pin, match.getScore()[1]);
+                // Ghi CHI_TIET_VAN cho +1 B
+                tryUpdateChiTietVanOnPointForPin(pin, 1);
+
+                try {
+                    appLog.plusB(match);
+                } catch (Exception ignore) {
+                    log.warn("Error logging plusB for PIN {}: {}", pin, ignore.getMessage());
+                }
+
+                broadcastSnapshotToPin(pin);
+                Map<String, Integer> result = view(pin);
+                log.info("Returning result for PIN {}: {}", pin, result);
+                return ResponseEntity.ok(result);
+            } catch (Exception e) {
+                log.error("Error in increaseB for PIN {}: {}", pin, e.getMessage(), e);
+                return ResponseEntity.status(500).body(Map.of("teamAScore", 0, "teamBScore", 0));
+            }
+        }
+    }
+
+    @PostMapping("/{pin}/decreaseB")
+    public ResponseEntity<?> decreaseBWithPin(@PathVariable String pin, jakarta.servlet.http.HttpSession session) {
+        // 🔐 Check verified status
+        ResponseEntity<Map<String, String>> verifyCheck = checkVerifiedStatus(session);
+        if (verifyCheck != null) {
+            return verifyCheck;
+        }
+
+        synchronized (LOCK) {
+
+            BadmintonMatch match = getOrCreateMatch(pin);
+            match.pointDown(1, -1);
+            log.info("Decreased score for Team B (PIN: {})", pin);
+            // Đồng bộ tổng điểm set hiện tại (không thêm token)
+            tryUpdateChiTietVanTotalsOnlyForPin(pin);
+            try {
+                appLog.minusB(match);
+            } catch (Exception ignore) {
+            }
+            broadcastSnapshotToPin(pin);
+            return ResponseEntity.ok(view(pin));
+        }
+    }
+
+    @PostMapping("/{pin}/reset")
+    public ResponseEntity<?> resetWithPin(@PathVariable String pin, jakarta.servlet.http.HttpSession session) {
+        // 🔐 Check verified status
+        ResponseEntity<Map<String, String>> verifyCheck = checkVerifiedStatus(session);
+        if (verifyCheck != null) {
+            return verifyCheck;
+        }
+
+        synchronized (LOCK) {
+
+            BadmintonMatch match = getOrCreateMatch(pin);
+            match.resetAll();
+            log.info("Reset scores to 0 - 0 (PIN: {})", pin);
+            try {
+                appLog.logTs("Đặt lại điểm");
+                appLog.logScore(match.snapshot());
+            } catch (Exception ignore) {
+            }
+            broadcastSnapshotToPin(pin);
+            return ResponseEntity.ok(view(pin));
+        }
+    }
+
+    @PostMapping("/{pin}/next")
+    public ResponseEntity<?> nextGameWithPin(@PathVariable String pin, jakarta.servlet.http.HttpSession session) {
+        // 🔐 Check verified status
+        ResponseEntity<Map<String, String>> verifyCheck = checkVerifiedStatus(session);
+        if (verifyCheck != null) {
+            return verifyCheck;
+        }
+
+        synchronized (LOCK) {
+
+            BadmintonMatch match = getOrCreateMatch(pin);
+            match.nextGame();
+            try {
+                appLog.nextGame(match);
+            } catch (Exception ignore) {
+            }
+            broadcastSnapshotToPin(pin);
+            return ResponseEntity.ok(match.snapshot());
+        }
+    }
+
+    @PostMapping("/{pin}/swap")
+    public ResponseEntity<?> swapEndsWithPin(@PathVariable String pin, jakarta.servlet.http.HttpSession session) {
+        // 🔐 Check verified status
+        ResponseEntity<Map<String, String>> verifyCheck = checkVerifiedStatus(session);
+        if (verifyCheck != null) {
+            return verifyCheck;
+        }
+
+        synchronized (LOCK) {
+
+            BadmintonMatch match = getOrCreateMatch(pin);
+            match.swapEnds();
+            try {
+                appLog.swapEnds(match);
+            } catch (Exception ignore) {
+            }
+            // Ghi dấu SWAP vào CHI_TIET_VAN qua control panel (nếu có)
+            tryUpdateChiTietVanSwapMarkerForPin(pin);
+            broadcastSnapshotToPin(pin);
+            return ResponseEntity.ok(match.snapshot());
+        }
+    }
+
+    @PostMapping("/{pin}/change-server")
+    public ResponseEntity<?> changeServerWithPin(@PathVariable String pin, jakarta.servlet.http.HttpSession session) {
+        // 🔐 Check verified status
+        ResponseEntity<Map<String, String>> verifyCheck = checkVerifiedStatus(session);
+        if (verifyCheck != null) {
+            return verifyCheck;
+        }
+
+        synchronized (LOCK) {
+
+            BadmintonMatch match = getOrCreateMatch(pin);
+            match.changeServer();
+            try {
+                appLog.logTs("Đổi giao cầu");
+                appLog.logScore(match.snapshot());
+            } catch (Exception ignore) {
+            }
+            broadcastSnapshotToPin(pin);
+            return ResponseEntity.ok(match.snapshot());
+        }
+    }
+
+    @PostMapping("/{pin}/undo")
+    public ResponseEntity<?> undoWithPin(@PathVariable String pin, jakarta.servlet.http.HttpSession session) {
+        // 🔐 Check verified status
+        ResponseEntity<Map<String, String>> verifyCheck = checkVerifiedStatus(session);
+        if (verifyCheck != null) {
+            return verifyCheck;
+        }
+
+        synchronized (LOCK) {
+
+            BadmintonMatch match = getOrCreateMatch(pin);
+            match.undo();
+            try {
+                appLog.undo(match);
+            } catch (Exception ignore) {
+            }
+            // Hoàn tác: đồng bộ tổng điểm set hiện tại (không thêm token)
+            tryUpdateChiTietVanTotalsOnlyForPin(pin);
+            broadcastSnapshotToPin(pin);
+            return ResponseEntity.ok(match.snapshot());
+        }
+    }
+
+    /*
+     * ---------- Public method to get match by PIN for desktop app sync ----------
+     */
+    public static BadmintonMatch getMatchByPin(String pinCode) {
+        ScoreboardPinController instance = getControllerInstance();
+        if (instance != null) {
+            synchronized (instance.LOCK) {
+                return instance.getOrCreateMatch(pinCode);
+            }
+        }
+        return null;
+    }
+
+    private static ScoreboardPinController controllerInstance;
+
+    private static ScoreboardPinController getControllerInstance() {
+        return controllerInstance;
+    }
+
+    /* ---------- Generic action endpoint for JavaScript compatibility ---------- */
+    @PostMapping("/{pin}/{action}")
+    public ResponseEntity<?> handleActionWithPin(@PathVariable String pin,
+            @PathVariable String action, jakarta.servlet.http.HttpSession session) {
+        log.info("Received {} action for PIN: {}", action, pin);
+
+        // 🔐 Check verified status
+        ResponseEntity<Map<String, String>> verifyCheck = checkVerifiedStatus(session);
+        if (verifyCheck != null) {
+            return verifyCheck;
+        }
+
+        synchronized (LOCK) {
+            try {
+                BadmintonMatch match = getOrCreateMatch(pin);
+
+                switch (action) {
+                    case "increaseA" -> {
+                        match.pointTo(0);
+                        log.info("Increased score for Team A (PIN: {}), new score: {}", pin, match.getScore()[0]);
+                        try {
+                            appLog.plusA(match);
+                        } catch (Exception ignore) {
+                        }
+                        tryUpdateChiTietVanOnPointForPin(pin, 0);
+                    }
+                    case "decreaseA" -> {
+                        match.pointDown(0, -1);
+                        log.info("Decreased score for Team A (PIN: {})", pin);
+                        try {
+                            appLog.minusA(match);
+                        } catch (Exception ignore) {
+                        }
+                        tryUpdateChiTietVanTotalsOnlyForPin(pin);
+                    }
+                    case "increaseB" -> {
+                        match.pointTo(1);
+                        log.info("Increased score for Team B (PIN: {}), new score: {}", pin, match.getScore()[1]);
+                        try {
+                            appLog.plusB(match);
+                        } catch (Exception ignore) {
+                        }
+                        tryUpdateChiTietVanOnPointForPin(pin, 1);
+                    }
+                    case "decreaseB" -> {
+                        match.pointDown(1, -1);
+                        log.info("Decreased score for Team B (PIN: {})", pin);
+                        try {
+                            appLog.minusB(match);
+                        } catch (Exception ignore) {
+                        }
+                        tryUpdateChiTietVanTotalsOnlyForPin(pin);
+                    }
+                    case "reset" -> {
+                        match.resetAll();
+                        log.info("Reset match for PIN: {}", pin);
+                        // Log reset action (no specific method available)
+                        try {
+                            appLog.logTs("Reset match for PIN: %s", pin);
+                        } catch (Exception ignore) {
+                        }
+                    }
+                    case "next" -> {
+                        match.nextGame();
+                        log.info("Next game for PIN: {}", pin);
+                        try {
+                            appLog.nextGame(match);
+                        } catch (Exception ignore) {
+                        }
+                    }
+                    case "swap" -> {
+                        log.info("=== SWAP ENDS REQUEST for PIN: {} ===", pin);
+
+                        // Log trạng thái trước khi swap
+                        BadmintonMatch.Snapshot beforeSwap = match.snapshot();
+                        log.info("Trước khi đổi sân - VĐV A: '%s' (Điểm: %d, Ván: %d), VĐV B: '%s' (Điểm: %d, Ván: %d)",
+                                beforeSwap.names[0], beforeSwap.score[0], beforeSwap.games[0],
+                                beforeSwap.names[1], beforeSwap.score[1], beforeSwap.games[1]);
+
+                        match.swapEnds();
+                        log.info("Đã thực hiện swap ends cho PIN: {}", pin);
+
+                        // Log trạng thái sau khi swap
+                        BadmintonMatch.Snapshot afterSwap = match.snapshot();
+                        log.info("Sau khi đổi sân - VĐV A: '%s' (Điểm: %d, Ván: %d), VĐV B: '%s' (Điểm: %d, Ván: %d)",
+                                afterSwap.names[0], afterSwap.score[0], afterSwap.games[0],
+                                afterSwap.names[1], afterSwap.score[1], afterSwap.games[1]);
+
+                        try {
+                            appLog.swapEnds(match);
+                        } catch (Exception ignore) {
+                            log.warn("Error logging swapEnds for PIN {}: {}", pin, ignore.getMessage());
+                        }
+                        // Ghi dấu SWAP vào CHI_TIET_VAN qua control panel (nếu có)
+                        tryUpdateChiTietVanSwapMarkerForPin(pin);
+                    }
+                    case "change-server" -> {
+                        log.info("=== CHANGE SERVER REQUEST for PIN: {} ===", pin);
+                        match.changeServer();
+                        log.info("Đã thực hiện change server cho PIN: {}", pin);
+                        try {
+                            appLog.logTs("Đổi giao cầu");
+                            appLog.logScore(match.snapshot());
+                        } catch (Exception ignore) {
+                            log.warn("Error logging changeServer for PIN {}: {}", pin, ignore.getMessage());
+                        }
+                    }
+                    case "undo" -> {
+                        match.undo();
+                        log.info("Undo action for PIN: {}", pin);
+                        try {
+                            appLog.undo(match);
+                        } catch (Exception ignore) {
+                        }
+                        tryUpdateChiTietVanTotalsOnlyForPin(pin);
+                    }
+                    default -> {
+                        log.warn("Unknown action '{}' for PIN: {}", action, pin);
+                        return ResponseEntity.badRequest().body(Map.of("teamAScore", 0, "teamBScore", 0));
+                    }
+                }
+
+                broadcastSnapshotToPin(pin);
+                Map<String, Integer> result = view(pin);
+                log.info("Action {} completed for PIN {}, result: {}", action, pin, result);
+                return ResponseEntity.ok(result);
+
+            } catch (Exception e) {
+                log.error("Error in action {} for PIN {}: {}", action, pin, e.getMessage(), e);
+                return ResponseEntity.status(500).body(Map.of("teamAScore", 0, "teamBScore", 0));
+            }
+        }
+    }
+
+    /** Gọi helper trên control panel để append SWAP@ và đồng bộ tổng điểm. */
+    private void tryUpdateChiTietVanSwapMarkerForPin(String pinCode) {
+        try {
+            Map<String, CourtManagerService.CourtStatus> all = courtManager.getAllCourtStatus();
+            String courtId = null;
+            for (var cs : all.values()) {
+                if (pinCode != null && pinCode.equals(cs.pinCode)) {
+                    courtId = cs.courtId;
+                    break;
+                }
+            }
+            if (courtId == null)
+                return;
+            var session = courtManager.getCourt(courtId);
+            if (session == null || session.controlPanel == null)
+                return;
+            Object panel = session.controlPanel;
+            try {
+                var m = panel.getClass().getDeclaredMethod("appendSwapMarkerAndResyncChiTietVan");
+                m.setAccessible(true);
+                m.invoke(panel);
+            } catch (NoSuchMethodException ignore) {
+                // Control panel chưa có helper (phiên bản cũ)
+            }
+        } catch (IllegalAccessException | IllegalArgumentException | SecurityException | InvocationTargetException ex) {
+            log.warn("CHI_TIET_VAN swap marker (web) failed for PIN {}: {}", pinCode, ex.getMessage());
+        }
+    }
+}

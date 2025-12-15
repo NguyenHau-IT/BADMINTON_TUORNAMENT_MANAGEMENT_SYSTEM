@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title th:text="${pageTitle}">Danh sách VĐV - BTMS</title>
+    <meta name="description" th:content="${pageDescription}">
+    <link rel="stylesheet" th:href="@{/css/players/players.css}">
+</head>
+<body>
+<div layout:fragment="content">
+    <!-- Hero Section -->
+    <section class="players-hero">
+        <div class="container">
+            <div class="hero-content text-center">
+                <h1 class="hero-title" data-aos="fade-up">
+                    <i class="bi bi-people-fill"></i> Vận động viên
+                </h1>
+                <p class="hero-subtitle" data-aos="fade-up" data-aos-delay="100">
+                    Danh sách VĐV cầu lông đăng ký trên hệ thống BTMS
+                </p>
+                <div class="hero-stats" data-aos="fade-up" data-aos-delay="200">
+                    <div class="stat-item">
+                        <span class="stat-number" th:text="${totalPlayers}">2450</span>
+                        <span class="stat-label">Vận động viên</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Links -->
+    <section class="quick-links section-padding bg-light">
+        <div class="container">
+            <div class="links-grid">
+                <a href="/players/top" class="link-card" data-aos="zoom-in">
+                    <i class="bi bi-star-fill"></i>
+                    <span>VĐV Hàng đầu</span>
+                </a>
+                <a href="/players/register" class="link-card" data-aos="zoom-in" data-aos-delay="100">
+                    <i class="bi bi-person-plus-fill"></i>
+                    <span>Đăng ký VĐV</span>
+                </a>
+                <a href="/rankings" class="link-card" data-aos="zoom-in" data-aos-delay="200">
+                    <i class="bi bi-bar-chart-line"></i>
+                    <span>Bảng xếp hạng</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Players List -->
+    <section class="players-list-section section-padding">
+        <div class="container">
+            <!-- Filter Bar -->
+            <div class="filter-bar" data-aos="fade-up">
+                <form class="filter-form" method="get" action="/players">
+                    <div class="search-box">
+                        <input type="text" name="search" placeholder="Tìm kiếm VĐV..." 
+                               th:value="${selectedSearch}">
+                        <button type="submit"><i class="bi bi-search"></i></button>
+                    </div>
+                    <select name="province" class="form-select">
+                        <option value="">Tất cả tỉnh thành</option>
+                        <th:block th:each="prov : ${provinces}">
+                            <option th:value="${prov}" th:text="${prov}" 
+                                    th:selected="${prov == selectedProvince}">Tỉnh</option>
+                        </th:block>
+                    </select>
+                    <select name="club" class="form-select">
+                        <option value="">Tất cả CLB</option>
+                        <th:block th:each="c : ${clubs}">
+                            <option th:value="${c.id}" th:text="${c.tenClb}" 
+                                    th:selected="${c.id == selectedClub}">CLB</option>
+                        </th:block>
+                    </select>
+                    <select name="category" class="form-select">
+                        <option value="">Tất cả nội dung</option>
+                        <th:block th:each="cat : ${categories}">
+                            <option th:value="${cat.value}" th:text="${cat.label}" 
+                                    th:selected="${cat.value == selectedCategory}">Nội dung</option>
+                        </th:block>
+                    </select>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-filter"></i> Lọc
+                    </button>
+                </form>
+            </div>
+
+            <!-- Players Grid -->
+            <div class="players-grid">
+                <th:block th:each="player, stat : ${players}">
+                    <div class="player-card" data-aos="fade-up" th:data-aos-delay="${(stat.index % 4) * 50}">
+                        <div class="card-avatar">
+                            <img th:src="${player.avatar}" th:alt="${player.name}"
+                                 onerror="this.src='/images/players/default-avatar.png'">
+                        </div>
+                        <div class="card-body">
+                            <h4 class="player-name">
+                                <a th:href="@{/players/{id}(id=${player.id})}" th:text="${player.name}">
+                                    Tên VĐV
+                                </a>
+                            </h4>
+                            <div class="player-info">
+                                <span class="info-item">
+                                    <i class="bi bi-geo-alt"></i>
+                                    <span th:text="${player.province}">TP.HCM</span>
+                                </span>
+                                <span class="info-item">
+                                    <i class="bi bi-building"></i>
+                                    <span th:text="${player.club}">CLB TP.HCM</span>
+                                </span>
+                            </div>
+                            <div class="player-meta">
+                                <span class="gender-badge" th:classappend="${player.gender == 'Nam'} ? 'male' : 'female'"
+                                      th:text="${player.gender}">Nam</span>
+                                <span class="age" th:text="${player.age} + ' tuổi'">25 tuổi</span>
+                            </div>
+                        </div>
+                        <a th:href="@{/players/{id}(id=${player.id})}" class="card-link">
+                            Xem chi tiết <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </th:block>
+            </div>
+
+            <!-- Pagination -->
+            <nav class="pagination-wrapper" th:if="${totalPages > 1}">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item" th:classappend="${currentPage == 1} ? 'disabled'">
+                        <a class="page-link" th:href="@{/players(page=${currentPage - 1}, search=${selectedSearch}, province=${selectedProvince})}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    <th:block th:each="i : ${#numbers.sequence(1, totalPages > 5 ? 5 : totalPages)}">
+                        <li class="page-item" th:classappend="${i == currentPage} ? 'active'">
+                            <a class="page-link" th:href="@{/players(page=${i}, search=${selectedSearch}, province=${selectedProvince})}" 
+                               th:text="${i}">1</a>
+                        </li>
+                    </th:block>
+                    <li class="page-item" th:if="${totalPages > 5}">
+                        <span class="page-link">...</span>
+                    </li>
+                    <li class="page-item" th:classappend="${currentPage == totalPages} ? 'disabled'">
+                        <a class="page-link" th:href="@{/players(page=${currentPage + 1}, search=${selectedSearch}, province=${selectedProvince})}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </section>
+</div>
+
+<th:block layout:fragment="scripts">
+    <script src="/js/players/players.js"></script>
+</th:block>
+</body>
+</html>
