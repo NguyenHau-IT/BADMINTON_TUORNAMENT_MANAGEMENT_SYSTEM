@@ -103,6 +103,7 @@ import com.example.btms.ui.monitor.MonitorTab;
 import com.example.btms.ui.player.DangKyCaNhanPanel;
 import com.example.btms.ui.player.VanDongVienManagementPanel;
 import com.example.btms.ui.referee.TrongTaiManagementPanel;
+import com.example.btms.ui.referee.PhanCongTrongTaiHistoryPanel;
 import com.example.btms.ui.report.BaoCaoPdfPanel;
 import com.example.btms.ui.result.BienBanPanel;
 import com.example.btms.ui.result.BienBanFrame;
@@ -151,6 +152,7 @@ public class MainFrame extends JFrame {
     private DangKyNoiDungPanel dangKyNoiDungPanel;
     private VanDongVienManagementPanel vanDongVienPanel;
     private TrongTaiManagementPanel trongTaiPanel;
+    private PhanCongTrongTaiHistoryPanel phanCongTrongTaiHistoryPanel;
     private com.example.btms.ui.device.DeviceMonitorPanel deviceMonitorPanel;
     private DangKyDoiPanel dangKyDoiPanel;
     private DangKyCaNhanPanel dangKyCaNhanPanel; // đăng ký cá nhân (đơn)
@@ -808,6 +810,9 @@ public class MainFrame extends JFrame {
                 }
             }
 
+            // ---- Tạo panel lịch sử phân công trọng tài
+            phanCongTrongTaiHistoryPanel = new PhanCongTrongTaiHistoryPanel(phanCongTrongTaiService, trongTaiService);
+
             // ---- Giám sát thiết bị
             com.example.btms.service.device.DeviceSessionService deviceSessionService = applicationContext
                     .getBean(com.example.btms.service.device.DeviceSessionService.class);
@@ -1333,6 +1338,7 @@ public class MainFrame extends JFrame {
             ensureViewPresent("Câu lạc bộ", cauLacBoPanel);
             ensureViewPresent("Vận động viên", vanDongVienPanel);
             ensureViewPresent("Trọng tài", trongTaiPanel);
+            ensureViewPresent("Lịch sử phân công TT", phanCongTrongTaiHistoryPanel);
             ensureViewPresent("Giám sát thiết bị", deviceMonitorPanel);
             ensureViewPresent("Nội dung của giải", dangKyNoiDungPanel);
             ensureViewPresent("Đăng ký đội", dangKyDoiPanel);
@@ -2586,12 +2592,18 @@ public class MainFrame extends JFrame {
                 draw.add(soDoNode);
                 root.add(draw);
 
-                // 4) Giám sát
+                // 4) Quản lý trọng tài
+                DefaultMutableTreeNode referee = new DefaultMutableTreeNode("Quản lý trọng tài");
+                referee.add(new DefaultMutableTreeNode("Trọng tài"));
+                referee.add(new DefaultMutableTreeNode("Lịch sử phân công TT"));
+                root.add(referee);
+
+                // 5) Giám sát
                 DefaultMutableTreeNode monitor = new DefaultMutableTreeNode("Giám sát");
                 monitor.add(new DefaultMutableTreeNode("Giám sát thiết bị"));
                 root.add(monitor);
 
-                // 5) Kết quả
+                // 6) Kết quả
                 DefaultMutableTreeNode result = new DefaultMutableTreeNode("Kết quả");
                 result.add(new DefaultMutableTreeNode("Kết quả đã thi đấu"));
                 result.add(new DefaultMutableTreeNode("Trang biên bản"));
