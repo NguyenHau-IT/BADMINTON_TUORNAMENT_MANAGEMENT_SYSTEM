@@ -1,42 +1,21 @@
 package com.example.btms.model.referee;
 
-import jakarta.persistence.*;
 import java.time.LocalDate;
 
 /**
- * Entity class representing a referee (Trọng tài)
+ * POJO class representing a referee (Trọng tài)
  * Maps to the TRONG_TAI table in the database
  */
-@Entity
-@Table(name = "TRONG_TAI")
 public class TrongTai {
 
-    @Id
-    @Column(name = "MA_TRONG_TAI", length = 30, nullable = false)
     private String maTrongTai;
-
-    @Column(name = "HO_TEN", nullable = false, length = 100, columnDefinition = "NVARCHAR(100)")
     private String hoTen;
-
-    @Column(name = "NGAY_SINH")
     private LocalDate ngaySinh;
-
-    @Column(name = "GIOI_TINH")
     private Boolean gioiTinh; // true = Nam, false = Nữ (BIT)
-
-    @Column(name = "SO_DIEN_THOAI", length = 20)
     private String soDienThoai;
-
-    @Column(name = "EMAIL", length = 100, columnDefinition = "NVARCHAR(100)")
     private String email;
-
-    @Column(name = "MAT_KHAU", nullable = false, length = 255, columnDefinition = "NVARCHAR(255)")
     private String matKhau;
-
-    @Column(name = "IDCLB")
     private Integer idClb;
-
-    @Column(name = "GHI_CHU", columnDefinition = "NVARCHAR(MAX)")
     private String ghiChu;
 
     // Constructors
