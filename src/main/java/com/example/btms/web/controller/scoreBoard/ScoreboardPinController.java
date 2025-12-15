@@ -438,6 +438,7 @@ public class ScoreboardPinController {
                 String header = court.header;
 
                 Map<String, Object> courtInfo = new HashMap<>();
+                courtInfo.put("matchId", pinMatches.get(pin) != null ? pinMatches.get(pin).getMatchId() : null);
                 courtInfo.put("pin", pin);
                 courtInfo.put("courtId", courtId);
                 courtInfo.put("header", header != null ? header : "Chưa có trận đấu");
@@ -455,6 +456,7 @@ public class ScoreboardPinController {
                 if (match != null) {
                     BadmintonMatch.Snapshot snapshot = match.snapshot();
                     Map<String, Object> matchInfo = Map.of(
+                            "matchId", match.getMatchId(),
                             "score", snapshot.score,
                             "games", snapshot.games,
                             "gameNumber", snapshot.gameNumber,
@@ -979,28 +981,25 @@ public class ScoreboardPinController {
     }
 
     /**
-     * 🔍 Lấy mã trận đấu từ PIN (từ court manager)
+     * 🔍 Lấy mã trận đấu từ PIN (từ match ID)
      */
     private String getMaTranDauFromPin(String pin) {
         try {
-            // Tìm court ID từ PIN và tạo mã trận đấu dựa trên court
-            Map<String, CourtManagerService.CourtStatus> all = courtManager.getAllCourtStatus();
-            for (var cs : all.values()) {
-                if (pin != null && pin.equals(cs.pinCode)) {
-                    // Sử dụng court ID làm base cho mã trận đấu
-                    String courtBasedMatchCode = "MATCH_" + cs.courtId + "_" + pin;
-                    log.debug("Generated match code from court: {} for PIN: {}", courtBasedMatchCode, pin);
-                    return courtBasedMatchCode;
-                }
+            // Lấy match từ PIN và trả về match ID
+            BadmintonMatch match = getOrCreateMatch(pin);
+            if (match != null) {
+                String matchId = match.getMatchId();
+                log.debug("Retrieved match ID from match object: {} for PIN: {}", matchId, pin);
+                return matchId;
             }
 
-            // Final fallback
+            // Fallback nếu không lấy được match
             String fallbackMatchCode = "WEB_MATCH_" + pin + "_" + System.currentTimeMillis();
             log.warn("Using fallback match code: {} for PIN: {}", fallbackMatchCode, pin);
             return fallbackMatchCode;
 
         } catch (Exception e) {
-            log.error("Error getting match code from PIN {}: {}", pin, e.getMessage());
+            log.error("Error getting match ID from PIN {}: {}", pin, e.getMessage());
             return "ERROR_MATCH_" + pin;
         }
     }

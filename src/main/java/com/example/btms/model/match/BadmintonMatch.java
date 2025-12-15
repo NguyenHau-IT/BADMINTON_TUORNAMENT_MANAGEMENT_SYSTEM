@@ -28,6 +28,7 @@ public class BadmintonMatch {
 
     // ====== Ảnh chụp trạng thái ======
     public static class Snapshot {
+        public final String matchID;
         public final String[] names; // tên 2 bên
         public final String[] clubs; // tên CLB 2 bên
         public final int[] score; // điểm game hiện tại
@@ -42,9 +43,11 @@ public class BadmintonMatch {
         public final long elapsedSec;
         public final int[][] gameScores; // điểm chi tiết của từng ván đã hoàn thành
 
-        Snapshot(String[] names, String[] clubs, int[] score, int[] games, int gameNumber, int server, boolean doubles,
+        Snapshot(String matchID, String[] names, String[] clubs, int[] score, int[] games, int gameNumber, int server,
+                boolean doubles,
                 boolean betweenGamesInterval, boolean changedEndsThisGame, boolean matchFinished, int bestOf,
                 long elapsedSec, int[][] gameScores) {
+            this.matchID = matchID;
             this.names = new String[] { names[0], names[1] };
             this.clubs = new String[] { clubs[0], clubs[1] };
             this.score = new int[] { score[0], score[1] };
@@ -63,6 +66,7 @@ public class BadmintonMatch {
 
     private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
 
+    private String matchID = "BDM-" + System.currentTimeMillis();
     private final String[] names = new String[] { "Team A", "Team B" };
     private final String[] clubs = new String[] { "", "" };
     private final int[] score = new int[] { 0, 0 };
@@ -133,7 +137,7 @@ public class BadmintonMatch {
             }
         }
 
-        return new Snapshot(names, clubs, score, games, gameNumber, server, doubles, betweenGamesInterval,
+        return new Snapshot(matchID, names, clubs, score, games, gameNumber, server, doubles, betweenGamesInterval,
                 changedEndsThisGame,
                 matchFinished, bestOf, elapsed, gameScores);
     }
@@ -294,6 +298,7 @@ public class BadmintonMatch {
     public void swapEnds() {
         // Log trước khi đổi sân
         System.out.println("=== SWAP ENDS - TRƯỚC KHI ĐỔI ===");
+        System.out.println("Match ID: " + matchID);
         System.out.println("Tên VĐV: A='" + names[0] + "', B='" + names[1] + "'");
         System.out.println("Điểm hiện tại: A=" + score[0] + ", B=" + score[1]);
         System.out.println("Số ván thắng: A=" + games[0] + ", B=" + games[1]);
@@ -341,6 +346,7 @@ public class BadmintonMatch {
 
         // Log sau khi đổi sân
         System.out.println("=== SWAP ENDS - SAU KHI ĐỔI ===");
+        System.out.println("Match ID: " + matchID);
         System.out.println("Tên VĐV: A='" + names[0] + "', B='" + names[1] + "'");
         System.out.println("Điểm hiện tại: A=" + score[0] + ", B=" + score[1]);
         System.out.println("Số ván thắng: A=" + games[0] + ", B=" + games[1]);
@@ -472,5 +478,13 @@ public class BadmintonMatch {
     /** Số giây đã trôi qua từ khi bắt đầu ván hiện tại. */
     public long getGameElapsedSeconds() {
         return Duration.between(gameStartTime, Instant.now()).getSeconds();
+    }
+
+    public void setMatchId(String matchId) {
+        this.matchID = matchId;
+    }
+
+    public String getMatchId() {
+        return this.matchID;
     }
 }
