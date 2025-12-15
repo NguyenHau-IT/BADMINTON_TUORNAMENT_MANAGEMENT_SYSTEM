@@ -262,10 +262,11 @@ run-java21.bat
 
 #### Từ source code (Manual):
 
-```bat
-:: Clone repository
-git clone https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV.git
-cd Badminton_Tournament_Management_System_DB_SQLSRV
+#### Từ source code:
+```bash
+# Clone repository
+git clone https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System.git
+cd Badminton_Tournament_Management_System
 
 :: Ensure Java 21 is active
 java -version
@@ -873,12 +874,11 @@ We welcome contributions! Các areas cần hỗ trợ:
 
 ### 🤝 Contributing
 
-### 🛠️ Development Setup (Windows CMD)
-
-```bat
-:: Clone repository
-git clone https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV.git
-cd Badminton_Tournament_Management_System_DB_SQLSRV
+### 🛠️ Development Setup
+```bash
+# Clone repository
+git clone https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System.git
+cd Badminton_Tournament_Management_System
 
 :: Setup database configuration
 copy /Y application.properties.copy src\main\resources\application.properties
@@ -911,13 +911,12 @@ mvn spring-boot:run
 
 - **Name**: Nguyen Viet Hau
 - **GitHub**: [@NguyenHau-IT](https://github.com/NguyenHau-IT)
-- **Email**: [Contact via GitHub Issues](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV/issues)
+- **Email**: [Contact via GitHub Issues](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System/issues)
 
 ### 🆘 Getting Help
-
-- **Bug Reports**: [GitHub Issues](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV/issues)
-- **Feature Requests**: [GitHub Discussions](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV/discussions)
-- **Documentation**: [Wiki](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV/wiki)
+- **Bug Reports**: [GitHub Issues](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System/issues)
+- **Feature Requests**: [GitHub Discussions](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System/discussions)
+- **Documentation**: [Wiki](https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System/wiki)
 
 ### 📚 Additional Documentation
 
