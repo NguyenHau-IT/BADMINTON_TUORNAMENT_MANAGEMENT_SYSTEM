@@ -183,9 +183,6 @@ public class MainFrame extends JFrame {
     private final MatchWelcomePanel matchWelcome = new MatchWelcomePanel();
     private final QuickGuidePanel quickGuide = new QuickGuidePanel();
 
-    // Tổng quan giải đấu
-    private com.example.btms.ui.overview.OverviewPanel overviewPanel;
-
     private AuthService authService;
     private ContentParticipantsController contentParticipantsController; // initialized after connection
 
@@ -341,7 +338,6 @@ public class MainFrame extends JFrame {
                 // Window closed event - should not happen with DO_NOTHING_ON_CLOSE
                 // but just in case, call shutdown
                 shutdownApplication();
-                }
                 try {
                     monitorTab.close();
                 } catch (Exception ignored) {
@@ -365,9 +361,9 @@ public class MainFrame extends JFrame {
             }
         });
 
-    pack();
+        pack();
 
-    setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
         setLocationRelativeTo(null);
         setAlwaysOnTop(false);
         // Defer icon application until after constructor to avoid 'leaking this in
@@ -818,11 +814,6 @@ public class MainFrame extends JFrame {
                     noiDungService, vdvService, dkCaNhanService, doiService, chiTietDoiService, clbService);
             ensureViewPresent("Người tham gia theo nội dung", cpView);
 
-            // ==== Tổng quan giải đấu ====
-            overviewPanel = new com.example.btms.ui.overview.OverviewPanel();
-            overviewPanel.updateConnection(conn, selectedGiaiDau);
-            ensureViewPresent("Tổng quan", overviewPanel);
-
             // ==== Các màn khác giữ nguyên ====
             dangKyDoiPanel = new DangKyDoiPanel(conn);
             dangKyCaNhanPanel = new DangKyCaNhanPanel(conn);
@@ -1110,13 +1101,6 @@ public class MainFrame extends JFrame {
             }
 
             // === Gọi refreshAll cho các phần ===
-            // Tổng quan giải đấu
-            try {
-                if (overviewPanel != null) {
-                    overviewPanel.refreshData();
-                }
-            } catch (Throwable ignore) {
-            }
 
             // Quản lý Nội dung (đã tách 1 UI + 1 Controller)
             try {
@@ -2705,13 +2689,6 @@ public class MainFrame extends JFrame {
                 }
                 if ("Trang biên bản".equals(label)) {
                     openBienBanWindow();
-                    return;
-                }
-                if ("Tổng quan".equals(label)) {
-                    if (overviewPanel != null) {
-                        ensureViewPresent("Tổng quan", overviewPanel);
-                        showView("Tổng quan");
-                    }
                     return;
                 }
                 if (views.containsKey(label)) {
