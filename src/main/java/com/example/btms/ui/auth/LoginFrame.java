@@ -6,7 +6,6 @@ import javax.swing.border.EmptyBorder;
 
 import com.example.btms.util.ui.IconUtil;
 
-@SuppressWarnings("serial")
 public class LoginFrame extends JFrame {
 
     // ---- UI

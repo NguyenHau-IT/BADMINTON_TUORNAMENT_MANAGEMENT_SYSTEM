@@ -1077,7 +1077,6 @@ public class TongSapHuyChuongPanel extends JPanel {
         private final java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
         private final java.util.Date printDate = new java.util.Date();
 
-        @SuppressWarnings("unused")
         ReportPageEvent(com.lowagie.text.Image leftLogo, com.lowagie.text.Image rightLogo,
                 com.lowagie.text.pdf.BaseFont baseFont, String tournamentName) {
             this.leftLogo = leftLogo;

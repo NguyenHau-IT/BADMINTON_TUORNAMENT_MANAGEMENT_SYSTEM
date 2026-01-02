@@ -91,6 +91,7 @@ import com.example.btms.ui.bracket.SoDoThiDauPanel;
 import com.example.btms.ui.category.ContentParticipantsPanel;
 import com.example.btms.ui.category.NoiDungManagementPanel;
 import com.example.btms.ui.cateoftuornament.DangKyNoiDungPanel;
+import com.example.btms.ui.fee.ClubFeesPanel;
 import com.example.btms.ui.club.CauLacBoManagementPanel;
 import com.example.btms.ui.control.BadmintonControlPanel;
 import com.example.btms.ui.control.MultiCourtControlPanel;
@@ -164,6 +165,8 @@ public class MainFrame extends JFrame {
     // Trang biên bản: dùng cửa sổ riêng
     private BienBanPanel bienBanPanel; // giữ tương thích nhưng không nhúng vào CardLayout
     private javax.swing.JFrame bienBanWindow;
+    // Tính lệ phí theo câu lạc bộ
+    private ClubFeesPanel clubFeesPanel;
     // Unified window manager thay thế BracketWindowManager và PlayWindowManager
     private final UnifiedWindowManager windowManager = new UnifiedWindowManager();
 
@@ -872,6 +875,14 @@ public class MainFrame extends JFrame {
             } catch (Exception ignore) {
             }
             try {
+                clubFeesPanel = new ClubFeesPanel();
+                if (applicationContext != null) {
+                    applicationContext.getAutowireCapableBeanFactory().autowireBean(clubFeesPanel);
+                }
+                ensureViewPresent("Tính lệ phí theo CLB", clubFeesPanel);
+            } catch (Throwable ignore) {
+            }
+            try {
                 var tongSapHuyChuongPanel = new TongSapHuyChuongPanel(conn, clbService);
                 ensureViewPresent("Tổng sắp huy chương", tongSapHuyChuongPanel);
             } catch (Throwable ignore) {
@@ -991,9 +1002,7 @@ public class MainFrame extends JFrame {
         if (navModel != null) {
             updateNavigationRootTitleFromSelection();
             navModel.nodeChanged((DefaultMutableTreeNode) navModel.getRoot());
-            for (int i = 0; i < navTree.getRowCount(); i++) {
-                navTree.expandRow(i);
-            }
+            // Don't expand all rows - preserve user's expand/collapse state
         }
     }
 
@@ -2483,6 +2492,10 @@ public class MainFrame extends JFrame {
         if (navModel == null) {
             return;
         }
+
+        // Lưu trạng thái expand/collapse của tree
+        java.util.Set<String> expandedPaths = saveTreeExpandState();
+
         DefaultMutableTreeNode root = (DefaultMutableTreeNode) navModel.getRoot();
         if (root == null) {
             return;
@@ -2609,6 +2622,7 @@ public class MainFrame extends JFrame {
                 result.add(new DefaultMutableTreeNode("Trang biên bản"));
                 result.add(new DefaultMutableTreeNode("Tổng sắp huy chương"));
                 result.add(new DefaultMutableTreeNode("Báo cáo (PDF)"));
+                result.add(new DefaultMutableTreeNode("Tính lệ phí theo CLB"));
                 root.add(result);
             } else {
                 // Client mode: chỉ hiển thị Sơ đồ thi đấu và Kết quả đã thi đấu
@@ -2666,14 +2680,88 @@ public class MainFrame extends JFrame {
         }
 
         navModel.reload();
-        for (int i = 0; i < navTree.getRowCount(); i++) {
-            navTree.expandRow(i);
+        // Restore trạng thái expand/collapse
+        if (expandedPaths != null && !expandedPaths.isEmpty()) {
+            restoreTreeExpandState(expandedPaths);
+        } else {
+            // Nếu không có state cũ, expand tất cả (default behavior)
+            for (int i = 0; i < navTree.getRowCount(); i++) {
+                navTree.expandRow(i);
+            }
         }
     }
 
     /**
-     * Kích hoạt hành động cho một node trong cây điều hướng (dùng chung cho
-     * listener & mouse).
+     * Lưu trạng thái expand/collapse của tree
+     */
+    private java.util.Set<String> saveTreeExpandState() {
+        java.util.Set<String> expanded = new java.util.HashSet<>();
+        if (navTree == null) {
+            return expanded;
+        }
+
+        for (int row = 0; row < navTree.getRowCount(); row++) {
+            if (navTree.isExpanded(row)) {
+                javax.swing.tree.TreePath path = navTree.getPathForRow(row);
+                if (path != null) {
+                    expanded.add(pathToString(path));
+                }
+            }
+        }
+        return expanded;
+    }
+
+    /**
+     * Restore trạng thái expand/collapse của tree
+     */
+    private void restoreTreeExpandState(java.util.Set<String> expandedPaths) {
+        if (expandedPaths == null || expandedPaths.isEmpty() || navTree == null) {
+            return;
+        }
+
+        try {
+            for (int row = 0; row < navTree.getRowCount(); row++) {
+                javax.swing.tree.TreePath path = navTree.getPathForRow(row);
+                if (path != null) {
+                    String pathStr = pathToString(path);
+                    if (expandedPaths.contains(pathStr)) {
+                        navTree.expandRow(row);
+                    } else {
+                        navTree.collapseRow(row);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Nếu có lỗi, expand tất cả để safe
+            for (int i = 0; i < navTree.getRowCount(); i++) {
+                navTree.expandRow(i);
+            }
+        }
+    }
+
+    /**
+     * Convert TreePath to String representation
+     */
+    private String pathToString(javax.swing.tree.TreePath path) {
+        if (path == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        Object[] comps = path.getPath();
+        for (int i = 0; i < comps.length; i++) {
+            if (i > 0)
+                sb.append("/");
+            if (comps[i] instanceof DefaultMutableTreeNode node) {
+                sb.append(String.valueOf(node.getUserObject()));
+            } else {
+                sb.append(String.valueOf(comps[i]));
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Activate a navigation node (when user clicks on it in the tree)
      */
     private void activateNavNode(DefaultMutableTreeNode node) {
         try {
@@ -2737,6 +2825,13 @@ public class MainFrame extends JFrame {
                     openBienBanWindow();
                     return;
                 }
+                if ("Tính lệ phí theo CLB".equals(label)) {
+                    if (clubFeesPanel != null) {
+                        ensureViewPresent("Tính lệ phí theo CLB", clubFeesPanel);
+                        showView("Tính lệ phí theo CLB");
+                    }
+                    return;
+                }
                 if (views.containsKey(label)) {
                     showView(label);
                 }
@@ -2760,6 +2855,7 @@ public class MainFrame extends JFrame {
         public String toString() {
             return label;
         }
+
     }
 
     private void updateNavigationRootTitleFromSelection() {

@@ -22,7 +22,6 @@ import com.example.btms.service.tournament.GiaiDauService;
  * embedded
  * in panels or used as a standalone dialog.
  */
-@SuppressWarnings("serial")
 public class TournamentManagementComponent extends JPanel {
     private final DatabaseService databaseService;
     private final boolean selectionMode;
