@@ -18,7 +18,6 @@ import com.example.btms.model.tournament.GiaiDau;
 import com.example.btms.service.tournament.GiaiDauService;
 
 /** Panel quản lý CRUD cho giải đấu (độc lập) */
-@SuppressWarnings("serial")
 public class GiaiDauManagementPanel extends JPanel {
     private final GiaiDauService giaiDauService;
     private final boolean selectionOnly;
