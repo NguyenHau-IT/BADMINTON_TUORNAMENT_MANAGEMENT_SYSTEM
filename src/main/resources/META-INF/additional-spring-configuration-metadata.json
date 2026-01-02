@@ -1,0 +1,32 @@
+{"properties": [
+  {
+    "name": "spring.datasource.hikari.maximum-pool-size",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.datasource.hikari.maximum-pool-size'"
+  },
+  {
+    "name": "spring.main.headless",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.main.headless'"
+  },
+  {
+    "name": "spring.datasource.hikari.minimum-idle",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.datasource.hikari.minimum-idle'"
+  },
+  {
+    "name": "spring.datasource.hikari.idle-timeout",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.datasource.hikari.idle-timeout'"
+  },
+  {
+    "name": "spring.datasource.hikari.max-lifetime",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.datasource.hikari.max-lifetime'"
+  },
+  {
+    "name": "spring.datasource.hikari.connection-timeout",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.datasource.hikari.connection-timeout'"
+  }
+]}

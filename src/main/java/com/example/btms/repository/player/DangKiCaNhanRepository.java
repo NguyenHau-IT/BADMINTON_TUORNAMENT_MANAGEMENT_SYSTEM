@@ -127,6 +127,22 @@ public class DangKiCaNhanRepository {
         }
     }
 
+    /** GET ALL by tournament */
+    public List<DangKiCaNhan> getByGiaiDau(int idGiai) {
+        final String sql = "SELECT * FROM DANG_KI_CA_NHAN WHERE ID_GIAI=? ORDER BY ID_VDV, ID_NOI_DUNG";
+        final List<DangKiCaNhan> out = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idGiai);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next())
+                    out.add(map(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi lấy danh sách đăng ký cá nhân theo giải", e);
+        }
+        return out;
+    }
+
     private DangKiCaNhan map(ResultSet rs) throws SQLException {
         final Timestamp ts = rs.getTimestamp("THOI_GIAN_TAO");
         // KIEM_TRA có thể là BIT/TINYINT(1) => đọc về int/boolean

@@ -878,8 +878,29 @@ public class MainFrame extends JFrame {
                 clubFeesPanel = new ClubFeesPanel();
                 if (applicationContext != null) {
                     applicationContext.getAutowireCapableBeanFactory().autowireBean(clubFeesPanel);
+                    try {
+                        var clubFeesService = applicationContext
+                                .getBean(com.example.btms.service.fee.ClubFeesService.class);
+                        // Truyền connection trực tiếp
+                        if (conn != null) {
+                            clubFeesService.setDirectConnection(conn);
+                        }
+                        clubFeesPanel.setClubFeesService(clubFeesService);
+                    } catch (Exception e) {
+                        // Service không tìm thấy, tạo mới với DatabaseService
+                        var clubFeesService = new com.example.btms.service.fee.ClubFeesService(service);
+                        // Truyền connection trực tiếp
+                        if (conn != null) {
+                            clubFeesService.setDirectConnection(conn);
+                        }
+                        clubFeesPanel.setClubFeesService(clubFeesService);
+                    }
                 }
                 ensureViewPresent("Tính lệ phí theo CLB", clubFeesPanel);
+                // Set giải đấu hiện tại
+                if (selectedGiaiDau != null) {
+                    clubFeesPanel.setSelectedTournament(selectedGiaiDau);
+                }
             } catch (Throwable ignore) {
             }
             try {
