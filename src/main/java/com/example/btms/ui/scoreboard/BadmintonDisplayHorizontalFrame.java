@@ -97,9 +97,7 @@ public class BadmintonDisplayHorizontalFrame extends JFrame implements PropertyC
     private String headerText = "TRẬN ĐẤU";
 
     // Giữ để tương thích với code cũ, nhưng không sử dụng nữa.
-    @SuppressWarnings("unused")
     private String partnerA = "";
-    @SuppressWarnings("unused")
     private String partnerB = "";
 
     private static final int CELL_H = 130; // tăng để chắc chắn chứa 2 dòng tên + 1 dòng CLB

@@ -24,7 +24,6 @@ public class ScoreboardBroadcaster implements PropertyChangeListener, AutoClosea
     private final String hostShown;
     private final String displayKind; // "VERTICAL"/"HORIZONTAL"
     private final String courtId; // Thêm courtId để phân biệt các sân
-    @SuppressWarnings("unused")
     private final NetworkInterface nif; // có thể dùng để route, tuỳ OS/JVM
 
     private volatile String header = "TRẬN ĐẤU";

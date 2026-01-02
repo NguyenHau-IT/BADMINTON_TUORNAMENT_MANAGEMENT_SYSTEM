@@ -91,6 +91,7 @@ import com.example.btms.ui.bracket.SoDoThiDauPanel;
 import com.example.btms.ui.category.ContentParticipantsPanel;
 import com.example.btms.ui.category.NoiDungManagementPanel;
 import com.example.btms.ui.cateoftuornament.DangKyNoiDungPanel;
+import com.example.btms.ui.fee.ClubFeesPanel;
 import com.example.btms.ui.club.CauLacBoManagementPanel;
 import com.example.btms.ui.control.BadmintonControlPanel;
 import com.example.btms.ui.control.MultiCourtControlPanel;
@@ -103,6 +104,7 @@ import com.example.btms.ui.monitor.MonitorTab;
 import com.example.btms.ui.player.DangKyCaNhanPanel;
 import com.example.btms.ui.player.VanDongVienManagementPanel;
 import com.example.btms.ui.referee.TrongTaiManagementPanel;
+import com.example.btms.ui.referee.PhanCongTrongTaiHistoryPanel;
 import com.example.btms.ui.report.BaoCaoPdfPanel;
 import com.example.btms.ui.result.BienBanPanel;
 import com.example.btms.ui.result.BienBanFrame;
@@ -151,6 +153,7 @@ public class MainFrame extends JFrame {
     private DangKyNoiDungPanel dangKyNoiDungPanel;
     private VanDongVienManagementPanel vanDongVienPanel;
     private TrongTaiManagementPanel trongTaiPanel;
+    private PhanCongTrongTaiHistoryPanel phanCongTrongTaiHistoryPanel;
     private com.example.btms.ui.device.DeviceMonitorPanel deviceMonitorPanel;
     private DangKyDoiPanel dangKyDoiPanel;
     private DangKyCaNhanPanel dangKyCaNhanPanel; // đăng ký cá nhân (đơn)
@@ -162,6 +165,8 @@ public class MainFrame extends JFrame {
     // Trang biên bản: dùng cửa sổ riêng
     private BienBanPanel bienBanPanel; // giữ tương thích nhưng không nhúng vào CardLayout
     private javax.swing.JFrame bienBanWindow;
+    // Tính lệ phí theo câu lạc bộ
+    private ClubFeesPanel clubFeesPanel;
     // Unified window manager thay thế BracketWindowManager và PlayWindowManager
     private final UnifiedWindowManager windowManager = new UnifiedWindowManager();
 
@@ -808,6 +813,9 @@ public class MainFrame extends JFrame {
                 }
             }
 
+            // ---- Tạo panel lịch sử phân công trọng tài
+            phanCongTrongTaiHistoryPanel = new PhanCongTrongTaiHistoryPanel(phanCongTrongTaiService, trongTaiService);
+
             // ---- Giám sát thiết bị
             com.example.btms.service.device.DeviceSessionService deviceSessionService = applicationContext
                     .getBean(com.example.btms.service.device.DeviceSessionService.class);
@@ -865,6 +873,35 @@ public class MainFrame extends JFrame {
             try {
                 baoCaoPdfPanel = new BaoCaoPdfPanel(conn);
             } catch (Exception ignore) {
+            }
+            try {
+                clubFeesPanel = new ClubFeesPanel();
+                if (applicationContext != null) {
+                    applicationContext.getAutowireCapableBeanFactory().autowireBean(clubFeesPanel);
+                    try {
+                        var clubFeesService = applicationContext
+                                .getBean(com.example.btms.service.fee.ClubFeesService.class);
+                        // Truyền connection trực tiếp
+                        if (conn != null) {
+                            clubFeesService.setDirectConnection(conn);
+                        }
+                        clubFeesPanel.setClubFeesService(clubFeesService);
+                    } catch (Exception e) {
+                        // Service không tìm thấy, tạo mới với DatabaseService
+                        var clubFeesService = new com.example.btms.service.fee.ClubFeesService(service);
+                        // Truyền connection trực tiếp
+                        if (conn != null) {
+                            clubFeesService.setDirectConnection(conn);
+                        }
+                        clubFeesPanel.setClubFeesService(clubFeesService);
+                    }
+                }
+                ensureViewPresent("Tính lệ phí theo CLB", clubFeesPanel);
+                // Set giải đấu hiện tại
+                if (selectedGiaiDau != null) {
+                    clubFeesPanel.setSelectedTournament(selectedGiaiDau);
+                }
+            } catch (Throwable ignore) {
             }
             try {
                 var tongSapHuyChuongPanel = new TongSapHuyChuongPanel(conn, clbService);
@@ -986,9 +1023,7 @@ public class MainFrame extends JFrame {
         if (navModel != null) {
             updateNavigationRootTitleFromSelection();
             navModel.nodeChanged((DefaultMutableTreeNode) navModel.getRoot());
-            for (int i = 0; i < navTree.getRowCount(); i++) {
-                navTree.expandRow(i);
-            }
+            // Don't expand all rows - preserve user's expand/collapse state
         }
     }
 
@@ -1333,6 +1368,7 @@ public class MainFrame extends JFrame {
             ensureViewPresent("Câu lạc bộ", cauLacBoPanel);
             ensureViewPresent("Vận động viên", vanDongVienPanel);
             ensureViewPresent("Trọng tài", trongTaiPanel);
+            ensureViewPresent("Lịch sử phân công TT", phanCongTrongTaiHistoryPanel);
             ensureViewPresent("Giám sát thiết bị", deviceMonitorPanel);
             ensureViewPresent("Nội dung của giải", dangKyNoiDungPanel);
             ensureViewPresent("Đăng ký đội", dangKyDoiPanel);
@@ -2477,6 +2513,10 @@ public class MainFrame extends JFrame {
         if (navModel == null) {
             return;
         }
+
+        // Lưu trạng thái expand/collapse của tree
+        java.util.Set<String> expandedPaths = saveTreeExpandState();
+
         DefaultMutableTreeNode root = (DefaultMutableTreeNode) navModel.getRoot();
         if (root == null) {
             return;
@@ -2586,17 +2626,24 @@ public class MainFrame extends JFrame {
                 draw.add(soDoNode);
                 root.add(draw);
 
-                // 4) Giám sát
+                // 4) Quản lý trọng tài
+                DefaultMutableTreeNode referee = new DefaultMutableTreeNode("Quản lý trọng tài");
+                referee.add(new DefaultMutableTreeNode("Trọng tài"));
+                referee.add(new DefaultMutableTreeNode("Lịch sử phân công TT"));
+                root.add(referee);
+
+                // 5) Giám sát
                 DefaultMutableTreeNode monitor = new DefaultMutableTreeNode("Giám sát");
                 monitor.add(new DefaultMutableTreeNode("Giám sát thiết bị"));
                 root.add(monitor);
 
-                // 5) Kết quả
+                // 6) Kết quả
                 DefaultMutableTreeNode result = new DefaultMutableTreeNode("Kết quả");
                 result.add(new DefaultMutableTreeNode("Kết quả đã thi đấu"));
                 result.add(new DefaultMutableTreeNode("Trang biên bản"));
                 result.add(new DefaultMutableTreeNode("Tổng sắp huy chương"));
                 result.add(new DefaultMutableTreeNode("Báo cáo (PDF)"));
+                result.add(new DefaultMutableTreeNode("Tính lệ phí theo CLB"));
                 root.add(result);
             } else {
                 // Client mode: chỉ hiển thị Sơ đồ thi đấu và Kết quả đã thi đấu
@@ -2654,14 +2701,88 @@ public class MainFrame extends JFrame {
         }
 
         navModel.reload();
-        for (int i = 0; i < navTree.getRowCount(); i++) {
-            navTree.expandRow(i);
+        // Restore trạng thái expand/collapse
+        if (expandedPaths != null && !expandedPaths.isEmpty()) {
+            restoreTreeExpandState(expandedPaths);
+        } else {
+            // Nếu không có state cũ, expand tất cả (default behavior)
+            for (int i = 0; i < navTree.getRowCount(); i++) {
+                navTree.expandRow(i);
+            }
         }
     }
 
     /**
-     * Kích hoạt hành động cho một node trong cây điều hướng (dùng chung cho
-     * listener & mouse).
+     * Lưu trạng thái expand/collapse của tree
+     */
+    private java.util.Set<String> saveTreeExpandState() {
+        java.util.Set<String> expanded = new java.util.HashSet<>();
+        if (navTree == null) {
+            return expanded;
+        }
+
+        for (int row = 0; row < navTree.getRowCount(); row++) {
+            if (navTree.isExpanded(row)) {
+                javax.swing.tree.TreePath path = navTree.getPathForRow(row);
+                if (path != null) {
+                    expanded.add(pathToString(path));
+                }
+            }
+        }
+        return expanded;
+    }
+
+    /**
+     * Restore trạng thái expand/collapse của tree
+     */
+    private void restoreTreeExpandState(java.util.Set<String> expandedPaths) {
+        if (expandedPaths == null || expandedPaths.isEmpty() || navTree == null) {
+            return;
+        }
+
+        try {
+            for (int row = 0; row < navTree.getRowCount(); row++) {
+                javax.swing.tree.TreePath path = navTree.getPathForRow(row);
+                if (path != null) {
+                    String pathStr = pathToString(path);
+                    if (expandedPaths.contains(pathStr)) {
+                        navTree.expandRow(row);
+                    } else {
+                        navTree.collapseRow(row);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Nếu có lỗi, expand tất cả để safe
+            for (int i = 0; i < navTree.getRowCount(); i++) {
+                navTree.expandRow(i);
+            }
+        }
+    }
+
+    /**
+     * Convert TreePath to String representation
+     */
+    private String pathToString(javax.swing.tree.TreePath path) {
+        if (path == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        Object[] comps = path.getPath();
+        for (int i = 0; i < comps.length; i++) {
+            if (i > 0)
+                sb.append("/");
+            if (comps[i] instanceof DefaultMutableTreeNode node) {
+                sb.append(String.valueOf(node.getUserObject()));
+            } else {
+                sb.append(String.valueOf(comps[i]));
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Activate a navigation node (when user clicks on it in the tree)
      */
     private void activateNavNode(DefaultMutableTreeNode node) {
         try {
@@ -2725,6 +2846,13 @@ public class MainFrame extends JFrame {
                     openBienBanWindow();
                     return;
                 }
+                if ("Tính lệ phí theo CLB".equals(label)) {
+                    if (clubFeesPanel != null) {
+                        ensureViewPresent("Tính lệ phí theo CLB", clubFeesPanel);
+                        showView("Tính lệ phí theo CLB");
+                    }
+                    return;
+                }
                 if (views.containsKey(label)) {
                     showView(label);
                 }
@@ -2748,6 +2876,7 @@ public class MainFrame extends JFrame {
         public String toString() {
             return label;
         }
+
     }
 
     private void updateNavigationRootTitleFromSelection() {
