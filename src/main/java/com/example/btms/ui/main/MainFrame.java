@@ -279,9 +279,19 @@ public class MainFrame extends JFrame {
         // Không add headerBar nữa
         // Left navigation tree
         JScrollPane nav = buildNavigationTreePanel();
-        root.add(nav, BorderLayout.WEST);
-        // Use cardPanel instead of tabs in CENTER (tabs kept temporarily for reference)
-        root.add(wrapCard(cardPanel), BorderLayout.CENTER);
+
+        // Sử dụng JSplitPane để cho phép kéo giãn khu vực cây thư mục
+        javax.swing.JSplitPane splitPane = new javax.swing.JSplitPane(
+                javax.swing.JSplitPane.HORIZONTAL_SPLIT,
+                nav,
+                wrapCard(cardPanel));
+        splitPane.setDividerLocation(240); // Vị trí chia ban đầu
+        splitPane.setDividerSize(6); // Kích thước thanh chia
+        splitPane.setContinuousLayout(true); // Cập nhật liên tục khi kéo
+        splitPane.setOneTouchExpandable(true); // Thêm nút thu gọn/mở rộng nhanh
+        splitPane.setResizeWeight(0.0); // Khi resize cửa sổ, ưu tiên giữ nguyên kích thước bên trái
+
+        root.add(splitPane, BorderLayout.CENTER);
         root.add(status, BorderLayout.SOUTH);
 
         if (netCfg != null && netCfg.ifName() != null && !netCfg.ifName().isBlank()) {
@@ -2705,8 +2715,19 @@ public class MainFrame extends JFrame {
         if (expandedPaths != null && !expandedPaths.isEmpty()) {
             restoreTreeExpandState(expandedPaths);
         } else {
-            // Nếu không có state cũ, expand tất cả (default behavior)
+            // Nếu không có state cũ, expand tất cả NGOẠI TRỪ "Nội dung của giải"
             for (int i = 0; i < navTree.getRowCount(); i++) {
+                javax.swing.tree.TreePath path = navTree.getPathForRow(i);
+                if (path != null) {
+                    Object node = path.getLastPathComponent();
+                    if (node instanceof DefaultMutableTreeNode) {
+                        Object userObject = ((DefaultMutableTreeNode) node).getUserObject();
+                        // Không expand "Nội dung của giải" - để mặc định thu gọn
+                        if (userObject != null && userObject.toString().equals("Nội dung của giải")) {
+                            continue;
+                        }
+                    }
+                }
                 navTree.expandRow(i);
             }
         }
