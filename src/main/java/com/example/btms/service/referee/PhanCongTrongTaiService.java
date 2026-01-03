@@ -12,7 +12,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Service class for managing PhanCongTrongTai (Referee Assignment) operations
@@ -25,6 +24,7 @@ public class PhanCongTrongTaiService {
     private final SQLSRVConnectionManager manager = new SQLSRVConnectionManager();
     private final DatabaseService databaseService = new DatabaseService(manager);
     private PhanCongTrongTaiRepository repository;
+    private Connection directConnection;
 
     public PhanCongTrongTaiService() {
         initializeRepository();
@@ -35,6 +35,16 @@ public class PhanCongTrongTaiService {
      */
     public DatabaseService getDatabaseService() {
         return databaseService;
+    }
+
+    /**
+     * Set direct connection (để sử dụng khi không có DatabaseService)
+     */
+    public void setDirectConnection(Connection conn) {
+        this.directConnection = conn;
+        if (conn != null) {
+            this.repository = new PhanCongTrongTaiRepository(conn);
+        }
     }
 
     /**
@@ -52,7 +62,8 @@ public class PhanCongTrongTaiService {
      */
     private void ensureRepository() throws SQLException {
         if (repository == null) {
-            Connection connection = databaseService.current();
+            // Ưu tiên dùng directConnection
+            Connection connection = directConnection != null ? directConnection : databaseService.current();
             if (connection == null) {
                 throw new SQLException("No database connection available");
             }
@@ -201,7 +212,7 @@ public class PhanCongTrongTaiService {
 
             // Generate ID if not provided
             if (assignment.getMaPhanCong() == null || assignment.getMaPhanCong().isEmpty()) {
-                assignment.setMaPhanCong(UUID.randomUUID().toString());
+                assignment.setMaPhanCong("PC_" + System.currentTimeMillis());
             }
 
             PhanCongTrongTai saved = repository.save(assignment);
