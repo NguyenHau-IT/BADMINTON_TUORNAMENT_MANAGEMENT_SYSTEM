@@ -365,7 +365,7 @@ public final class ClubFeesPdfExporter {
 
                 // Logo ứng dụng bên trái
                 try {
-                    String appLogoPath = getLogoPath("app.logo", "src/main/resources/icons/btms.png");
+                    String appLogoPath = getLogoPath("report.logo.path", "src/main/resources/icons/btms.png");
                     File logoFile = new File(appLogoPath);
 
                     if (logoFile.exists()) {
@@ -397,7 +397,8 @@ public final class ClubFeesPdfExporter {
 
                 // Logo nhà tài trợ bên phải
                 try {
-                    String sponsorLogoPath = getLogoPath("sponsor.logo", "src/main/resources/icons/vuidokan.png");
+                    String sponsorLogoPath = getLogoPath("report.sponsor.logo.path",
+                            "src/main/resources/icons/vuidokan.png");
                     File sponsorFile = new File(sponsorLogoPath);
 
                     if (sponsorFile.exists()) {
@@ -430,7 +431,29 @@ public final class ClubFeesPdfExporter {
 
         @Override
         public void onEndPage(PdfWriter writer, Document document) {
-            // Có thể thêm footer nếu cần
+            try {
+                // Thêm số trang ở footer
+                int pageNumber = writer.getPageNumber();
+                String text = "Trang " + pageNumber;
+
+                // Tạo font cho số trang
+                BaseFont baseFont = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, false);
+                Font pageFont = new Font(baseFont, 9);
+
+                Phrase pagePhrase = new Phrase(text, pageFont);
+
+                // Vị trí footer: giữa trang, cách đáy 20pt
+                float x = (document.getPageSize().getLeft() + document.getPageSize().getRight()) / 2;
+                float y = document.getPageSize().getBottom() + 20;
+
+                com.lowagie.text.pdf.ColumnText.showTextAligned(
+                        writer.getDirectContent(),
+                        Element.ALIGN_CENTER,
+                        pagePhrase,
+                        x, y, 0);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         /**
