@@ -46,6 +46,11 @@ public class ChiTietGiaiDauService {
         return found;
     }
 
+    /** READ: theo khoá kép (nullable, không ném lỗi) */
+    public ChiTietGiaiDau getOne(int idGiaiDau, int idNoiDung) {
+        return repo.getChiTietGiaiDauById(idGiaiDau, idNoiDung);
+    }
+
     /** UPDATE */
     public void update(ChiTietGiaiDau chiTiet) {
         validate(chiTiet);

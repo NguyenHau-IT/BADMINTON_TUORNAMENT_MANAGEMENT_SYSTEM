@@ -17,7 +17,6 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableRowSorter;
 
-
 /**
  * Tab đăng ký nội dung cho giải đấu đã chọn (dựa theo Prefs.selectedGiaiDauId)
  */
@@ -34,10 +33,11 @@ public class DangKyNoiDungPanel extends JPanel {
 
     // --- Table
     private final DefaultTableModel model = new DefaultTableModel(
-            new Object[] { "Đăng ký", "ID", "Nội dung", "Tuổi dưới", "Tuổi trên", "Giới tính", "Đánh đôi" }, 0) {
+            new Object[] { "Đăng ký", "ID", "Nội dung", "Tuổi dưới", "Tuổi trên", "Giới tính", "Đánh đôi", "Số sơ đồ" },
+            0) {
         @Override
         public boolean isCellEditable(int r, int c) {
-            return c == 0;
+            return c == 0 || c == 7; // Đăng ký và Số sơ đồ có thể edit
         }
 
         @Override
@@ -76,6 +76,11 @@ public class DangKyNoiDungPanel extends JPanel {
         TableColumn checkCol = table.getColumnModel().getColumn(0);
         checkCol.setMaxWidth(90);
         checkCol.setMinWidth(80);
+
+        // Cột "Số sơ đồ"
+        TableColumn soDo = table.getColumnModel().getColumn(7);
+        soDo.setMaxWidth(100);
+        soDo.setMinWidth(80);
 
         DefaultTableCellRenderer center = new DefaultTableCellRenderer();
         center.setHorizontalAlignment(SwingConstants.CENTER);

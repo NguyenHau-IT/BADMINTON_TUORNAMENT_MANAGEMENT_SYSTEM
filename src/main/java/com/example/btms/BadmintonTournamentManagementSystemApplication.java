@@ -99,9 +99,12 @@ public class BadmintonTournamentManagementSystemApplication {
 					h2TcpServerConfig.showConnectionInfo();
 				} catch (SQLException e) {
 					log.logTs("❌ Không thể khởi động H2 TCP Server: %s", e.getMessage());
+					e.printStackTrace(); // In chi tiết lỗi để debug
 				}
 
-			} catch (Throwable ignore) {
+			} catch (Throwable e) {
+				log.logTs("❌ Lỗi khi cấu hình network: %s", e.getMessage());
+				e.printStackTrace(); // In chi tiết lỗi
 			}
 
 			// Tạo MainFrame nhưng KHÔNG hiển thị; MainFrame sẽ tự hiển thị sau khi

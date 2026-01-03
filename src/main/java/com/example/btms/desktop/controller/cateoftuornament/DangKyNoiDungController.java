@@ -77,11 +77,16 @@ public class DangKyNoiDungController {
         });
 
         view.getModel().addTableModelListener(e -> {
-            if (e.getColumn() != 0 || e.getFirstRow() < 0)
-                return;
             if (updating)
                 return;
-            handleToggle(e.getFirstRow());
+            int col = e.getColumn();
+            if (col == 0) {
+                // Checkbox đăng ký/hủy đăng ký
+                handleToggle(e.getFirstRow());
+            } else if (col == 7) {
+                // Cột "Số sơ đồ" thay đổi
+                handleSoDo(e.getFirstRow());
+            }
         });
     }
 
@@ -152,8 +157,24 @@ public class DangKyNoiDungController {
                     String gt = Optional.ofNullable(nd.getGioiTinh()).orElse("").trim();
                     String genderText = "f".equalsIgnoreCase(gt) ? "Nữ" : "m".equalsIgnoreCase(gt) ? "Nam" : "Nam, Nữ";
                     String teamText = Boolean.TRUE.equals(nd.getTeam()) ? "Đôi" : "Đơn";
+
+                    // Lấy số sơ đồ từ ChiTietGiaiDau (hoặc "Auto" nếu không tìm thấy)
+                    String soDoText = "Auto"; // Mặc định là Auto
+                    try {
+                        if (registered) {
+                            ChiTietGiaiDau ct = chiTietService.getOne(idGiai, nd.getId());
+                            if (ct != null) {
+                                int soDo = ct.getSoDo();
+                                if (soDo > 1) { // Chỉ hiển thị con số nếu > 1, còn lại là Auto
+                                    soDoText = String.valueOf(soDo);
+                                }
+                            }
+                        }
+                    } catch (Exception ignored) {
+                    }
+
                     m.addRow(new Object[] { registered, nd.getId(), nd.getTenNoiDung(),
-                            nd.getTuoiDuoi(), nd.getTuoiTren(), genderText, teamText });
+                            nd.getTuoiDuoi(), nd.getTuoiTren(), genderText, teamText, soDoText });
                 }
                 updateFilters();
                 updateCountLabel();
@@ -218,11 +239,25 @@ public class DangKyNoiDungController {
                 if (!exists) {
                     int td = (tuoiDuoi == null) ? 0 : tuoiDuoi;
                     int tt = (tuoiTren == null) ? 0 : tuoiTren;
-                    chiTietService.create(new ChiTietGiaiDau(idGiai, idNoiDung, td, tt));
+                    chiTietService.create(new ChiTietGiaiDau(idGiai, idNoiDung, td, tt, 1)); // soDo=1 (Auto)
+                    // Cập nhật giá trị "Auto" vào cột 7
+                    updating = true;
+                    try {
+                        m.setValueAt("Auto", modelRow, 7);
+                    } finally {
+                        updating = false;
+                    }
                 }
             } else {
                 if (exists)
                     chiTietService.delete(idGiai, idNoiDung);
+                // Reset giá trị "Auto" khi hủy đăng ký
+                updating = true;
+                try {
+                    m.setValueAt("Auto", modelRow, 7);
+                } finally {
+                    updating = false;
+                }
             }
             updateCountLabel();
         } catch (RuntimeException ex) {
@@ -235,6 +270,61 @@ public class DangKyNoiDungController {
                 updating = false;
             }
             updateCountLabel();
+        }
+    }
+
+    private void handleSoDo(int modelRow) {
+        int idGiai = prefs.getInt("selectedGiaiDauId", -1);
+        if (idGiai <= 0) {
+            view.err("Chưa chọn giải đấu.");
+            reloadAsync();
+            return;
+        }
+        DefaultTableModel m = view.getModel();
+        Integer idNoiDung = (Integer) m.getValueAt(modelRow, 1);
+        Object soDoObj = m.getValueAt(modelRow, 7);
+
+        try {
+            // Parse giá trị "Số sơ đồ"
+            int soDo = 1; // default "Auto"
+            if (soDoObj != null && !soDoObj.toString().trim().equalsIgnoreCase("Auto")) {
+                try {
+                    soDo = Integer.parseInt(soDoObj.toString().trim());
+                    if (soDo <= 0) {
+                        soDo = 1;
+                    }
+                } catch (NumberFormatException e) {
+                    // Invalid input, reset to "Auto"
+                    soDo = 1;
+                    updating = true;
+                    try {
+                        m.setValueAt("Auto", modelRow, 7);
+                    } finally {
+                        updating = false;
+                    }
+                }
+            }
+
+            // Cập nhật vào database
+            if (chiTietService.exists(idGiai, idNoiDung)) {
+                ChiTietGiaiDau ct = chiTietService.getOne(idGiai, idNoiDung);
+                if (ct != null) {
+                    ct.setSoDo(soDo);
+                    chiTietService.update(ct);
+
+                    // Update display value (normalize)
+                    String displayValue = (soDo == 1) ? "Auto" : String.valueOf(soDo);
+                    updating = true;
+                    try {
+                        m.setValueAt(displayValue, modelRow, 7);
+                    } finally {
+                        updating = false;
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            view.err("Không thể cập nhật số sơ đồ: " + ex.getMessage());
+            reloadAsync(); // Reload để reset
         }
     }
 
@@ -273,7 +363,7 @@ public class DangKyNoiDungController {
                         try {
                             int td = nd.getTuoiDuoi() == null ? 0 : nd.getTuoiDuoi();
                             int tt = nd.getTuoiTren() == null ? 0 : nd.getTuoiTren();
-                            chiTietService.create(new ChiTietGiaiDau(idGiai, nd.getId(), td, tt));
+                            chiTietService.create(new ChiTietGiaiDau(idGiai, nd.getId(), td, tt, 1)); // soDo=1 (Auto)
                             reloadAsync();
                         } catch (RuntimeException ex) {
                             view.err("Không thể đăng ký: " + ex.getMessage());

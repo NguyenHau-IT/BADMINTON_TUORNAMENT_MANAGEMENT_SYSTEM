@@ -38,6 +38,7 @@ import com.example.btms.config.Prefs;
 import com.example.btms.model.bracket.SoDoCaNhan;
 import com.example.btms.model.bracket.SoDoDoi;
 import com.example.btms.model.category.NoiDung;
+import com.example.btms.model.draw.BocThamCaNhan;
 import com.example.btms.model.draw.BocThamDoi;
 import com.example.btms.model.match.CourtSession;
 import com.example.btms.model.result.KetQuaDoi;
@@ -120,6 +121,8 @@ public class SoDoThiDauPanel extends JPanel {
     // Remember a pending selection when combo items haven't loaded yet
     private Integer pendingSelectNoiDungId = null;
     private final JLabel lblNoiDungValue = new JLabel(); // hiển thị tên nội dung khi dùng chế độ label
+    // Track bracket number (1-based): khi load sơ đồ, sẽ load bracket number này
+    private int currentBracketNumber = 1;
 
     // Services
     private final Prefs prefs = new Prefs();
@@ -199,7 +202,7 @@ public class SoDoThiDauPanel extends JPanel {
             // Load ngay (đồng bộ) để tránh race khi caller gọi selectNoiDungById rồi
             // auto-save
             loadNoiDungOptions();
-            loadBestAvailable();
+            // Không load sơ đồ tự động, chỉ load khi user chọn
         }
         installMatchModeInteraction();
         // Khôi phục chế độ đã chọn trước đó
@@ -279,12 +282,30 @@ public class SoDoThiDauPanel extends JPanel {
             if (it != null && it.getId() != null && it.getId().equals(id)) {
                 selectedNoiDung = it;
                 updateNoiDungLabelText();
-                loadBestAvailable();
+                // Reset bracket number về 1 khi chọn content mới
+                currentBracketNumber = 1;
+                // Xóa canvas - không load sơ đồ tự động
+                clearAllSlots();
+                refreshMedalTable("", "", "", "");
                 return;
             }
         }
         // Not found now; remember for when options are (re)loaded
         pendingSelectNoiDungId = id;
+    }
+
+    /**
+     * Chọn sơ đồ cụ thể (bracketNumber: 1, 2, 3, ...)
+     * Reload dữ liệu theo sơ đồ số đó
+     */
+    public void selectBracketNumber(Integer bracketNumber) {
+        if (bracketNumber == null || bracketNumber < 1) {
+            bracketNumber = 1;
+        }
+        // Lưu bracket number hiện tại (không lưu vào Prefs)
+        this.currentBracketNumber = bracketNumber;
+        // Reload dữ liệu theo sơ đồ số này
+        loadBestAvailable();
     }
 
     /**
@@ -306,7 +327,7 @@ public class SoDoThiDauPanel extends JPanel {
         try {
             updateGiaiLabel();
             if (prefs.getInt("selectedGiaiDauId", -1) > 0) {
-                loadBestAvailable();
+                // Không reload tự động, chỉ load khi user chọn sơ đồ
             }
         } catch (Exception ignore) {
         }
@@ -2037,6 +2058,7 @@ public class SoDoThiDauPanel extends JPanel {
         if (idGiai <= 0 || nd == null) {
             return;
         }
+
         boolean isTeam = Boolean.TRUE.equals(nd.getTeam());
         if (isTeam) {
             List<BocThamDoi> list;
@@ -2047,8 +2069,35 @@ public class SoDoThiDauPanel extends JPanel {
                         JOptionPane.ERROR_MESSAGE);
                 return;
             }
+
+            // Nếu có nhiều sơ đồ, lọc dữ liệu theo bracketNumber
+            // Giả sử mỗi sơ đồ có tối đa 32 người (có thể cấu hình)
+            int maxPerBracket = 16; // Mặc định 16 người / sơ đồ
+            int startIdx = (currentBracketNumber - 1) * maxPerBracket;
+            int endIdx = Math.min(startIdx + maxPerBracket, list.size());
+
+            // Chỉ lấy dữ liệu cho sơ đồ hiện tại
+            List<BocThamDoi> bracketData = new ArrayList<>();
+            for (int i = startIdx; i < endIdx; i++) {
+                if (i >= 0 && i < list.size()) {
+                    bracketData.add(list.get(i));
+                }
+            }
+
+            // Nếu dữ liệu trống (sơ đồ không tồn tại), reset về sơ đồ 1
+            if (bracketData.isEmpty() && currentBracketNumber > 1) {
+                currentBracketNumber = 1;
+                startIdx = 0;
+                endIdx = Math.min(maxPerBracket, list.size());
+                for (int i = startIdx; i < endIdx; i++) {
+                    if (i >= 0 && i < list.size()) {
+                        bracketData.add(list.get(i));
+                    }
+                }
+            }
+
             // Decide seeding column and block size based on number of participants
-            int N = list.size();
+            int N = bracketData.size();
             int M; // block size in that column
             int seedCol; // 1..columns
             if (N > 32) {
@@ -2088,7 +2137,7 @@ public class SoDoThiDauPanel extends JPanel {
             for (int i = 0; i < useN; i++)
                 slotToEntry[pos.get(i)] = i;
             if (prefs.getBool("bracket.seed.avoidSameClub", true)) {
-                adjustAssignmentsToAvoidSameClubTeams(slotToEntry, list, nd.getId(), idGiai);
+                adjustAssignmentsToAvoidSameClubTeams(slotToEntry, bracketData, nd.getId(), idGiai);
                 // Ensure balance constraint is maintained after anti-CLB adjustments
                 ensureBalanceConstraint(slotToEntry);
             }
@@ -2099,7 +2148,7 @@ public class SoDoThiDauPanel extends JPanel {
                 int i = slotToEntry[t];
                 if (i < 0 || i >= N)
                     continue;
-                BocThamDoi row = list.get(i);
+                BocThamDoi row = bracketData.get(i);
                 String team = row.getTenTeam() != null ? row.getTenTeam().trim() : "";
                 String club = "";
                 try {
@@ -2148,7 +2197,33 @@ public class SoDoThiDauPanel extends JPanel {
                         JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            int N = list.size();
+
+            // Lọc dữ liệu theo bracketNumber (cho người thi đấu cá nhân)
+            int maxPerBracket = 16; // Mặc định 16 người / sơ đồ
+            int startIdx = (currentBracketNumber - 1) * maxPerBracket;
+            int endIdx = Math.min(startIdx + maxPerBracket, list.size());
+
+            // Chỉ lấy dữ liệu cho sơ đồ hiện tại
+            List<BocThamCaNhan> bracketData = new ArrayList<>();
+            for (int i = startIdx; i < endIdx; i++) {
+                if (i >= 0 && i < list.size()) {
+                    bracketData.add(list.get(i));
+                }
+            }
+
+            // Nếu dữ liệu trống (sơ đồ không tồn tại), reset về sơ đồ 1
+            if (bracketData.isEmpty() && currentBracketNumber > 1) {
+                currentBracketNumber = 1;
+                startIdx = 0;
+                endIdx = Math.min(maxPerBracket, list.size());
+                for (int i = startIdx; i < endIdx; i++) {
+                    if (i >= 0 && i < list.size()) {
+                        bracketData.add(list.get(i));
+                    }
+                }
+            }
+
+            int N = bracketData.size();
             int M;
             int seedCol;
             if (N > 32) {
@@ -2185,7 +2260,7 @@ public class SoDoThiDauPanel extends JPanel {
             for (int i = 0; i < useN; i++)
                 slotToEntry[pos.get(i)] = i;
             if (prefs.getBool("bracket.seed.avoidSameClub", true)) {
-                adjustAssignmentsToAvoidSameClubSingles(slotToEntry, list);
+                adjustAssignmentsToAvoidSameClubSingles(slotToEntry, bracketData);
                 // Ensure balance constraint is maintained after anti-CLB adjustments
                 ensureBalanceConstraint(slotToEntry);
             }
@@ -2196,7 +2271,7 @@ public class SoDoThiDauPanel extends JPanel {
                 int i = slotToEntry[t];
                 if (i < 0 || i >= N)
                     continue;
-                var row = list.get(i);
+                var row = bracketData.get(i);
                 String display;
                 try {
                     var vdv = vdvService.findOne(row.getIdVdv());
@@ -2250,10 +2325,39 @@ public class SoDoThiDauPanel extends JPanel {
             }
             if (list == null || list.isEmpty())
                 return false;
+
+            // Lọc dữ liệu theo bracketNumber
+            int maxPerBracket = 16; // Mặc định 16 người / sơ đồ
+            int startIdx = (currentBracketNumber - 1) * maxPerBracket;
+            int endIdx = Math.min(startIdx + maxPerBracket, list.size());
+
+            // Chỉ lấy dữ liệu cho sơ đồ hiện tại
+            List<SoDoDoi> bracketData = new ArrayList<>();
+            for (int i = startIdx; i < endIdx; i++) {
+                if (i >= 0 && i < list.size()) {
+                    bracketData.add(list.get(i));
+                }
+            }
+
+            // Nếu dữ liệu trống (sơ đồ không tồn tại), reset về sơ đồ 1
+            if (bracketData.isEmpty() && currentBracketNumber > 1) {
+                currentBracketNumber = 1;
+                startIdx = 0;
+                endIdx = Math.min(maxPerBracket, list.size());
+                for (int i = startIdx; i < endIdx; i++) {
+                    if (i >= 0 && i < list.size()) {
+                        bracketData.add(list.get(i));
+                    }
+                }
+            }
+
+            if (bracketData.isEmpty())
+                return false;
+
             // Detect saved bracket size by max order; 64-seed tree has 127 slots, 32-seed
             // has 63, 16-seed has 31
             int maxOrder = 0;
-            for (SoDoDoi r : list) {
+            for (SoDoDoi r : bracketData) {
                 if (r.getViTri() != null && r.getViTri() > maxOrder)
                     maxOrder = r.getViTri();
             }
@@ -2265,7 +2369,7 @@ public class SoDoThiDauPanel extends JPanel {
             canvas.setParticipantsForColumn(blanks, 1);
             canvas.clearTextOverrides();
             canvas.clearScoreOverrides();
-            for (SoDoDoi r : list) {
+            for (SoDoDoi r : bracketData) {
                 BracketCanvas.Slot slot = canvas.findByOrder(r.getViTri());
                 if (slot != null) {
                     // Create display text with club name for UI, but keep team name in DB
@@ -2308,8 +2412,37 @@ public class SoDoThiDauPanel extends JPanel {
             }
             if (list == null || list.isEmpty())
                 return false;
+
+            // Lọc dữ liệu theo bracketNumber
+            int maxPerBracket = 16; // Mặc định 16 người / sơ đồ
+            int startIdx = (currentBracketNumber - 1) * maxPerBracket;
+            int endIdx = Math.min(startIdx + maxPerBracket, list.size());
+
+            // Chỉ lấy dữ liệu cho sơ đồ hiện tại
+            List<SoDoCaNhan> bracketData = new ArrayList<>();
+            for (int i = startIdx; i < endIdx; i++) {
+                if (i >= 0 && i < list.size()) {
+                    bracketData.add(list.get(i));
+                }
+            }
+
+            // Nếu dữ liệu trống (sơ đồ không tồn tại), reset về sơ đồ 1
+            if (bracketData.isEmpty() && currentBracketNumber > 1) {
+                currentBracketNumber = 1;
+                startIdx = 0;
+                endIdx = Math.min(maxPerBracket, list.size());
+                for (int i = startIdx; i < endIdx; i++) {
+                    if (i >= 0 && i < list.size()) {
+                        bracketData.add(list.get(i));
+                    }
+                }
+            }
+
+            if (bracketData.isEmpty())
+                return false;
+
             int maxOrder = 0;
-            for (SoDoCaNhan r : list) {
+            for (SoDoCaNhan r : bracketData) {
                 if (r.getViTri() != null && r.getViTri() > maxOrder)
                     maxOrder = r.getViTri();
             }
@@ -2321,7 +2454,7 @@ public class SoDoThiDauPanel extends JPanel {
             canvas.setParticipantsForColumn(blanks, 1);
             canvas.clearTextOverrides();
             canvas.clearScoreOverrides();
-            for (SoDoCaNhan r : list) {
+            for (SoDoCaNhan r : bracketData) {
                 BracketCanvas.Slot slot = canvas.findByOrder(r.getViTri());
                 if (slot != null) {
                     String display;
