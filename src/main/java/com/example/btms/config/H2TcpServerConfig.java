@@ -233,13 +233,21 @@ public class H2TcpServerConfig {
                             "🔑 Password: (để trống)%n" +
                             "📁 Database directory: %s%n" +
                             "%n" +
-                            "🔥 QUAN TRỌNG:%n" +
-                            "1. Đảm bảo Windows Firewall cho phép port %d%n" +
-                            "2. Cấu hình firewall để CHỈ cho máy cùng mạng LAN (%s/24)%n" +
-                            "3. Server bind to 0.0.0.0 (H2 limitation) - bảo mật qua firewall%n" +
-                            "4. Khuyến nghị: Cấu hình advanced firewall rules cho LAN-only",
+                            "🔥 FIREWALL CONFIGURATION (LAN-Only):%n" +
+                            "1. Mở PowerShell với quyền Admin%n" +
+                            "2. Xóa rule cũ: %s%n" +
+                            "3. Thêm rule LAN-only: %s%n" +
+                            "4. Kiểm tra rule: netsh advfirewall firewall show rule name=\"H2 TCP Server - LAN Only\"%n"
+                            +
+                            "%n" +
+                            "⚠️ LƯU Ý:%n" +
+                            "- Chỉ máy cùng mạng %s.x được kết nối%n" +
+                            "- Máy ngoài mạng sẽ bị chặn bởi firewall%n" +
+                            "- Server vẫn bind 0.0.0.0 (H2 limitation) - firewall là lớp bảo mật",
                     serverPort, getConnectionUrl(), serverPort, defaultDbName, baseDirAbsolute,
-                    serverPort, getNetworkPrefix());
+                    getRemoveFirewallCommand(),
+                    getFirewallCommand(),
+                    getNetworkPrefix());
         } else {
             return "H2 TCP Server chưa khởi động";
         }
@@ -247,11 +255,23 @@ public class H2TcpServerConfig {
 
     /**
      * Tạo firewall rule command cho Windows để mở port H2.
+     * CHỈ cho phép máy cùng mạng LAN kết nối (restrict theo subnet).
      */
     public String getFirewallCommand() {
+        // Lệnh firewall restrict: chỉ cho subnet cùng mạng
+        String networkPrefix = getNetworkPrefix();
+        String remoteIP = networkPrefix + ".0/24"; // Subnet mask /24 (255.255.255.0)
+
         return String.format(
-                "netsh advfirewall firewall add rule name=\"H2 TCP Server\" dir=in action=allow protocol=TCP localport=%d",
-                serverPort);
+                "netsh advfirewall firewall add rule name=\"H2 TCP Server - LAN Only\" dir=in action=allow protocol=TCP localport=%d remoteip=%s description=\"Allow H2 TCP Server from LAN only (%s/24)\"",
+                serverPort, remoteIP, networkPrefix);
+    }
+
+    /**
+     * Tạo lệnh firewall để remove rule cũ (trước khi thêm rule mới).
+     */
+    public String getRemoveFirewallCommand() {
+        return "netsh advfirewall firewall delete rule name=\"H2 TCP Server - LAN Only\"";
     }
 
     /**
@@ -265,19 +285,20 @@ public class H2TcpServerConfig {
         sb.append("Port: ").append(serverPort).append("\n");
         sb.append("Target LAN IP: ").append(serverIP).append("\n");
         sb.append("Network Access: Máy cùng mạng LAN (").append(getNetworkPrefix()).append("/24)\n");
-        sb.append("Allow Others: TRUE\n");
+        sb.append("Allow Others: TRUE (controlled by firewall)\n");
         sb.append("Base Directory: ").append(baseDirAbsolute).append("\n");
         sb.append("\n🔗 Connection URLs:\n");
         sb.append("From LAN machines: ").append(getConnectionUrl()).append("\n");
         sb.append("From localhost: jdbc:h2:tcp://localhost:").append(serverPort).append("/").append(defaultDbName)
                 .append("\n");
-        sb.append("\n🔥 Firewall Command:\n");
-        sb.append(getFirewallCommand()).append("\n");
+        sb.append("\n🔥 Firewall Commands (LAN-Only Access):\n");
+        sb.append("▶ Remove old rule: ").append(getRemoveFirewallCommand()).append("\n");
+        sb.append("▶ Add LAN-only rule: ").append(getFirewallCommand()).append("\n");
         sb.append("\n🛡️ Security Info:\n");
         sb.append("- H2 không hỗ trợ -tcpListenAddress, phải bind 0.0.0.0\n");
         sb.append("- Bảo mật dựa vào Windows Firewall configuration\n");
-        sb.append("- Khuyến nghị: Advanced firewall rules cho LAN-only access\n");
-        sb.append("- Cấu hình router/switch để isolate network nếu cần\n");
+        sb.append("- Firewall rule chỉ cho phép subnet LAN: ").append(getNetworkPrefix()).append("/24\n");
+        sb.append("- Máy ngoài mạng sẽ bị chặn tự động bởi firewall\n");
         return sb.toString();
     }
 

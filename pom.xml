@@ -198,7 +198,7 @@
             </properties>
         </profile>
 
-        <!-- Nếu KHÔNG có ổ D: fallback C:\Program Files\BTMS -->
+        <!-- Nếu KHÔNG có ổ D: fallback C:\BTMS -->
         <profile>
             <id>fallback-c</id>
             <activation>
@@ -207,7 +207,7 @@
                 </file>
             </activation>
             <properties>
-                <install.dir>C:\Program Files\BTMS</install.dir>
+                <install.dir>C:\BTMS</install.dir>
             </properties>
         </profile>
     </profiles>
