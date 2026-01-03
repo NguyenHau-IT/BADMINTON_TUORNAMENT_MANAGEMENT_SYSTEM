@@ -732,6 +732,9 @@ public class MainFrame extends JFrame {
      */
     private void onDatabaseConnected(Connection conn) {
         try {
+            // Lưu connection để tái sử dụng trong toàn bộ ứng dụng
+            this.conn = conn;
+
             // Phase 1: Chỉ khởi tạo dữ liệu cần thiết cho đăng nhập
             initializeBasicConnectionAndAuth(conn);
 
@@ -798,30 +801,15 @@ public class MainFrame extends JFrame {
 
             // ---- Trọng tài
             trongTaiService = applicationContext.getBean(TrongTaiService.class);
-            // Set cùng config với MainFrame's DatabaseService
-            ConnectionConfig currentConfig = getCurrentConnectionConfig();
-            if (currentConfig != null) {
-                trongTaiService.getDatabaseService().setConfig(currentConfig);
-                try {
-                    trongTaiService.getDatabaseService().connect();
-                } catch (SQLException ignore) {
-                    // Connection already established, ignore connection errors
-                }
-            }
+            // Sử dụng connection chung thay vì tạo mới
+            trongTaiService.setDirectConnection(conn);
             trongTaiPanel = new TrongTaiManagementPanel(trongTaiService, clbService);
 
             // ---- Phân công trọng tài
             phanCongTrongTaiService = applicationContext
                     .getBean(com.example.btms.service.referee.PhanCongTrongTaiService.class);
-            // Set cùng config với MainFrame's DatabaseService
-            if (currentConfig != null) {
-                phanCongTrongTaiService.getDatabaseService().setConfig(currentConfig);
-                try {
-                    phanCongTrongTaiService.getDatabaseService().connect();
-                } catch (SQLException ignore) {
-                    // Connection already established, ignore connection errors
-                }
-            }
+            // Sử dụng connection chung thay vì tạo mới
+            phanCongTrongTaiService.setDirectConnection(conn);
 
             // ---- Tạo panel lịch sử phân công trọng tài
             phanCongTrongTaiHistoryPanel = new PhanCongTrongTaiHistoryPanel(phanCongTrongTaiService, trongTaiService);

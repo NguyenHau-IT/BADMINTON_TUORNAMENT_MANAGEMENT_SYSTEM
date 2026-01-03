@@ -7,6 +7,7 @@ import java.awt.Dimension;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.io.File;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +46,12 @@ import com.example.btms.model.tournament.GiaiDau;
 import com.example.btms.service.match.ChiTietVanService;
 import com.example.btms.service.player.VanDongVienService;
 import com.example.btms.service.team.DoiService;
+import com.example.btms.service.referee.PhanCongTrongTaiService;
+import com.example.btms.service.referee.TrongTaiService;
+import com.example.btms.model.referee.PhanCongTrongTai;
+import com.example.btms.model.referee.TrongTai;
+
+import java.util.Optional;
 
 /**
  * Panel hiển thị biên bản cho 1 trận duy nhất.
@@ -59,6 +66,8 @@ public class BienBanTranPanel extends JPanel {
     private final SoDoDoiRepository soDoDoiRepo;
     private final VanDongVienService vdvService;
     private final DoiService doiService;
+    private final PhanCongTrongTaiService phanCongService;
+    private final TrongTaiService trongTaiService;
 
     private final JLabel lblTitle = new JLabel("Biên bản trận");
     private final JLabel lblInfo = new JLabel();
@@ -82,6 +91,13 @@ public class BienBanTranPanel extends JPanel {
         this.soDoDoiRepo = new SoDoDoiRepository(conn);
         this.vdvService = new VanDongVienService(new VanDongVienRepository(conn));
         this.doiService = new DoiService(conn);
+
+        // Initialize referee services and use existing connection
+        this.phanCongService = new PhanCongTrongTaiService();
+        this.phanCongService.setDirectConnection(conn);
+
+        this.trongTaiService = new TrongTaiService();
+        this.trongTaiService.setDirectConnection(conn);
 
         setLayout(new BorderLayout(8, 8));
         setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
@@ -285,7 +301,7 @@ public class BienBanTranPanel extends JPanel {
 
         int p1 = 0, p2 = 0; // đếm điểm cho từng bên
         int idx = 0;
-        int colWidth = 40; // Tăng từ 28 lên 40 để cột rộng hơn
+        int colWidth = 50; // Tăng từ 40 lên 50 để phù hợp giấy A4 ngang
         boolean swapped = false;
         // lưu lại bảng cuối để chèn tổng điểm
         DefaultTableModel lastModel = null;
@@ -317,9 +333,9 @@ public class BienBanTranPanel extends JPanel {
                     // Đảm bảo font size được giữ nguyên và xử lý cột tổng điểm
                     if (c instanceof javax.swing.JLabel) {
                         javax.swing.JLabel label = (javax.swing.JLabel) c;
-                        label.setFont(new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 22));
-                        // Mặc định căn phải để số điểm "sát phải"
-                        label.setHorizontalAlignment(javax.swing.JLabel.RIGHT);
+                        label.setFont(new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 26));
+                        // Căn giữa số điểm
+                        label.setHorizontalAlignment(javax.swing.JLabel.CENTER);
 
                         // Kiểm tra nếu là cột tổng điểm (có prefix "TOTAL:")
                         Object value = getValueAt(row, column);
@@ -328,7 +344,7 @@ public class BienBanTranPanel extends JPanel {
                             String score = value.toString().substring(6); // bỏ "TOTAL:"
                             label.setText("<html><b>" + score + "</b></html>");
                             label.setHorizontalAlignment(javax.swing.JLabel.CENTER);
-                            label.setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 22));
+                            label.setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 26));
                         }
                     }
 
@@ -424,9 +440,9 @@ public class BienBanTranPanel extends JPanel {
             table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS); // Tự động điều chỉnh để vừa màn hình
             table.setRowSelectionAllowed(false);
             table.setCellSelectionEnabled(false);
-            table.setRowHeight(32); // Tăng từ 24 lên 32 để dễ đọc hơn khi xuất PDF
+            table.setRowHeight(48); // Tăng lên 48 để dễ đọc hơn khi xuất PDF
             // Tăng font size để dễ đọc hơn khi xuất PDF
-            table.setFont(new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 22));
+            table.setFont(new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 26));
             table.setShowGrid(true);
             table.setGridColor(Color.GRAY);
             table.setIntercellSpacing(new Dimension(1, 1));
@@ -511,9 +527,9 @@ public class BienBanTranPanel extends JPanel {
                         // Đảm bảo font size được giữ nguyên và xử lý cột tổng điểm
                         if (c instanceof javax.swing.JLabel) {
                             javax.swing.JLabel label = (javax.swing.JLabel) c;
-                            label.setFont(new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 22));
-                            // Mặc định căn phải để số điểm "sát phải"
-                            label.setHorizontalAlignment(javax.swing.JLabel.RIGHT);
+                            label.setFont(new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 26));
+                            // Căn giữa số điểm
+                            label.setHorizontalAlignment(javax.swing.JLabel.CENTER);
 
                             // Kiểm tra nếu là cột tổng điểm (có prefix "TOTAL:")
                             Object value = getValueAt(row, column);
@@ -522,7 +538,7 @@ public class BienBanTranPanel extends JPanel {
                                 String score = value.toString().substring(6); // bỏ "TOTAL:"
                                 label.setText("<html><b>" + score + "</b></html>");
                                 label.setHorizontalAlignment(javax.swing.JLabel.CENTER);
-                                label.setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 22));
+                                label.setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 26));
                             }
                         }
 
@@ -618,9 +634,9 @@ public class BienBanTranPanel extends JPanel {
                 table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS); // Tự động điều chỉnh để vừa màn hình
                 table.setRowSelectionAllowed(false);
                 table.setCellSelectionEnabled(false);
-                table.setRowHeight(32); // Tăng từ 24 lên 32 để dễ đọc hơn khi xuất PDF
+                table.setRowHeight(58); // Tăng lên 58 để dễ đọc hơn khi xuất PDF
                 // Tăng font size để dễ đọc hơn khi xuất PDF (thêm cho bảng tổng điểm)
-                table.setFont(new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 22));
+                table.setFont(new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 26));
                 table.setShowGrid(true);
                 table.setGridColor(Color.GRAY);
                 table.setIntercellSpacing(new Dimension(1, 1));
@@ -796,9 +812,9 @@ public class BienBanTranPanel extends JPanel {
                     c.setBackground(getBackground());
                 }
 
-                // Căn phải nội dung số để điểm "sát phải"
+                // Căn giữa số điểm
                 if (c instanceof javax.swing.JLabel) {
-                    ((javax.swing.JLabel) c).setHorizontalAlignment(javax.swing.JLabel.RIGHT);
+                    ((javax.swing.JLabel) c).setHorizontalAlignment(javax.swing.JLabel.CENTER);
                 }
 
                 // Thêm viền dưới đậm cho các hàng cụ thể
@@ -849,13 +865,13 @@ public class BienBanTranPanel extends JPanel {
         table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS); // Tự động điều chỉnh để vừa màn hình
         table.setRowSelectionAllowed(false);
         table.setCellSelectionEnabled(false);
-        table.setRowHeight(32); // Tăng từ 24 lên 32 để dễ đọc hơn khi xuất PDF
+        table.setRowHeight(48); // Tăng lên 48 để dễ đọc hơn khi xuất PDF
         // Tăng font size để dễ đọc hơn khi xuất PDF
-        table.setFont(new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 22));
+        table.setFont(new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 26));
         table.setShowGrid(true);
         table.setGridColor(Color.GRAY);
         table.setIntercellSpacing(new Dimension(1, 1));
-        int colWidth = 40; // Tăng từ 28 lên 40 để cột rộng hơn
+        int colWidth = 50; // Tăng từ 40 lên 50 để phù hợp giấy A4 ngang
         for (int i = 0; i < table.getColumnCount(); i++) {
             table.getColumnModel().getColumn(i).setPreferredWidth(colWidth);
             table.getColumnModel().getColumn(i).setMinWidth(colWidth);
@@ -902,7 +918,7 @@ public class BienBanTranPanel extends JPanel {
             l.setVerticalAlignment(JLabel.CENTER);
             l.setOpaque(true);
             // Tăng font size cho row headers để dễ đọc hơn khi xuất PDF
-            l.setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 22));
+            l.setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 26));
 
             // Apply same shaded background for the left labels
             if (table.getRowCount() == 2 && index == 1) {
@@ -1166,12 +1182,12 @@ public class BienBanTranPanel extends JPanel {
             JFileChooser fc = new JFileChooser();
             fc.setDialogTitle("Lưu biên bản thành PDF");
             fc.setSelectedFile(
-                    new java.io.File(
+                    new File(
                             "bien-ban-" + (currentMatchId != null ? currentMatchId : "match") + ".pdf"));
             int ans = fc.showSaveDialog(this);
             if (ans != JFileChooser.APPROVE_OPTION)
                 return;
-            java.io.File out = fc.getSelectedFile();
+            File out = fc.getSelectedFile();
 
             // Đảm bảo layout đầy đủ trước khi chụp - multiple passes
             for (int i = 0; i < 3; i++) {
@@ -1197,9 +1213,10 @@ public class BienBanTranPanel extends JPanel {
 
             // PDF A4 ngang với padding 10px (khoảng 7pt)
             com.lowagie.text.Rectangle pageSize = com.lowagie.text.PageSize.A4.rotate(); // luôn xuất ngang
-            float marginPts = 7f; // padding 10px ~ 7pt
+            float marginPts = 7f; // padding left/right 10px ~ 7pt
+            float topMarginPts = 4f; // giảm padding top
             float bottomMarginPts = 3f; // giảm padding bottom
-            com.lowagie.text.Document doc = new com.lowagie.text.Document(pageSize, marginPts, marginPts, marginPts,
+            com.lowagie.text.Document doc = new com.lowagie.text.Document(pageSize, marginPts, marginPts, topMarginPts,
                     bottomMarginPts);
             com.lowagie.text.pdf.PdfWriter.getInstance(doc, new java.io.FileOutputStream(out));
             doc.open();
@@ -1228,6 +1245,7 @@ public class BienBanTranPanel extends JPanel {
             String startTimeVal = "";
             String endTimeVal = "";
             String durationVal = "";
+            String refereeNameVal = "";
             try {
                 if (currentMatchId != null) {
                     try {
@@ -1291,6 +1309,39 @@ public class BienBanTranPanel extends JPanel {
             } catch (Exception ignore) {
             }
 
+            // Lấy tên trọng tài chính đã bấm điểm
+            try {
+                if (currentMatchId != null) {
+                    List<PhanCongTrongTai> assignments = phanCongService.getAssignmentsByMatch(currentMatchId);
+                    System.out.println("[DEBUG PDF] Số lượng phân công trọng tài: " + assignments.size());
+                    for (PhanCongTrongTai pc : assignments) {
+                        System.out.println(
+                                "[DEBUG PDF] Trọng tài: " + pc.getMaTrongTai() + ", Vai trò: " + pc.getVaiTro());
+                        if (pc.getVaiTro() != null) {
+                            String role = pc.getVaiTro().toLowerCase();
+                            // Hỗ trợ cả tiếng Việt (chính/chinh) và tiếng Anh (chief)
+                            if (role.contains("chính") || role.contains("chinh") || role.contains("chief")) {
+                                Optional<TrongTai> ttOpt = trongTaiService.getTrongTaiById(pc.getMaTrongTai());
+                                if (ttOpt.isPresent()) {
+                                    refereeNameVal = ttOpt.get().getHoTen();
+                                    System.out.println("[DEBUG PDF] ✅ Tìm thấy trọng tài chính: " + refereeNameVal);
+                                    break;
+                                } else {
+                                    System.out.println(
+                                            "[DEBUG PDF] ⚠️ Không tìm thấy thông tin trọng tài: " + pc.getMaTrongTai());
+                                }
+                            }
+                        }
+                    }
+                    if (refereeNameVal.isEmpty()) {
+                        System.out.println("[DEBUG PDF] ⚠️ Không tìm thấy trọng tài chính cho trận: " + currentMatchId);
+                    }
+                }
+            } catch (Exception ex) {
+                System.err.println("[ERROR PDF] Lỗi khi lấy tên trọng tài: " + ex.getMessage());
+                ex.printStackTrace();
+            }
+
             // Draw the header at the top (with populated values)
             // Fetch match summary to get team/club names for the "Đơn vị" fields
             String clubLeft = "";
@@ -1319,7 +1370,7 @@ public class BienBanTranPanel extends JPanel {
             } catch (Exception ignore) {
             }
             paintPdfHeader(gFull, compW, matchIdVal, sanVal, noidungVal, ngayVal, giaiVal, startTimeVal,
-                    endTimeVal, durationVal, clubLeft, clubRight);
+                    endTimeVal, durationVal, clubLeft, clubRight, refereeNameVal);
 
             // Draw the sets content below the header with padding
             gFull.translate(0, headerH + paddingBetween);
@@ -1368,12 +1419,13 @@ public class BienBanTranPanel extends JPanel {
                 // Scale to fit width và center horizontally
                 pic.scaleAbsolute(scaledW, sliceH * scale);
                 float offsetX = (pageW - scaledW) / 2;
+                // iText tính tọa độ từ bottom-left, nên để sát top: pageHeight - topMargin -
+                // scaledHeight
+                float yPos = doc.getPageSize().getHeight() - doc.topMargin() - sliceH * scale;
                 if (offsetX > 0) {
-                    pic.setAbsolutePosition(doc.leftMargin() + offsetX,
-                            doc.bottomMargin() + (pageH - sliceH * scale) / 2);
+                    pic.setAbsolutePosition(doc.leftMargin() + offsetX, yPos);
                 } else {
-                    pic.setAbsolutePosition(doc.leftMargin(),
-                            doc.bottomMargin() + (pageH - sliceH * scale) / 2);
+                    pic.setAbsolutePosition(doc.leftMargin(), yPos);
                 }
 
                 doc.add(pic);
@@ -1393,11 +1445,12 @@ public class BienBanTranPanel extends JPanel {
      * and the small form shown in the screenshot.
      */
     private void paintPdfHeader(Graphics2D g, int width, String matchId, String san, String noidung, String ngay,
-            String giai, String startTime, String endTime, String durationMinutes, String clubLeft, String clubRight) {
-        int margin = 10; // padding 10px cho header
+            String giai, String startTime, String endTime, String durationMinutes, String clubLeft, String clubRight,
+            String refereeName) {
+        int margin = 2; // padding tối thiểu cho header
         int y = margin;
         // Title (larger) - Tăng font size từ 35 lên 42 để dễ đọc hơn
-        java.awt.Font titleFont = new java.awt.Font("Serif", java.awt.Font.BOLD, 42);
+        java.awt.Font titleFont = new java.awt.Font("Serif", java.awt.Font.BOLD, 50);
         g.setFont(titleFont);
         g.setColor(java.awt.Color.BLACK);
         String title = "BIÊN BẢN THI ĐẤU";
@@ -1419,7 +1472,7 @@ public class BienBanTranPanel extends JPanel {
         int boxH = 84;
         // Tăng kích thước left và right columns để hiển thị rộng hơn
         int leftW = Math.min(320, width / 3); // tăng từ 260 và width/4 lên width/3
-        int rightW = leftW;
+        int rightW = leftW + 150;
         int centerW = width - leftW - rightW - margin * 2; // sử dụng margin mới là 10px
 
         // Left column labels with underlines (and fill values)
@@ -1427,7 +1480,7 @@ public class BienBanTranPanel extends JPanel {
         int ly = y;
         g.setFont(sub);
         String[] leftLabels = new String[] { "Mã số trận:", "Sân số:", "Nội dung:", "Ngày:", "Giờ dự kiến:" };
-        int lineLen = leftW - 20;
+        int lineLen = leftW + 150;
         int curY = ly + 14;
         // corresponding values
         String[] leftValues = new String[] { matchId != null ? matchId : "", san != null ? san : "",
@@ -1458,7 +1511,8 @@ public class BienBanTranPanel extends JPanel {
         curY = ry + 14;
         // corresponding values for right side
         String[] rightValues = new String[] { startTime != null ? startTime : "", endTime != null ? endTime : "",
-                durationMinutes != null && !durationMinutes.isBlank() ? (durationMinutes + " phút") : "", "", "" };
+                durationMinutes != null && !durationMinutes.isBlank() ? (durationMinutes + " phút") : "",
+                refereeName != null ? refereeName : "", "" };
         for (int i = 0; i < rightLabels.length; i++) {
             String lbl = rightLabels[i];
             g.drawString(lbl, rx + 6, curY);
@@ -1476,10 +1530,10 @@ public class BienBanTranPanel extends JPanel {
         }
 
         // Center small block: 4 columns x 6 rows with merged cells
-        int cx = lx + leftW + margin - 15; // di chuyển bảng qua trái 15px
+        int cx = lx + leftW + margin + 210; // di chuyển bảng qua trái 15px
         // move center block lower to avoid overlapping left-side underlines
         int cy = y + 36; // was y + 6, increased so the left fields (Mã số trận, ...) remain visible
-        int blockW = centerW;
+        int blockW = centerW - 260;
         int blockH = boxH - 12;
         int rowH = Math.max(4, blockH / 6);
 
@@ -1691,10 +1745,10 @@ public class BienBanTranPanel extends JPanel {
             String unitLabel = "Đơn vị:";
             int labelWidth = g.getFontMetrics(sub).stringWidth(unitLabel);
             // shorten underline to a fixed 80 px
-            int underlineLen = 80;
+            int underlineLen = 250;
 
             // left unit (left half of center block)
-            int leftLabelX = cx + 6;
+            int leftLabelX = cx + 30;
             int leftStartX = leftLabelX + labelWidth + 8;
             int leftAreaEnd = cx + (blockW / 2) - 6;
             int availableLeftLen = Math.max(40, leftAreaEnd - leftStartX);
@@ -1729,7 +1783,7 @@ public class BienBanTranPanel extends JPanel {
             }
 
             // right unit (right half of center block) - moved right by 50px
-            int rightLabelX = cx + (blockW / 2) + 6 + 50;
+            int rightLabelX = cx + (blockW / 2) + 6 + 80;
             int rightStartX = rightLabelX + labelWidth + 8;
             int rightAreaEnd = cx + blockW - 6;
             int availableRightLen = Math.max(40, rightAreaEnd - rightStartX);
