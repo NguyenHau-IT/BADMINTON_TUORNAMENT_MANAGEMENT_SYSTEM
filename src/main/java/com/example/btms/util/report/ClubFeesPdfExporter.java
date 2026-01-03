@@ -7,6 +7,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
+import com.example.btms.config.Prefs;
 import com.example.btms.service.fee.ClubFeesService;
 import com.example.btms.util.fees.FeesCalculator.ClubFeeInfo;
 import com.lowagie.text.Document;
@@ -365,17 +366,22 @@ public final class ClubFeesPdfExporter {
 
                 // Logo ứng dụng bên trái
                 try {
-                    String appLogoPath = getLogoPath("report.logo.path", "src/main/resources/icons/btms.png");
-                    File logoFile = new File(appLogoPath);
-
-                    if (logoFile.exists()) {
-                        Image appLogo = Image.getInstance(logoFile.getAbsolutePath());
-                        appLogo.scaleToFit(110, 110);
-                        PdfPCell logoCell = new PdfPCell(appLogo);
-                        logoCell.setBorder(0);
-                        logoCell.setHorizontalAlignment(Element.ALIGN_LEFT);
-                        logoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-                        headerTable.addCell(logoCell);
+                    String appLogoPath = getLogoPath("report.logo.path");
+                    if (appLogoPath != null && !appLogoPath.isBlank()) {
+                        File logoFile = new File(appLogoPath);
+                        if (logoFile.exists()) {
+                            Image appLogo = Image.getInstance(logoFile.getAbsolutePath());
+                            appLogo.scaleToFit(110, 110);
+                            PdfPCell logoCell = new PdfPCell(appLogo);
+                            logoCell.setBorder(0);
+                            logoCell.setHorizontalAlignment(Element.ALIGN_LEFT);
+                            logoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+                            headerTable.addCell(logoCell);
+                        } else {
+                            PdfPCell emptyCell = new PdfPCell();
+                            emptyCell.setBorder(0);
+                            headerTable.addCell(emptyCell);
+                        }
                     } else {
                         PdfPCell emptyCell = new PdfPCell();
                         emptyCell.setBorder(0);
@@ -397,18 +403,22 @@ public final class ClubFeesPdfExporter {
 
                 // Logo nhà tài trợ bên phải
                 try {
-                    String sponsorLogoPath = getLogoPath("report.sponsor.logo.path",
-                            "src/main/resources/icons/vuidokan.png");
-                    File sponsorFile = new File(sponsorLogoPath);
-
-                    if (sponsorFile.exists()) {
-                        Image sponsorLogo = Image.getInstance(sponsorFile.getAbsolutePath());
-                        sponsorLogo.scaleToFit(80, 80);
-                        PdfPCell sponsorCell = new PdfPCell(sponsorLogo);
-                        sponsorCell.setBorder(0);
-                        sponsorCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                        sponsorCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-                        headerTable.addCell(sponsorCell);
+                    String sponsorLogoPath = getLogoPath("report.sponsor.logo.path");
+                    if (sponsorLogoPath != null && !sponsorLogoPath.isBlank()) {
+                        File sponsorFile = new File(sponsorLogoPath);
+                        if (sponsorFile.exists()) {
+                            Image sponsorLogo = Image.getInstance(sponsorFile.getAbsolutePath());
+                            sponsorLogo.scaleToFit(80, 80);
+                            PdfPCell sponsorCell = new PdfPCell(sponsorLogo);
+                            sponsorCell.setBorder(0);
+                            sponsorCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                            sponsorCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+                            headerTable.addCell(sponsorCell);
+                        } else {
+                            PdfPCell emptyCell = new PdfPCell();
+                            emptyCell.setBorder(0);
+                            headerTable.addCell(emptyCell);
+                        }
                     } else {
                         PdfPCell emptyCell = new PdfPCell();
                         emptyCell.setBorder(0);
@@ -457,12 +467,14 @@ public final class ClubFeesPdfExporter {
         }
 
         /**
-         * Lấy đường dẫn logo từ preferences hoặc sử dụng đường dẫn mặc định
+         * Lấy đường dẫn logo từ preferences
+         * Sử dụng 2 prefs:
+         * - report.logo.path: Logo giải/báo cáo (bên trái header)
+         * - report.sponsor.logo.path: Logo nhà tài trợ (bên phải header)
+         * Trả về null nếu pref không được set
          */
-        private String getLogoPath(String prefKey, String defaultPath) {
-            java.util.prefs.Preferences prefs = java.util.prefs.Preferences.userRoot()
-                    .node("com/example/btms");
-            return prefs.get(prefKey, defaultPath);
+        private String getLogoPath(String prefKey) {
+            return new Prefs().get(prefKey, null);
         }
     }
 }
