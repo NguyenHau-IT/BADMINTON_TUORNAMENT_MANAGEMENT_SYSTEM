@@ -23,6 +23,7 @@ public class TrongTaiService {
     private final SQLSRVConnectionManager manager = new SQLSRVConnectionManager();
     private final DatabaseService databaseService = new DatabaseService(manager);
     private TrongTaiRepository repository;
+    private Connection directConnection;
 
     public TrongTaiService() {
         initializeRepository();
@@ -33,6 +34,16 @@ public class TrongTaiService {
      */
     public DatabaseService getDatabaseService() {
         return databaseService;
+    }
+
+    /**
+     * Set direct connection (để sử dụng khi không có DatabaseService)
+     */
+    public void setDirectConnection(Connection conn) {
+        this.directConnection = conn;
+        if (conn != null) {
+            this.repository = new TrongTaiRepository(conn);
+        }
     }
 
     /**
@@ -50,7 +61,8 @@ public class TrongTaiService {
      */
     private void ensureRepository() throws SQLException {
         if (repository == null) {
-            Connection connection = databaseService.current();
+            // Ưu tiên dùng directConnection
+            Connection connection = directConnection != null ? directConnection : databaseService.current();
             if (connection == null) {
                 throw new SQLException("No database connection available");
             }

@@ -22,7 +22,7 @@ public class TrongTaiRepository {
     public TrongTai save(TrongTai trongTai) throws SQLException {
         String sql = """
                 INSERT INTO TRONG_TAI (MA_TRONG_TAI, HO_TEN, NGAY_SINH, GIOI_TINH,
-                                     SO_DIEN_THOAI, EMAIL, MAT_KHAU, IDCLB, GHI_CHU)
+                                     SO_DIEN_THOAI, EMAIL, MAT_KHAU, ID_CLB, GHI_CHU)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
@@ -170,7 +170,7 @@ public class TrongTaiRepository {
         trongTai.setEmail(rs.getString("EMAIL"));
         trongTai.setMatKhau(rs.getString("MAT_KHAU"));
 
-        Object idClb = rs.getObject("IDCLB");
+        Object idClb = rs.getObject("ID_CLB");
         if (idClb != null) {
             trongTai.setIdClb((Integer) idClb);
         }
