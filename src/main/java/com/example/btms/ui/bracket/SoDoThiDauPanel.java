@@ -218,7 +218,7 @@ public class SoDoThiDauPanel extends JPanel {
         updateCanvasForMode();
 
         // Khởi động timer tự động reload mỗi 10 giây
-        autoRefreshTimer = new javax.swing.Timer(10000, e -> reloadData());
+        autoRefreshTimer = new javax.swing.Timer(5000, e -> reloadData());
         autoRefreshTimer.setRepeats(true);
         autoRefreshTimer.start();
     }
@@ -3808,7 +3808,7 @@ public class SoDoThiDauPanel extends JPanel {
             // Cập nhật preferred size dựa trên xa nhất, gồm cả phần tràn tên ở bên phải
             int baseMaxX = 20 + (columns - 1) * 165 + cellWidthForCol(columns) + 40; // khớp với spacing mới + ô nhỏ hơn
             int fontSize = getBracketNameFontSize();
-            Font f = getFont().deriveFont(Font.PLAIN, (float) fontSize);
+            Font f = getFont().deriveFont(Font.BOLD, (float) fontSize);
             java.awt.FontMetrics fm = getFontMetrics(f);
             int maxRight = baseMaxX;
             for (Slot s : slots) {
@@ -3850,7 +3850,7 @@ public class SoDoThiDauPanel extends JPanel {
             // Calculate based on actual slots and text widths
             int baseMaxX = 20 + (columns - 1) * 165 + cellWidthForCol(columns) + 40;
             int fontSize = getBracketNameFontSize();
-            Font f = getFont().deriveFont(Font.PLAIN, (float) fontSize);
+            Font f = getFont().deriveFont(Font.BOLD, (float) fontSize);
             java.awt.FontMetrics fm = getFontMetrics(f);
             int maxRight = baseMaxX;
 
@@ -3965,7 +3965,7 @@ public class SoDoThiDauPanel extends JPanel {
             for (Slot s : slots) {
                 if (s.text != null && !s.text.isBlank()) {
                     int fontSize = getBracketNameFontSize();
-                    Font nameFont = getFont().deriveFont(Font.PLAIN, (float) fontSize);
+                    Font nameFont = getFont().deriveFont(Font.BOLD, (float) fontSize);
                     g2.setFont(nameFont);
                     String txt = s.text;
                     int h = cellHeightForCol(s.col);

@@ -20,6 +20,7 @@ import java.text.DecimalFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map; // still used earlier? (kept for backward compatibility but theme menu removed)
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.JComponent;
@@ -56,6 +57,7 @@ import com.example.btms.desktop.controller.cateoftuornament.DangKyNoiDungControl
 import com.example.btms.desktop.controller.club.CauLacBoManagementController;
 import com.example.btms.model.bracket.SoDoCaNhan;
 import com.example.btms.model.bracket.SoDoDoi;
+import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.db.SQLSRVConnectionManager;
 import com.example.btms.model.role.Role;
 import com.example.btms.model.tournament.GiaiDau;
@@ -2836,7 +2838,8 @@ public class MainFrame extends JFrame {
                 // Mở bracket window và tải sơ đồ cụ thể
                 windowManager.openBracketWindow(service, this,
                         (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), bn.bracketNumber, ni);
-                windowManager.ensureBracketTab(service, bn.idNoiDung, bn.label, this);
+                Optional<NoiDung> nd = noiDungService.getNoiDungById(bn.idNoiDung);
+                windowManager.ensureBracketTab(service, bn.idNoiDung, nd.get().getTenNoiDung(), this);
                 // Delay một chút để panel kịp khởi tạo, rồi load content + bracket number
                 SwingUtilities.invokeLater(() -> {
                     try {
@@ -2907,7 +2910,7 @@ public class MainFrame extends JFrame {
                     showView(label);
                 }
             }
-        } catch (SocketException ignored) {
+        } catch (SocketException | SQLException ignored) {
         }
     }
 
