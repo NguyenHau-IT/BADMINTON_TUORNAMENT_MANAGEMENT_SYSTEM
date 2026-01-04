@@ -41,4 +41,8 @@ public class NoiDungService {
     public Boolean isNoiDungIsTeam(Integer idNoiDung) throws SQLException {
         return repository.isNoiDungIsTeam(idNoiDung);
     }
+
+    public int getIdByNameAndGiai(String name, int idGiai) throws SQLException {
+        return repository.getIdByNameAndGiai(name, idGiai);
+    }
 }

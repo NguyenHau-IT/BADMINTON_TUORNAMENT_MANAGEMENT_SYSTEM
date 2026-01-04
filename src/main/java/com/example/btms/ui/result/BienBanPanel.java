@@ -260,14 +260,14 @@ public class BienBanPanel extends JPanel {
     }
 
     private void collectFromSingles(int idGiai, int idNoiDung, List<String> sink, List<BracketRef> out) {
-        for (SoDoCaNhan r : soDoCaNhanRepo.list(idGiai, idNoiDung)) {
+        for (SoDoCaNhan r : soDoCaNhanRepo.listAll(idGiai, idNoiDung)) {
             String id = r.getIdTranDau();
             if (id == null || id.isBlank())
                 continue;
             if (!sink.contains(id)) {
                 // Tìm 2 đối thủ theo ID_TRAN_DAU từ danh sách
                 String a = null, b = null;
-                for (SoDoCaNhan x : soDoCaNhanRepo.list(idGiai, idNoiDung)) {
+                for (SoDoCaNhan x : soDoCaNhanRepo.listAll(idGiai, idNoiDung)) {
                     if (id.equals(x.getIdTranDau())) {
                         String name = safeVdvName(x.getIdVdv());
                         if (a == null)
@@ -283,13 +283,13 @@ public class BienBanPanel extends JPanel {
     }
 
     private void collectFromDoubles(int idGiai, int idNoiDung, List<String> sink, List<BracketRef> out) {
-        for (SoDoDoi r : soDoDoiRepo.list(idGiai, idNoiDung)) {
+        for (SoDoDoi r : soDoDoiRepo.listAll(idGiai, idNoiDung)) {
             String id = r.getIdTranDau();
             if (id == null || id.isBlank())
                 continue;
             if (!sink.contains(id)) {
                 String a = null, b = null;
-                for (SoDoDoi x : soDoDoiRepo.list(idGiai, idNoiDung)) {
+                for (SoDoDoi x : soDoDoiRepo.listAll(idGiai, idNoiDung)) {
                     if (id.equals(x.getIdTranDau())) {
                         String team = x.getTenTeam();
                         if (team == null)

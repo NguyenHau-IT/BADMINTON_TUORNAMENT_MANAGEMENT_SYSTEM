@@ -88,8 +88,26 @@ public class SoDoDoiRepository {
     }
 
     /** LIST by bracket */
-    public List<SoDoDoi> list(int idGiai, int idNoiDung) {
-        final String sql = "SELECT * FROM SO_DO_DOI WHERE ID_GIAI=? AND ID_NOI_DUNG=? ORDER BY VI_TRI";
+    public List<SoDoDoi> list(int idGiai, int idNoiDung, int soDo) {
+        final String sql = "SELECT * FROM SO_DO_DOI WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND SO_DO=? ORDER BY VI_TRI";
+        final List<SoDoDoi> list = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idGiai);
+            ps.setInt(2, idNoiDung);
+            ps.setInt(3, soDo);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next())
+                    list.add(map(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi liệt kê SO_DO_DOI", e);
+        }
+        return list;
+    }
+
+    /** LIST ALL by category */
+    public List<SoDoDoi> listAll(int idGiai, int idNoiDung) {
+        final String sql = "SELECT * FROM SO_DO_DOI WHERE ID_GIAI=? AND ID_NOI_DUNG=? ORDER BY SO_DO, VI_TRI";
         final List<SoDoDoi> list = new ArrayList<>();
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, idGiai);
@@ -213,5 +231,23 @@ public class SoDoDoiRepository {
                 rs.getObject("DIEM") != null ? rs.getInt("DIEM") : null, // NEW
                 rs.getString("ID_TRAN_DAU") != null ? rs.getString("ID_TRAN_DAU") : null // NEW
         );
+    }
+
+    public int findSoDoByMatchId(int idGiai, int idNoiDung, String matchId) {
+        final String sql = "SELECT SO_DO FROM SO_DO_DOI WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND ID_TRAN_DAU=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idGiai);
+            ps.setInt(2, idNoiDung);
+            ps.setString(3, matchId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("SO_DO");
+                } else {
+                    throw new RuntimeException("Không tìm thấy SO_DO cho ID_TRAN_DAU: " + matchId);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi tìm SO_DO theo ID_TRAN_DAU", e);
+        }
     }
 }

@@ -31,8 +31,12 @@ public class SoDoDoiService {
         return r;
     }
 
-    public List<SoDoDoi> list(int idGiai, int idNoiDung) {
-        return repo.list(idGiai, idNoiDung);
+    public List<SoDoDoi> list(int idGiai, int idNoiDung, Integer soDo) {
+        return repo.list(idGiai, idNoiDung, soDo);
+    }
+
+    public List<SoDoDoi> listAll(int idGiai, int idNoiDung) {
+        return repo.listAll(idGiai, idNoiDung);
     }
 
     public void update(int idGiai, int idNoiDung, int viTri,
@@ -66,8 +70,8 @@ public class SoDoDoiService {
      * CHỈ gán vào slot trống để bảo tồn lịch sử các trận đấu trước đó.
      * Trả về số bản ghi được cập nhật (0 hoặc 1).
      */
-    public int linkTranDauByTeamName(int idGiai, int idNoiDung, String tenTeam, String matchId) {
-        List<SoDoDoi> rows = list(idGiai, idNoiDung);
+    public int linkTranDauByTeamName(int idGiai, int idNoiDung, Integer soDo, String tenTeam, String matchId) {
+        List<SoDoDoi> rows = list(idGiai, idNoiDung, soDo);
 
         // Lọc ra các slot của đội này
         List<SoDoDoi> teamSlots = rows.stream()
@@ -96,5 +100,9 @@ public class SoDoDoiService {
             throw new IllegalArgumentException("TEN_TEAM không được rỗng");
         if (viTri <= 0)
             throw new IllegalArgumentException("VI_TRI phải > 0");
+    }
+
+    public int findSoDoByMatchId(int idGiai, int idNoiDung, String matchId) {
+        return repo.findSoDoByMatchId(idGiai, idNoiDung, matchId);
     }
 }
