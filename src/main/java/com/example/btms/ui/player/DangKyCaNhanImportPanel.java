@@ -509,7 +509,7 @@ public class DangKyCaNhanImportPanel extends JFrame {
                 int ageMin = nz(tuoiMin, nz(nd.getTuoiDuoi(), 0));
                 int ageMax = nz(tuoiMax, nz(nd.getTuoiTren(), 200));
                 ctRepo.addChiTietGiaiDau(new com.example.btms.model.cateoftuornament.ChiTietGiaiDau(
-                        idGiai, nd.getId(), ageMin, ageMax));
+                        idGiai, nd.getId(), ageMin, ageMax, 1)); // soDo=1 (Auto)
             }
 
             // 5) Register Singles

@@ -5,12 +5,14 @@ public class ChiTietGiaiDau {
     private int idNoiDung;
     private int tuoiDuoi;
     private int tuoiTren;
+    private int soDo;
 
-    public ChiTietGiaiDau(int idGiaiDau, int idNoiDung, int tuoiDuoi, int tuoiTren) {
+    public ChiTietGiaiDau(int idGiaiDau, int idNoiDung, int tuoiDuoi, int tuoiTren, int soDo) {
         this.idGiaiDau = idGiaiDau;
         this.idNoiDung = idNoiDung;
         this.tuoiDuoi = tuoiDuoi;
         this.tuoiTren = tuoiTren;
+        this.soDo = soDo;
     }
 
     public int getIdGiaiDau() {
@@ -43,5 +45,13 @@ public class ChiTietGiaiDau {
 
     public void setTuoiTren(int tuoiTren) {
         this.tuoiTren = tuoiTren;
+    }
+
+    public int getSoDo() {
+        return soDo;
+    }
+
+    public void setSoDo(int soDo) {
+        this.soDo = soDo;
     }
 }

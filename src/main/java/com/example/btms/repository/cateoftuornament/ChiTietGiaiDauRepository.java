@@ -19,12 +19,13 @@ public class ChiTietGiaiDauRepository {
 
     // CREATE - Thêm chi tiết giải đấu
     public void addChiTietGiaiDau(ChiTietGiaiDau chiTiet) {
-        String sql = "INSERT INTO CHI_TIET_GIAI_DAU (ID_GIAI, ID_NOI_DUNG, TUOI_DUOI, TUOI_TREN) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO CHI_TIET_GIAI_DAU (ID_GIAI, ID_NOI_DUNG, TUOI_DUOI, TUOI_TREN, SO_DO) VALUES (?, ?, ?, ?, ?)";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, chiTiet.getIdGiaiDau());
             pstmt.setInt(2, chiTiet.getIdNoiDung());
             pstmt.setInt(3, chiTiet.getTuoiDuoi());
             pstmt.setInt(4, chiTiet.getTuoiTren());
+            pstmt.setInt(5, chiTiet.getSoDo());
             pstmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -38,11 +39,17 @@ public class ChiTietGiaiDauRepository {
         try (Statement stmt = conn.createStatement();
                 ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
+                int soDo = 1; // Default
+                try {
+                    soDo = rs.getInt("SO_DO");
+                } catch (SQLException ignored) {
+                }
                 ChiTietGiaiDau chiTiet = new ChiTietGiaiDau(
                         rs.getInt("ID_GIAI"),
                         rs.getInt("ID_NOI_DUNG"),
                         rs.getInt("TUOI_DUOI"),
-                        rs.getInt("TUOI_TREN"));
+                        rs.getInt("TUOI_TREN"),
+                        soDo);
                 list.add(chiTiet);
             }
         } catch (SQLException e) {
@@ -59,11 +66,17 @@ public class ChiTietGiaiDauRepository {
             pstmt.setInt(2, idNoiDung);
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
+                    int soDo = 1; // Default
+                    try {
+                        soDo = rs.getInt("SO_DO");
+                    } catch (SQLException ignored) {
+                    }
                     return new ChiTietGiaiDau(
                             rs.getInt("ID_GIAI"),
                             rs.getInt("ID_NOI_DUNG"),
                             rs.getInt("TUOI_DUOI"),
-                            rs.getInt("TUOI_TREN"));
+                            rs.getInt("TUOI_TREN"),
+                            soDo);
                 }
             }
         } catch (SQLException e) {
@@ -74,12 +87,13 @@ public class ChiTietGiaiDauRepository {
 
     // UPDATE - Cập nhật chi tiết giải đấu
     public void updateChiTietGiaiDau(ChiTietGiaiDau chiTiet) {
-        String sql = "UPDATE CHI_TIET_GIAI_DAU SET TUOI_DUOI = ?, TUOI_TREN = ? WHERE ID_GIAI = ? AND ID_NOI_DUNG = ?";
+        String sql = "UPDATE CHI_TIET_GIAI_DAU SET TUOI_DUOI = ?, TUOI_TREN = ?, SO_DO = ? WHERE ID_GIAI = ? AND ID_NOI_DUNG = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, chiTiet.getTuoiDuoi());
             pstmt.setInt(2, chiTiet.getTuoiTren());
-            pstmt.setInt(3, chiTiet.getIdGiaiDau());
-            pstmt.setInt(4, chiTiet.getIdNoiDung());
+            pstmt.setInt(3, chiTiet.getSoDo());
+            pstmt.setInt(4, chiTiet.getIdGiaiDau());
+            pstmt.setInt(5, chiTiet.getIdNoiDung());
             pstmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();

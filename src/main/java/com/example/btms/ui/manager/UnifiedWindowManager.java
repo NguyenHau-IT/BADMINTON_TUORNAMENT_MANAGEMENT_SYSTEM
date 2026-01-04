@@ -97,7 +97,7 @@ public class UnifiedWindowManager {
      * Mở window theo loại với cấu hình tùy chỉnh
      */
     public void openWindow(WindowType type, DatabaseService service, JFrame parent,
-            String tournamentTitle, WindowConfig config) {
+            String tournamentTitle, int soDo, WindowConfig config) {
         try {
             JFrame existingFrame = windows.get(type);
             if (existingFrame != null) {
@@ -132,20 +132,20 @@ public class UnifiedWindowManager {
      * Phương thức thuận tiện cho Bracket window
      */
     public void openBracketWindow(DatabaseService service, JFrame parent, String tournamentTitle) {
-        openBracketWindow(service, parent, tournamentTitle, null);
+        openBracketWindow(service, parent, tournamentTitle, 1, null);
     }
 
     /**
      * Phương thức thuận tiện cho Bracket window với NetworkInterface
      */
-    public void openBracketWindow(DatabaseService service, JFrame parent, String tournamentTitle,
+    public void openBracketWindow(DatabaseService service, JFrame parent, String tournamentTitle, int soDo,
             NetworkInterface nic) {
         // Lưu NetworkInterface để sử dụng khi tạo tabs
         this.bracketNetworkInterface = nic;
         WindowConfig config = new WindowConfig()
                 .title(WindowType.BRACKET.getDefaultTitle() +
                         (tournamentTitle != null ? " - " + tournamentTitle : ""));
-        openWindow(WindowType.BRACKET, service, parent, tournamentTitle, config);
+        openWindow(WindowType.BRACKET, service, parent, tournamentTitle, soDo, config);
     }
 
     /**
@@ -166,7 +166,7 @@ public class UnifiedWindowManager {
                     }
                     return panel;
                 });
-        openWindow(WindowType.PLAY, service, parent, tournamentTitle, config);
+        openWindow(WindowType.PLAY, service, parent, tournamentTitle, 0, config);
     }
 
     /**
