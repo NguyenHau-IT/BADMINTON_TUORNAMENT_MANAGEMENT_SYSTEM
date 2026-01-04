@@ -6,7 +6,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
+import java.util.HashMap;
+import java.util.Map;
 import com.example.btms.util.log.Log;
 
 /**
@@ -69,7 +70,7 @@ public class ThreadPoolMonitor {
     }
 
     /**
-     * Log thông tin thread hiện tại
+     * Log thông tin thread hiện tại (cơ bản)
      */
     public void logThreadInfo() {
         try {
@@ -80,8 +81,9 @@ public class ThreadPoolMonitor {
             int peakThreads = threadBean.getPeakThreadCount();
             int daemonThreads = threadBean.getDaemonThreadCount();
 
-            logger.log("🧵 [THREAD-MONITOR] Active: %d | Peak: %d | Daemon: %d",
-                    activeThreads, peakThreads, daemonThreads);
+            logger.log("═══════════════════════════════════════════════════════════════");
+            logger.log("🧵 [THREAD-MONITOR] Active: %d | Peak: %d | Daemon: %d | NonDaemon: %d",
+                    activeThreads, peakThreads, daemonThreads, activeThreads - daemonThreads);
 
             // Memory info
             Runtime runtime = Runtime.getRuntime();
@@ -89,9 +91,10 @@ public class ThreadPoolMonitor {
             long freeMemory = runtime.freeMemory() / (1024 * 1024);
             long usedMemory = totalMemory - freeMemory;
             long maxMemory = runtime.maxMemory() / (1024 * 1024);
+            double memoryPercent = (double) usedMemory / maxMemory * 100;
 
-            logger.log("💾 [MEMORY-MONITOR] Used: %d MB | Free: %d MB | Total: %d MB | Max: %d MB",
-                    usedMemory, freeMemory, totalMemory, maxMemory);
+            logger.log("💾 [MEMORY-MONITOR] Used: %d MB | Free: %d MB | Total: %d MB | Max: %d MB (%.1f%%)",
+                    usedMemory, freeMemory, totalMemory, maxMemory, memoryPercent);
 
             // GC info if available
             try {
@@ -108,8 +111,158 @@ public class ThreadPoolMonitor {
                 // GC info not available, skip
             }
 
+            logger.log("═══════════════════════════════════════════════════════════════");
+
         } catch (Exception e) {
             logger.log("❌ [THREAD-MONITOR] Error getting thread info: %s", e.getMessage());
+        }
+    }
+
+    /**
+     * Log thông tin thread chi tiết với nhóm
+     */
+    public void logDetailedThreadInfo() {
+        try {
+            ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+            long[] threadIds = threadBean.getAllThreadIds();
+
+            logger.log("");
+            logger.log("╔════════════════════════════════════════════════════════════════╗");
+            logger.log("║                   DETAILED THREAD ANALYSIS                     ║");
+            logger.log("╚════════════════════════════════════════════════════════════════╝");
+            logger.log("📊 [THREAD-DETAIL] Total threads: %d", threadIds.length);
+
+            // Group threads by name pattern
+            Map<String, Integer> threadGroups = new HashMap<>();
+            Map<String, Long> threadCpuTime = new HashMap<>();
+
+            for (long threadId : threadIds) {
+                try {
+                    java.lang.management.ThreadInfo info = threadBean.getThreadInfo(threadId);
+                    if (info != null) {
+                        String name = info.getThreadName();
+                        String group = getThreadGroup(name);
+                        threadGroups.merge(group, 1, Integer::sum);
+
+                        // Get thread state
+                        Thread.State state = info.getThreadState();
+                    }
+                } catch (Exception ignore) {
+                    // Thread might have been terminated
+                }
+            }
+
+            // Log grouped results (sorted by count DESC)
+            logger.log("");
+            logger.log("📈 Thread Groups (by count):");
+            logger.log("┌────────────────────────────────────────────────────┐");
+
+            threadGroups.entrySet().stream()
+                    .sorted((a, b) -> b.getValue().compareTo(a.getValue()))
+                    .forEach(entry -> {
+                        String group = entry.getKey();
+                        int count = entry.getValue();
+                        int barLength = Math.max(1, count / 2);
+                        String bar = "█".repeat(barLength);
+                        logger.log("│ %-20s: %3d threads %s", group, count, bar);
+                    });
+
+            logger.log("└────────────────────────────────────────────────────┘");
+
+            // Log thread state distribution
+            logThreadStateDistribution(threadBean, threadIds);
+
+            logger.log("");
+
+        } catch (Exception e) {
+            logger.log("❌ [THREAD-DETAIL] Error: %s", e.getMessage());
+        }
+    }
+
+    /**
+     * Log thread state distribution (RUNNABLE, WAITING, TIMED_WAITING, etc)
+     */
+    private void logThreadStateDistribution(ThreadMXBean threadBean, long[] threadIds) {
+        Map<Thread.State, Integer> stateCount = new HashMap<>();
+
+        for (long threadId : threadIds) {
+            try {
+                java.lang.management.ThreadInfo info = threadBean.getThreadInfo(threadId);
+                if (info != null) {
+                    Thread.State state = info.getThreadState();
+                    stateCount.merge(state, 1, Integer::sum);
+                }
+            } catch (Exception ignore) {
+            }
+        }
+
+        if (!stateCount.isEmpty()) {
+            logger.log("");
+            logger.log("⚙️ Thread States:");
+            logger.log("┌────────────────────────────────────────────────────┐");
+
+            stateCount.entrySet().stream()
+                    .sorted((a, b) -> b.getValue().compareTo(a.getValue()))
+                    .forEach(entry -> {
+                        Thread.State state = entry.getKey();
+                        int count = entry.getValue();
+                        String icon = getStateIcon(state);
+                        logger.log("│ %s %-15s: %3d threads", icon, state.toString(), count);
+                    });
+
+            logger.log("└────────────────────────────────────────────────────┘");
+        }
+    }
+
+    /**
+     * Log full thread list dengan state
+     */
+    public void logFullThreadList() {
+        try {
+            ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+            long[] threadIds = threadBean.getAllThreadIds();
+
+            logger.log("");
+            logger.log("╔════════════════════════════════════════════════════════════════╗");
+            logger.log("║                      FULL THREAD LIST                          ║");
+            logger.log("╚════════════════════════════════════════════════════════════════╝");
+
+            java.util.List<java.lang.management.ThreadInfo> threadInfos = new java.util.ArrayList<>();
+            for (long threadId : threadIds) {
+                try {
+                    java.lang.management.ThreadInfo info = threadBean.getThreadInfo(threadId);
+                    if (info != null) {
+                        threadInfos.add(info);
+                    }
+                } catch (Exception ignore) {
+                }
+            }
+
+            // Sort by name
+            threadInfos.sort((a, b) -> a.getThreadName().compareTo(b.getThreadName()));
+
+            logger.log("┌─────┬────────────────────────────────────────┬──────────────────┐");
+            logger.log("│ ID  │ Thread Name                            │ State            │");
+            logger.log("├─────┼────────────────────────────────────────┼──────────────────┤");
+
+            for (java.lang.management.ThreadInfo info : threadInfos) {
+                String name = info.getThreadName();
+                if (name.length() > 38) {
+                    name = name.substring(0, 35) + "...";
+                }
+                String icon = getStateIcon(info.getThreadState());
+                logger.log("│ %3d │ %-38s │ %s %-10s │",
+                        info.getThreadId(),
+                        name,
+                        icon,
+                        info.getThreadState().toString());
+            }
+
+            logger.log("└─────┴────────────────────────────────────────┴──────────────────┘");
+            logger.log("");
+
+        } catch (Exception e) {
+            logger.log("❌ [FULL-LIST] Error: %s", e.getMessage());
         }
     }
 
@@ -148,48 +301,20 @@ public class ThreadPoolMonitor {
         }
     }
 
-    /**
-     * Log thông tin tất cả threads hiện tại (chi tiết)
-     */
-    public void logDetailedThreadInfo() {
-        try {
-            ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
-            long[] threadIds = threadBean.getAllThreadIds();
-
-            logger.log("📊 [THREAD-DETAIL] Total threads: %d", threadIds.length);
-
-            // Group threads by name pattern
-            java.util.Map<String, Integer> threadGroups = new java.util.HashMap<>();
-
-            for (long threadId : threadIds) {
-                try {
-                    java.lang.management.ThreadInfo info = threadBean.getThreadInfo(threadId);
-                    if (info != null) {
-                        String name = info.getThreadName();
-                        String group = getThreadGroup(name);
-                        threadGroups.merge(group, 1, Integer::sum);
-                    }
-                } catch (Exception ignore) {
-                    // Thread might have been terminated
-                }
-            }
-
-            // Log grouped results
-            threadGroups.entrySet().stream()
-                    .sorted((a, b) -> b.getValue().compareTo(a.getValue()))
-                    .forEach(entry -> {
-                        logger.log("📈 [THREAD-GROUP] %s: %d threads", entry.getKey(), entry.getValue());
-                    });
-
-        } catch (Exception e) {
-            logger.log("❌ [THREAD-DETAIL] Error: %s", e.getMessage());
-        }
-    }
-
     private String getThreadGroup(String threadName) {
         if (threadName == null)
             return "Unknown";
 
+        if (threadName.startsWith("BTMS-Enhanced"))
+            return "Virtual Threads";
+        if (threadName.startsWith("BTMS-IO-Intensive"))
+            return "I/O Pool";
+        if (threadName.startsWith("BTMS-CPU-Intensive"))
+            return "CPU Pool";
+        if (threadName.startsWith("BTMS-Scheduled"))
+            return "Scheduled";
+        if (threadName.startsWith("Court-"))
+            return "Court Serial";
         if (threadName.startsWith("pool-"))
             return "ThreadPool";
         if (threadName.startsWith("Timer-"))
@@ -204,6 +329,10 @@ public class ThreadPoolMonitor {
             return "LogViewer";
         if (threadName.startsWith("ThreadPoolMonitor"))
             return "Monitoring";
+        if (threadName.startsWith("sound-"))
+            return "Sound";
+        if (threadName.startsWith("SSE-"))
+            return "SSE";
         if (threadName.equals("main"))
             return "Main";
         if (threadName.startsWith("Finalizer"))
@@ -214,6 +343,27 @@ public class ThreadPoolMonitor {
             return "System";
 
         return "Other";
+    }
+
+    private String getStateIcon(Thread.State state) {
+        if (state == null)
+            return "❓";
+        switch (state) {
+            case RUNNABLE:
+                return "🟢"; // Running
+            case WAITING:
+                return "🟡"; // Waiting
+            case TIMED_WAITING:
+                return "🟠"; // Timed wait
+            case BLOCKED:
+                return "🔴"; // Blocked
+            case NEW:
+                return "⚪"; // New
+            case TERMINATED:
+                return "⚫"; // Terminated
+            default:
+                return "❓";
+        }
     }
 
     public boolean isMonitoring() {

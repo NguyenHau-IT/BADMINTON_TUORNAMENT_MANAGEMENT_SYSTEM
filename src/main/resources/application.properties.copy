@@ -1,0 +1,36 @@
+server.address=0.0.0.0
+server.port=2345
+spring.application.name=BADMINTON_TUORNAMENT_MANAGEMENT_SYSTEM
+
+spring.main.headless=false
+
+# Connection pool settings (optimized for 10-court scenario)
+spring.datasource.hikari.maximum-pool-size=40
+spring.datasource.hikari.minimum-idle=10
+spring.datasource.hikari.idle-timeout=300000
+spring.datasource.hikari.max-lifetime=1200000
+spring.datasource.hikari.connection-timeout=20000
+
+# Tomcat configuration for web clients (10-court support)
+server.tomcat.threads.max=300
+server.tomcat.threads.min-spare=20
+server.tomcat.max-connections=8000
+server.tomcat.accept-count=100
+
+# Logging configuration to reduce SSE connection noise
+logging.level.org.apache.coyote=WARN
+logging.level.org.apache.catalina=WARN
+logging.level.org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter=WARN
+
+# Suppress SSE client disconnection errors (these are normal when users close browser)
+logging.level.org.apache.catalina.core.StandardWrapperValve=WARN
+logging.level.org.apache.tomcat.util.net=WARN
+logging.level.org.springframework.web.servlet.DispatcherServlet=WARN
+
+# Thymeleaf configuration
+spring.thymeleaf.prefix=classpath:/templates/
+spring.thymeleaf.suffix=.html
+spring.thymeleaf.mode=HTML
+spring.thymeleaf.encoding=UTF-8
+spring.thymeleaf.cache=false
+spring.thymeleaf.check-template-location=true
