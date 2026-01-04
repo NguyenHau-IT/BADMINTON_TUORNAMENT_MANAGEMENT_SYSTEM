@@ -33,8 +33,12 @@ public class SoDoCaNhanService {
         return r;
     }
 
-    public List<SoDoCaNhan> list(int idGiai, int idNoiDung) {
-        return repo.list(idGiai, idNoiDung);
+    public List<SoDoCaNhan> list(int idGiai, int idNoiDung, int soDo) {
+        return repo.list(idGiai, idNoiDung, soDo);
+    }
+
+    public List<SoDoCaNhan> listAll(int idGiai, int idNoiDung) {
+        return repo.listAll(idGiai, idNoiDung);
     }
 
     // UPDATE
@@ -69,8 +73,8 @@ public class SoDoCaNhanService {
      * CHỈ gán vào slot trống để bảo tồn lịch sử các trận đấu trước đó.
      * Trả về số bản ghi được cập nhật (0 hoặc 1).
      */
-    public int linkTranDauByVdv(int idGiai, int idNoiDung, int idVdv, String matchId) {
-        List<SoDoCaNhan> rows = list(idGiai, idNoiDung);
+    public int linkTranDauByVdv(int idGiai, int idNoiDung, int idVdv, int soDo, String matchId) {
+        List<SoDoCaNhan> rows = list(idGiai, idNoiDung, soDo);
 
         // Lọc ra các slot của VĐV này
         List<SoDoCaNhan> vdvSlots = rows.stream()
@@ -104,5 +108,9 @@ public class SoDoCaNhanService {
             throw new IllegalArgumentException("VI_TRI phải >= 0");
         if (soDo <= 0)
             throw new IllegalArgumentException("SO_DO phải > 0");
+    }
+
+    public int findSoDoByMatchId(int idGiai, int idNoiDung, String matchId) {
+        return repo.findSoDoByMatchId(idGiai, idNoiDung, matchId);
     }
 }

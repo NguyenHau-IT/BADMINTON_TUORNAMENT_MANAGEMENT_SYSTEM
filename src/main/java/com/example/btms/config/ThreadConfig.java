@@ -36,9 +36,9 @@ public class ThreadConfig {
      */
     @Bean(name = "virtualThreadExecutor")
     public ExecutorService virtualThreadExecutor() {
-        int maxThreads = Math.max(50, Runtime.getRuntime().availableProcessors() * 4);
-        log.info("🚀 Creating Enhanced Thread Executor with max {} threads (Java 21 optimized)", maxThreads);
-        // Sử dụng bounded thread pool thay vì cached để tránh thread explosion
+        // Optimized for 10-court: increased from cores*4 to cores*5 (50→60 for 8-core)
+        int maxThreads = Math.max(60, Runtime.getRuntime().availableProcessors() * 5);
+        log.info("🚀 Creating Enhanced Thread Executor with max {} threads (10-court optimized)", maxThreads);
         this.virtualThreadExecutor = Executors.newFixedThreadPool(maxThreads,
                 new NamedThreadFactory("Enhanced"));
         return this.virtualThreadExecutor;
@@ -50,8 +50,9 @@ public class ThreadConfig {
      */
     @Bean(name = "ioIntensiveExecutor")
     public ExecutorService ioIntensiveExecutor() {
-        int ioThreads = Math.min(20, Math.max(8, Runtime.getRuntime().availableProcessors() * 2));
-        log.info("💾 Creating I/O Intensive Thread Pool with {} threads", ioThreads);
+        // Optimized for 10-court: increased from 20 to 30 max (16→24 for 8-core)
+        int ioThreads = Math.min(30, Math.max(12, Runtime.getRuntime().availableProcessors() * 3));
+        log.info("💾 Creating I/O Intensive Thread Pool with {} threads (10-court optimized)", ioThreads);
         this.ioIntensiveExecutor = Executors.newFixedThreadPool(ioThreads,
                 new NamedThreadFactory("IO-Intensive"));
         return this.ioIntensiveExecutor;
@@ -63,10 +64,12 @@ public class ThreadConfig {
      */
     @Bean(name = "cpuIntensiveExecutor")
     public ExecutorService cpuIntensiveExecutor() {
+        // Optimized for 10-court: 1.25x CPU cores (8→10 for 8-core)
         int cores = Runtime.getRuntime().availableProcessors();
-        log.info("🧮 Creating CPU Intensive Thread Pool with {} threads", cores);
+        int cpuThreads = Math.max(cores, (int) (cores * 1.25));
+        log.info("🧮 Creating CPU Intensive Thread Pool with {} threads (10-court optimized)", cpuThreads);
         this.cpuIntensiveExecutor = Executors.newFixedThreadPool(
-                cores,
+                cpuThreads,
                 new NamedThreadFactory("CPU-Intensive"));
         return this.cpuIntensiveExecutor;
     }
@@ -77,9 +80,9 @@ public class ThreadConfig {
      */
     @Bean(name = "scheduledExecutor")
     public ScheduledExecutorService scheduledExecutor() {
-        log.info("⏰ Creating Scheduled Executor Service");
-        this.scheduledExecutor = Executors.newScheduledThreadPool(
-                4,
+        // Optimized for 10-court: increased from 4 to 6 threads
+        log.info("⏰ Creating Scheduled Executor Service (6 threads for 10-court)");
+        this.scheduledExecutor = Executors.newScheduledThreadPool(6,
                 new NamedThreadFactory("Scheduled"));
         return this.scheduledExecutor;
     }

@@ -228,4 +228,22 @@ public class NoiDungRepository {
                 || s.equalsIgnoreCase("TRUE")
                 || s.equals("1");
     }
+
+    public int getIdByNameAndGiai(String name, int idGiai) throws SQLException {
+        String sql = "SELECT nd.ID " +
+                "FROM NOI_DUNG nd " +
+                "JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID " +
+                "WHERE ctgd.ID_GIAI = ? AND nd.TEN_NOI_DUNG = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, idGiai);
+            pstmt.setString(2, name);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("ID");
+                } else {
+                    throw new SQLException("Không tìm thấy Nội Dung với tên và giải đấu đã cho.");
+                }
+            }
+        }
+    }
 }

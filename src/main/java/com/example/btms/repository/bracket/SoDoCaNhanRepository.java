@@ -65,8 +65,25 @@ public class SoDoCaNhanRepository {
     }
 
     /** LIST */
-    public List<SoDoCaNhan> list(int idGiai, int idNoiDung) {
-        final String sql = "SELECT * FROM SO_DO_CA_NHAN WHERE ID_GIAI=? AND ID_NOI_DUNG=? ORDER BY VI_TRI";
+    public List<SoDoCaNhan> list(int idGiai, int idNoiDung, int soDo) {
+        final String sql = "SELECT * FROM SO_DO_CA_NHAN WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND SO_DO=? ORDER BY VI_TRI";
+        final List<SoDoCaNhan> out = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idGiai);
+            ps.setInt(2, idNoiDung);
+            ps.setInt(3, soDo);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next())
+                    out.add(map(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi list SO_DO_CA_NHAN", e);
+        }
+        return out;
+    }
+
+    public List<SoDoCaNhan> listAll(int idGiai, int idNoiDung) {
+        final String sql = "SELECT * FROM SO_DO_CA_NHAN WHERE ID_GIAI=? AND ID_NOI_DUNG=? ORDER BY SO_DO, VI_TRI";
         final List<SoDoCaNhan> out = new ArrayList<>();
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, idGiai);
@@ -76,7 +93,7 @@ public class SoDoCaNhanRepository {
                     out.add(map(rs));
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Lỗi list SO_DO_CA_NHAN", e);
+            throw new RuntimeException("Lỗi listAll SO_DO_CA_NHAN", e);
         }
         return out;
     }
@@ -172,5 +189,23 @@ public class SoDoCaNhanRepository {
                 rs.getObject("DIEM") != null ? rs.getInt("DIEM") : null, // NEW
                 rs.getString("ID_TRAN_DAU") != null ? rs.getString("ID_TRAN_DAU") : null // NEW
         );
+    }
+
+    public int findSoDoByMatchId(int idGiai, int idNoiDung, String matchId) {
+        final String sql = "SELECT SO_DO FROM SO_DO_CA_NHAN WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND ID_TRAN_DAU=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idGiai);
+            ps.setInt(2, idNoiDung);
+            ps.setString(3, matchId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("SO_DO");
+                } else {
+                    throw new RuntimeException("Không tìm thấy SO_DO_CA_NHAN với ID_TRAN_DAU đã cho");
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi tìm SO_DO_CA_NHAN bằng ID_TRAN_DAU", e);
+        }
     }
 }
