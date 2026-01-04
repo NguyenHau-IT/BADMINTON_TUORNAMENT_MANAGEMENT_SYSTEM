@@ -1024,7 +1024,7 @@ public class BienBanTranPanel extends JPanel {
                 // Cá nhân (đơn)
                 String a = null, b = null;
                 Integer IdA = null, IdB = null;
-                for (SoDoCaNhan x : soDoCaNhanRepo.list(idGiai, nd.getId())) {
+                for (SoDoCaNhan x : soDoCaNhanRepo.listAll(idGiai, nd.getId())) {
                     if (id.equals(x.getIdTranDau())) {
                         String name = safeVdvName(x.getIdVdv());
                         if (a == null) {
@@ -1042,7 +1042,7 @@ public class BienBanTranPanel extends JPanel {
                 // Đôi (đồng đội)
                 a = null;
                 b = null;
-                for (SoDoDoi x : soDoDoiRepo.list(idGiai, nd.getId())) {
+                for (SoDoDoi x : soDoDoiRepo.listAll(idGiai, nd.getId())) {
                     if (id.equals(x.getIdTranDau())) {
                         String team = x.getTenTeam();
                         if (team == null)

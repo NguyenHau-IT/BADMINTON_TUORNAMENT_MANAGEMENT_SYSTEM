@@ -2417,7 +2417,7 @@ public class MainFrame extends JFrame {
         try {
             // 1) Xoá toàn bộ bản ghi sơ đồ theo loại nội dung
             if (isTeam) {
-                List<SoDoDoi> olds = soDoDoiService.list(idGiai, idNoiDung);
+                List<SoDoDoi> olds = soDoDoiService.listAll(idGiai, idNoiDung);
                 for (SoDoDoi r : olds) {
                     try {
                         soDoDoiService.delete(idGiai, idNoiDung, r.getViTri());
@@ -2425,7 +2425,7 @@ public class MainFrame extends JFrame {
                     }
                 }
             } else {
-                List<SoDoCaNhan> olds = soDoCaNhanService.list(idGiai, idNoiDung);
+                List<SoDoCaNhan> olds = soDoCaNhanService.listAll(idGiai, idNoiDung);
                 for (SoDoCaNhan r : olds) {
                     try {
                         soDoCaNhanService.delete(idGiai, idNoiDung, r.getViTri());

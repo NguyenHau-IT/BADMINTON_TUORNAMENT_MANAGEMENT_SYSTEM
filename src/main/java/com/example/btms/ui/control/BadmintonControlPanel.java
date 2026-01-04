@@ -71,6 +71,7 @@ import com.example.btms.repository.match.ChiTietVanRepository;
 import com.example.btms.repository.player.VanDongVienRepository;
 import com.example.btms.service.bracket.SoDoCaNhanService;
 import com.example.btms.service.bracket.SoDoDoiService;
+import com.example.btms.service.category.NoiDungService;
 import com.example.btms.service.match.ChiTietTranDauService;
 import com.example.btms.service.match.ChiTietVanService;
 import com.example.btms.service.scoreboard.ScoreboardRemote;
@@ -1346,46 +1347,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             onHeaderSinglesChosen();
     }
 
-    /**
-     * Kiểm tra và báo cáo tình trạng bracket - debug utility
-     */
-    private void debugBracketStatus(String header, boolean isDoubles) {
-        if (conn == null)
-            return;
-
-        try {
-            int idGiai = new Prefs().getInt("selectedGiaiDauId", -1);
-            if (idGiai <= 0)
-                return;
-            Integer idNoiDung = isDoubles ? headerKnrDoubles.get(header) : headerKnrSingles.get(header);
-            if (idNoiDung == null || idNoiDung <= 0)
-                return;
-
-            logger.logTs("=== BRACKET DEBUG (%s) ===", isDoubles ? "ĐÔI" : "ĐƠN");
-
-            if (!isDoubles) {
-                SoDoCaNhanService ssvc = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
-                List<com.example.btms.model.bracket.SoDoCaNhan> rows = ssvc.list(idGiai, idNoiDung);
-
-                java.util.Map<String, java.util.List<Integer>> matchIdToVdvs = new java.util.HashMap<>();
-                for (var r : rows) {
-                    if (r.getIdTranDau() != null && !r.getIdTranDau().isBlank()) {
-                        matchIdToVdvs.computeIfAbsent(r.getIdTranDau(), k -> new java.util.ArrayList<>())
-                                .add(r.getIdVdv());
-                    }
-                }
-
-                for (var entry : matchIdToVdvs.entrySet()) {
-                    logger.logTs("Match %s: VĐVs %s", entry.getKey(), entry.getValue());
-                }
-            }
-
-            logger.logTs("=== END BRACKET DEBUG ===");
-        } catch (Exception ex) {
-            logger.logTs("Lỗi debug bracket: %s", ex.getMessage());
-        }
-    }
-
     /* =================== MATCH LIFECYCLE =================== */
 
     private void onStart() {
@@ -1445,7 +1406,12 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 if (conn != null) {
                     int theThuc = (bo == 1 ? 1 : 3); // map BO -> theThuc
                     int san = Math.max(1, getCourtPort());
-                    String existing = resolveExistingMatchId(header, /* isDoubles */ true, null, null, ta, tb);
+                    SoDoCaNhanService soDoService = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
+                    NoiDungService ndsv = new NoiDungService(new NoiDungRepository(conn));
+                    int idGiai = prefs.getInt("selectedGiaiDauId", -1);
+                    int idNoidung = ndsv.getIdByNameAndGiai(header, idGiai);
+                    int soDo = soDoService.findSoDoByMatchId(idGiai, idNoidung, match.getMatchId());
+                    String existing = resolveExistingMatchId(header, /* isDoubles */ true, null, null, ta, tb, soDo);
                     if (existing != null && !existing.isBlank()) {
                         currentMatchId = existing;
                         match.setMatchId(currentMatchId);
@@ -1472,9 +1438,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     // Liên kết ID trận vào sơ đồ ĐÔI (SO_DO_DOI) — chỉ ghi vào các ô còn null
                     linkMatchIdToBracketForCurrentSelection(header, /* isDoubles */ true, currentMatchId,
                             null, null, ta, tb);
-
-                    // Debug: kiểm tra tình trạng bracket sau khi liên kết
-                    debugBracketStatus(header, true);
                 }
             } catch (Exception ex) {
                 logger.logTs("Lỗi lấy/tạo ID_TRẬN: %s", ex.getMessage());
@@ -1517,7 +1480,13 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     int san = Math.max(1, getCourtPort());
                     Integer idAVal = singlesNameToId.getOrDefault(nameA, -1);
                     Integer idBVal = singlesNameToId.getOrDefault(nameB, -1);
-                    String existing = resolveExistingMatchId(header, /* isDoubles */ false, idAVal, idBVal, null, null);
+                    SoDoCaNhanService soDoService = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
+                    NoiDungService ndsv = new NoiDungService(new NoiDungRepository(conn));
+                    int idGiai = prefs.getInt("selectedGiaiDauId", -1);
+                    int idNoidung = ndsv.getIdByNameAndGiai(header, idGiai);
+                    int soDo = soDoService.findSoDoByMatchId(idGiai, idNoidung, match.getMatchId());
+                    String existing = resolveExistingMatchId(header, /* isDoubles */ false, idAVal, idBVal, null, null,
+                            soDo);
                     if (existing != null && !existing.isBlank()) {
                         currentMatchId = existing;
                         match.setMatchId(currentMatchId);
@@ -1543,9 +1512,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     // Liên kết ID trận vào sơ đồ ĐƠN (SO_DO_CA_NHAN) — chỉ ghi vào các ô còn null
                     linkMatchIdToBracketForCurrentSelection(header, /* isDoubles */ false, currentMatchId,
                             idAVal, idBVal, null, null);
-
-                    // Debug: kiểm tra tình trạng bracket sau khi liên kết
-                    debugBracketStatus(header, false);
                 }
             } catch (Exception ex) {
                 logger.logTs("Lỗi lấy/tạo ID_TRẬN: %s", ex.getMessage());
@@ -1678,7 +1644,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
             if (!isDoubles && idVdvA != null && idVdvA > 0 && idVdvB != null && idVdvB > 0) {
                 SoDoCaNhanService ssvc = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
-                List<com.example.btms.model.bracket.SoDoCaNhan> rows = ssvc.list(idGiai, idNoiDung);
+                int soDo = ssvc.findSoDoByMatchId(idGiai, idNoiDung, newMatchId);
+                List<com.example.btms.model.bracket.SoDoCaNhan> rows = ssvc.list(idGiai, idNoiDung, soDo);
 
                 // Nhóm slots theo ID_TRAN_DAU để phân tích
                 java.util.Map<String, java.util.List<com.example.btms.model.bracket.SoDoCaNhan>> matchGroups = new java.util.HashMap<>();
@@ -1748,7 +1715,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
                 if (idVdvA != null && idVdvA > 0) {
                     expectedUpdates++;
-                    updateA = ssvc.linkTranDauByVdv(idGiai, idNoiDung, idVdvA, matchId);
+                    int soDoA = ssvc.findSoDoByMatchId(idGiai, idNoiDung, matchId);
+                    updateA = ssvc.linkTranDauByVdv(idGiai, idNoiDung, idVdvA, soDoA, matchId);
                     updated += updateA;
                     if (updateA == 0) {
                         logger.logTs("CẢNH BÁO: Không tìm thấy slot trống cho VĐV %d - giữ nguyên lịch sử", idVdvA);
@@ -1756,7 +1724,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 }
                 if (idVdvB != null && idVdvB > 0) {
                     expectedUpdates++;
-                    updateB = ssvc.linkTranDauByVdv(idGiai, idNoiDung, idVdvB, matchId);
+                    int soDoB = ssvc.findSoDoByMatchId(idGiai, idNoiDung, matchId);
+                    updateB = ssvc.linkTranDauByVdv(idGiai, idNoiDung, idVdvB, soDoB, matchId);
                     updated += updateB;
                     if (updateB == 0) {
                         logger.logTs("CẢNH BÁO: Không tìm thấy slot trống cho VĐV %d - giữ nguyên lịch sử", idVdvB);
@@ -1774,7 +1743,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             } else {
                 SoDoDoiService dsvc = new SoDoDoiService(new SoDoDoiRepository(conn));
                 // Lấy danh sách hiện có để khớp mềm theo tên lưu trong bảng (tránh lệch format)
-                List<com.example.btms.model.bracket.SoDoDoi> rows = dsvc.list(idGiai, idNoiDung);
+                int soDo = dsvc.findSoDoByMatchId(idGiai, idNoiDung, matchId);
+                List<com.example.btms.model.bracket.SoDoDoi> rows = dsvc.list(idGiai, idNoiDung, soDo);
                 int updated = 0;
                 if (teamA != null && teamA.getTenTeam() != null) {
                     clubA = getClubNameById(teamA.getIdClb());
@@ -1783,12 +1753,12 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     // Tìm chính xác label đang lưu trong sơ đồ để cập nhật theo đúng chuỗi đó
                     String labelInBracketA = findBracketTeamLabel(rows, nameA, clubA);
                     if (labelInBracketA != null && !labelInBracketA.isBlank()) {
-                        updated += dsvc.linkTranDauByTeamName(idGiai, idNoiDung, labelInBracketA, matchId);
+                        updated += dsvc.linkTranDauByTeamName(idGiai, idNoiDung, soDo, labelInBracketA, matchId);
                     } else {
                         // Fallback: thử cả key (Team - Club) và tên đội trần
-                        int u1 = dsvc.linkTranDauByTeamName(idGiai, idNoiDung, keyA, matchId);
+                        int u1 = dsvc.linkTranDauByTeamName(idGiai, idNoiDung, soDo, keyA, matchId);
                         if (u1 == 0 && nameA != null)
-                            u1 = dsvc.linkTranDauByTeamName(idGiai, idNoiDung, nameA, matchId);
+                            u1 = dsvc.linkTranDauByTeamName(idGiai, idNoiDung, soDo, nameA, matchId);
                         updated += u1;
                     }
                 }
@@ -1798,11 +1768,11 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     keyB = (clubB != null && !clubB.isBlank()) ? (nameB + " - " + clubB) : nameB;
                     String labelInBracketB = findBracketTeamLabel(rows, nameB, clubB);
                     if (labelInBracketB != null && !labelInBracketB.isBlank()) {
-                        updated += dsvc.linkTranDauByTeamName(idGiai, idNoiDung, labelInBracketB, matchId);
+                        updated += dsvc.linkTranDauByTeamName(idGiai, idNoiDung, soDo, labelInBracketB, matchId);
                     } else {
-                        int u2 = dsvc.linkTranDauByTeamName(idGiai, idNoiDung, keyB, matchId);
+                        int u2 = dsvc.linkTranDauByTeamName(idGiai, idNoiDung, soDo, keyB, matchId);
                         if (u2 == 0 && nameB != null)
-                            u2 = dsvc.linkTranDauByTeamName(idGiai, idNoiDung, nameB, matchId);
+                            u2 = dsvc.linkTranDauByTeamName(idGiai, idNoiDung, soDo, nameB, matchId);
                         updated += u2;
                     }
                 }
@@ -1826,7 +1796,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
      * nếu hai bên có ID khác nhau → log cảnh báo và trả null để tạo mới.
      */
     private String resolveExistingMatchId(String header, boolean isDoubles,
-            Integer idVdvA, Integer idVdvB, DangKiDoi teamA, DangKiDoi teamB) {
+            Integer idVdvA, Integer idVdvB, DangKiDoi teamA, DangKiDoi teamB, int soDo) {
         if (conn == null)
             return null;
         int idGiai = new Prefs().getInt("selectedGiaiDauId", -1);
@@ -1841,7 +1811,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             String idB = null;
             if (!isDoubles) {
                 SoDoCaNhanService ssvc = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
-                List<com.example.btms.model.bracket.SoDoCaNhan> rows = ssvc.list(idGiai, idNoiDung);
+                List<com.example.btms.model.bracket.SoDoCaNhan> rows = ssvc.list(idGiai, idNoiDung, soDo);
 
                 // Kiểm tra ID trận chung chỉ trong cùng vị trí/vòng để tránh lấy ID trận từ
                 // vòng trước
@@ -1894,7 +1864,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 }
             } else {
                 SoDoDoiService dsvc = new SoDoDoiService(new SoDoDoiRepository(conn));
-                List<com.example.btms.model.bracket.SoDoDoi> rows = dsvc.list(idGiai, idNoiDung);
+                List<com.example.btms.model.bracket.SoDoDoi> rows = dsvc.list(idGiai, idNoiDung, soDo);
                 String nameA = teamA != null ? teamA.getTenTeam() : null;
                 String clubA = (teamA != null) ? getClubNameById(teamA.getIdClb()) : null;
                 String keyA = (nameA != null)
@@ -2221,7 +2191,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         if (!isDoubles) {
             // ĐƠN: xác định theo ID_VDV A/B + ID_TRAN_DAU
             SoDoCaNhanService ssvc = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
-            List<com.example.btms.model.bracket.SoDoCaNhan> rows = ssvc.list(idGiai, idNoiDung);
+            int soDo = ssvc.findSoDoByMatchId(idGiai, idNoiDung, matchId);
+            List<com.example.btms.model.bracket.SoDoCaNhan> rows = ssvc.list(idGiai, idNoiDung, soDo);
             String nameA = sel(cboNameA);
             String nameB = sel(cboNameB);
             Integer idVdvA = (nameA == null || nameA.isBlank()) ? null : singlesNameToId.get(nameA);
@@ -2245,7 +2216,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             // ĐÔI: xác định theo TEN_TEAM A/B + ID_TRAN_DAU (linh hoạt theo tên lưu trong
             // sơ đồ)
             SoDoDoiService dsvc = new SoDoDoiService(new SoDoDoiRepository(conn));
-            List<com.example.btms.model.bracket.SoDoDoi> rows = dsvc.list(idGiai, idNoiDung);
+            int soDo = dsvc.findSoDoByMatchId(idGiai, idNoiDung, matchId);
+            List<com.example.btms.model.bracket.SoDoDoi> rows = dsvc.list(idGiai, idNoiDung, soDo);
             DangKiDoi teamA = (DangKiDoi) cboTeamA.getSelectedItem();
             DangKiDoi teamB = (DangKiDoi) cboTeamB.getSelectedItem();
             String tenA = teamA != null ? teamA.getTenTeam() : null;
@@ -3157,6 +3129,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     /* =================== Auto-advance winner to next round =================== */
 
     private void autoAdvanceWinnerToNextRound(String matchId) {
+        SoDoCaNhanService ssvc = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
+        SoDoDoiService sdosvc = new SoDoDoiService(new SoDoDoiRepository(conn));
         logger.logTs("=== BẮT ĐẦU TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG VÀO VÒNG TIẾP THEO ===");
         logger.logTs("Bước 1: Kiểm tra điều kiện tiên quyết cho tự động đưa người thắng (matchId=%s)", matchId);
 
@@ -3232,16 +3206,20 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         logger.logTs("Bước 7: Chuyển hướng đến logic tự động đưa người thắng cụ thể");
         if (!isDoubles) {
             logger.logTs("Bước 7: Chuyển hướng đến tự động đưa người thắng ĐƠN");
-            autoAdvanceSingles(idGiai, idNoiDung, winnerSide);
+            // tìm sodo bằng matchId
+            int soDo = ssvc.findSoDoByMatchId(idGiai, idNoiDung, matchId);
+            autoAdvanceSingles(idGiai, idNoiDung, soDo, winnerSide);
         } else {
             logger.logTs("Bước 7: Chuyển hướng đến tự động đưa người thắng ĐÔI");
-            autoAdvanceDoubles(idGiai, idNoiDung, winnerSide);
+            // tìm sodo bằng matchId
+            int soDo = sdosvc.findSoDoByMatchId(idGiai, idNoiDung, matchId);
+            autoAdvanceDoubles(idGiai, idNoiDung, soDo, winnerSide);
         }
 
         logger.logTs("=== KẾT THÚC TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG VÀO VÒNG TIẾP THEO ===");
     }
 
-    private void autoAdvanceSingles(int idGiai, int idNoiDung, int winnerSide) {
+    private void autoAdvanceSingles(int idGiai, int idNoiDung, int soDo, int winnerSide) {
         logger.logTs("--- BẮT ĐẦU TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG ĐƠN ---");
         logger.logTs("Đơn Bước 1: Khởi tạo cho idGiai=%d, idNoiDung=%d, winnerSide=%d",
                 idGiai, idNoiDung, winnerSide);
@@ -3249,7 +3227,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         try {
             logger.logTs("Đơn Bước 2: Tải dữ liệu sơ đồ thi đấu từ cơ sở dữ liệu");
             SoDoCaNhanService ssvc = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
-            java.util.List<com.example.btms.model.bracket.SoDoCaNhan> rows = ssvc.list(idGiai, idNoiDung);
+            java.util.List<SoDoCaNhan> rows = ssvc.list(idGiai, idNoiDung, soDo);
 
             if (rows == null || rows.isEmpty()) {
                 logger.logTs("Đơn Bước 2 THẤT BẠI: Không tìm thấy dữ liệu sơ đồ thi đấu - idGiai=%d, idNoiDung=%d",
@@ -3292,7 +3270,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             int rowsCount = rows.size();
             logger.logTs("Đơn Bước 7: Số dòng sơ đồ cá nhân hiện tại = %d", rowsCount);
             // load lại data sơ đồ cá nhân
-            rows = ssvc.list(idGiai, idNoiDung);
+            rows = ssvc.list(idGiai, idNoiDung, soDo);
             rowsCount = rows.size();
             logger.logTs("Đơn Bước 7: Số dòng sơ đồ cá nhân mới = %d", rowsCount);
             int currentCol = -1;
@@ -3362,7 +3340,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         }
     }
 
-    private void autoAdvanceDoubles(int idGiai, int idNoiDung, int winnerSide) {
+    private void autoAdvanceDoubles(int idGiai, int idNoiDung, int soDo, int winnerSide) {
+
         logger.logTs("--- BẮT ĐẦU TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG ĐÔI ---");
         logger.logTs("Đôi Bước 1: Khởi tạo cho idGiai=%d, idNoiDung=%d, winnerSide=%d",
                 idGiai, idNoiDung, winnerSide);
@@ -3370,7 +3349,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         try {
             logger.logTs("Đôi Bước 2: Tải dữ liệu sơ đồ thi đấu đôi từ cơ sở dữ liệu");
             SoDoDoiService dsvc = new SoDoDoiService(new SoDoDoiRepository(conn));
-            java.util.List<com.example.btms.model.bracket.SoDoDoi> rows = dsvc.list(idGiai, idNoiDung);
+            java.util.List<com.example.btms.model.bracket.SoDoDoi> rows = dsvc.list(idGiai, idNoiDung, soDo);
 
             if (rows == null || rows.isEmpty()) {
                 logger.logTs("Đôi Bước 2 THẤT BẠI: Không tìm thấy dữ liệu sơ đồ thi đấu đôi - idGiai=%d, idNoiDung=%d",

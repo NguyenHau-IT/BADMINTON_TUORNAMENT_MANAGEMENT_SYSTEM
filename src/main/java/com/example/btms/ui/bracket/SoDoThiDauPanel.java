@@ -1202,14 +1202,14 @@ public class SoDoThiDauPanel extends JPanel {
                         var ds = bocThamService.list(idGiai, nd.getId());
                         include = (ds != null && !ds.isEmpty());
                         if (!include) {
-                            var sodo = soDoDoiService.list(idGiai, nd.getId());
+                            var sodo = soDoDoiService.listAll(idGiai, nd.getId());
                             include = (sodo != null && !sodo.isEmpty());
                         }
                     } else {
                         var ds = bocThamCaNhanService.list(idGiai, nd.getId());
                         include = (ds != null && !ds.isEmpty());
                         if (!include) {
-                            var sodo = soDoCaNhanService.list(idGiai, nd.getId());
+                            var sodo = soDoCaNhanService.listAll(idGiai, nd.getId());
                             include = (sodo != null && !sodo.isEmpty());
                         }
                     }
@@ -1372,14 +1372,14 @@ public class SoDoThiDauPanel extends JPanel {
                     var ds = bocThamService.list(idGiai, nd.getId());
                     include = (ds != null && !ds.isEmpty());
                     if (!include) {
-                        var sodo = soDoDoiService.list(idGiai, nd.getId());
+                        var sodo = soDoDoiService.listAll(idGiai, nd.getId());
                         include = (sodo != null && !sodo.isEmpty());
                     }
                 } else {
                     var ds = bocThamCaNhanService.list(idGiai, nd.getId());
                     include = (ds != null && !ds.isEmpty());
                     if (!include) {
-                        var sodo = soDoCaNhanService.list(idGiai, nd.getId());
+                        var sodo = soDoCaNhanService.listAll(idGiai, nd.getId());
                         include = (sodo != null && !sodo.isEmpty());
                     }
                 }
@@ -1917,7 +1917,7 @@ public class SoDoThiDauPanel extends JPanel {
         try {
             // 1) Xoá toàn bộ bản ghi sơ đồ theo loại nội dung
             if (isTeam) {
-                List<SoDoDoi> olds = soDoDoiService.list(idGiai, idNoiDung);
+                List<SoDoDoi> olds = soDoDoiService.listAll(idGiai, idNoiDung);
                 for (SoDoDoi r : olds) {
                     try {
                         soDoDoiService.delete(idGiai, idNoiDung, r.getViTri());
@@ -1925,7 +1925,7 @@ public class SoDoThiDauPanel extends JPanel {
                     }
                 }
             } else {
-                List<SoDoCaNhan> olds = soDoCaNhanService.list(idGiai, idNoiDung);
+                List<SoDoCaNhan> olds = soDoCaNhanService.listAll(idGiai, idNoiDung);
                 for (SoDoCaNhan r : olds) {
                     try {
                         soDoCaNhanService.delete(idGiai, idNoiDung, r.getViTri());
@@ -1994,7 +1994,7 @@ public class SoDoThiDauPanel extends JPanel {
             boolean isTeam = Boolean.TRUE.equals(nd.getTeam());
             if (isTeam) {
                 // Xóa toàn bộ sơ đồ cũ (đội)
-                List<SoDoDoi> olds = soDoDoiService.list(idGiai, idNoiDung);
+                List<SoDoDoi> olds = soDoDoiService.listAll(idGiai, idNoiDung);
                 for (SoDoDoi r : olds) {
                     try {
                         soDoDoiService.delete(idGiai, idNoiDung, r.getViTri());
@@ -2027,7 +2027,7 @@ public class SoDoThiDauPanel extends JPanel {
                 }
             } else {
                 // Xóa toàn bộ sơ đồ cũ (cá nhân)
-                List<SoDoCaNhan> olds = soDoCaNhanService.list(idGiai, idNoiDung);
+                List<SoDoCaNhan> olds = soDoCaNhanService.listAll(idGiai, idNoiDung);
                 for (SoDoCaNhan r : olds) {
                     try {
                         soDoCaNhanService.delete(idGiai, idNoiDung, r.getViTri());
@@ -2382,7 +2382,7 @@ public class SoDoThiDauPanel extends JPanel {
         if (isTeam) {
             List<SoDoDoi> list;
             try {
-                list = soDoDoiService.list(idGiai, nd.getId());
+                list = soDoDoiService.listAll(idGiai, nd.getId());
             } catch (RuntimeException ex) {
                 JOptionPane.showMessageDialog(this, "Lỗi tải sơ đồ đã lưu: " + ex.getMessage(), "Lỗi",
                         JOptionPane.ERROR_MESSAGE);
@@ -2484,7 +2484,7 @@ public class SoDoThiDauPanel extends JPanel {
         } else {
             List<SoDoCaNhan> list;
             try {
-                list = soDoCaNhanService.list(idGiai, nd.getId());
+                list = soDoCaNhanService.listAll(idGiai, nd.getId());
             } catch (RuntimeException ex) {
                 JOptionPane.showMessageDialog(this, "Lỗi tải sơ đồ (cá nhân) đã lưu: " + ex.getMessage(), "Lỗi",
                         JOptionPane.ERROR_MESSAGE);
@@ -3509,7 +3509,8 @@ public class SoDoThiDauPanel extends JPanel {
                                             idClb = found;
                                     } catch (RuntimeException ignored) {
                                     }
-                                    List<SoDoDoi> all = SoDoThiDauPanel.this.soDoDoiService.list(idGiai, ndSel.getId());
+                                    List<SoDoDoi> all = SoDoThiDauPanel.this.soDoDoiService.listAll(idGiai,
+                                            ndSel.getId());
                                     long cnt = 0;
                                     Integer minX = null;
                                     if (idClb != null && idClb > 0) {
@@ -3559,7 +3560,7 @@ public class SoDoThiDauPanel extends JPanel {
                                                 "Không thể xoá", JOptionPane.WARNING_MESSAGE);
                                         return;
                                     }
-                                    List<SoDoCaNhan> all = SoDoThiDauPanel.this.soDoCaNhanService.list(idGiai,
+                                    List<SoDoCaNhan> all = SoDoThiDauPanel.this.soDoCaNhanService.listAll(idGiai,
                                             ndSel.getId());
                                     long cnt = 0;
                                     Integer minX = null;

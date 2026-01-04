@@ -7,6 +7,7 @@ import com.formdev.flatlaf.FlatClientProperties;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.BorderFactory;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -71,20 +72,33 @@ public class LogViewerDialog extends JDialog {
     }
 
     private JPanel createControlPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
         panel.setOpaque(false);
         panel.setBorder(new EmptyBorder(10, 0, 0, 0));
 
-        // Thread monitoring controls
-        JButton threadInfoButton = new JButton("Thread Info");
+        // Thread monitoring controls group
+        JPanel threadControlsGroup = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        threadControlsGroup.setOpaque(false);
+        threadControlsGroup.setBorder(BorderFactory.createTitledBorder("Thread Monitoring"));
+
+        JButton threadInfoButton = new JButton("Summary");
         threadInfoButton.putClientProperty("JButton.buttonType", "default");
-        threadInfoButton.setToolTipText("Log current thread information");
+        threadInfoButton.setToolTipText("Log current thread summary");
         threadInfoButton.addActionListener(e -> threadMonitor.logThreadInfo());
 
-        JButton detailedThreadButton = new JButton("Detailed Threads");
+        JButton detailedThreadButton = new JButton("Details");
         detailedThreadButton.putClientProperty("JButton.buttonType", "default");
-        detailedThreadButton.setToolTipText("Log detailed thread information");
+        detailedThreadButton.setToolTipText("Log detailed thread groups and states");
         detailedThreadButton.addActionListener(e -> threadMonitor.logDetailedThreadInfo());
+
+        JButton fullListButton = new JButton("Full List");
+        fullListButton.putClientProperty("JButton.buttonType", "default");
+        fullListButton.setToolTipText("Log complete thread list with states");
+        fullListButton.addActionListener(e -> threadMonitor.logFullThreadList());
+
+        threadControlsGroup.add(threadInfoButton);
+        threadControlsGroup.add(detailedThreadButton);
+        threadControlsGroup.add(fullListButton);
 
         // H2 server info button
         JButton h2InfoButton = new JButton("H2 Server Info");
@@ -97,10 +111,10 @@ public class LogViewerDialog extends JDialog {
         closeButton.putClientProperty("JButton.buttonType", "default");
         closeButton.addActionListener(e -> closeDialog());
 
-        panel.add(threadInfoButton);
-        panel.add(detailedThreadButton);
-        panel.add(h2InfoButton);
+        panel.add(threadControlsGroup);
         panel.add(Box.createHorizontalStrut(20));
+        panel.add(h2InfoButton);
+        panel.add(Box.createHorizontalGlue());
         panel.add(closeButton);
 
         return panel;
