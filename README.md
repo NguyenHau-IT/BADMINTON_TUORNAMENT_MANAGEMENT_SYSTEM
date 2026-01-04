@@ -1,8 +1,8 @@
-# 🏸 Hệ thống Quản lý Giải đấu Cầu lông (BTMS) · v1.0.0
+# 🏸 Hệ thống Quản lý Giải đấu Cầu lông (BTMS) · v1.2.2
 
-> **📅 Cập nhật mới nhất**: November 28, 2025  
+> **📅 Cập nhật mới nhất**: January 3, 2026  
 > **🏗️ Kiến trúc**: Hybrid Desktop + Web Application  
-> **🎯 Phạm vi**: Professional Tournament Management với Multi-court Support
+> **🎯 Phạm vi**: Professional Tournament Management với Multi-machine Network Support
 
 > **📋 Language Versions / Phiên bản ngôn ngữ**:
 >
@@ -41,7 +41,7 @@ Hệ thống quản lý giải đấu cầu lông toàn diện với **kiến tr
 
 ### 📊 Thông tin kỹ thuật
 
-- **Phiên bản**: 1.0.0 (Enhanced with Web Platform Integration)
+- **Phiên bản**: 1.2.2 (Multi-machine Network Support with H2 TCP & UDP Multicast)
 - **Tác giả**: Nguyen Viet Hau (@NguyenHau-IT)
 - **Runtime**: Java 21 LTS với enhanced threading features
 - **Framework**: Spring Boot 3.4.0 (Non-headless mode)
@@ -241,8 +241,9 @@ graph TB
 - **🖥️ Hệ điều hành**: Windows 10/11 64-bit (Required)
 - **☕ Java Runtime**: Java 21+ LTS (Enhanced threading và performance features)
 - **💾 Memory**: 4GB RAM (Recommended), 2GB minimum
-- **🌐 Network**: IPv4 network interface (IPv6 không được hỗ trợ)
+- **🌐 Network**: IPv4 network interface, LAN connectivity (IPv6 không được hỗ trợ)
 - **🗄️ Database**: SQL Server 2019+ (Local hoặc remote)
+- **📁 Storage**: ~500MB+ cho installation + database
 - **🔧 Build Tools**: Maven 3.8+ (cho development)
 
 ### 🚀 Chạy ứng dụng
@@ -570,27 +571,36 @@ Lưu ý: Khi lỗi/timeout, kết nối SSE sẽ đóng và client nên tự đ�
 
 ## 🔒 Bảo mật & Hiệu năng
 
-### 🔐 **Enterprise Security Features**
+### 🔐 **Enterprise Security Features (v1.2.2)**
 
 - **📱 PIN-based Authentication**: Mỗi sân có mã PIN 4 chữ số unique cho remote access
-- **🌐 Network Isolation**: Chạy trên LAN, không expose ra internet
+- **🌐 Network Isolation**: Chạy trên LAN, không expose ra internet công cộng
 - **🚫 CORS Security**: Cấu hình CORS phù hợp cho các endpoints `/api/**`
 - **👥 Role-based Access**: Phân quyền ADMIN vs CLIENT permissions
 - **🔒 SQL Injection Protection**: Sử dụng JPA/Hibernate prepared statements
-- **🌐 IPv4-only**: Chỉ chấp nhận IPv4, loại bỏ IPv6 security risks
+- **🌐 IPv4-only**: Chỉ chấp nhận IPv4 interfaces, loại bỏ IPv6 security risks
+- **🔥 Firewall Rules**: H2 TCP Server restricted to LAN (/24 subnet, e.g., 192.168.1.0/24)
+- **📋 Interface Selection**: User chọn IPv4 network interface khi khởi động
+- **🔐 Database Encryption**: Hỗ trợ encrypted H2 database (tùy chọn)
 
-#### 🔧 **Deployment Security Recommendations**
+#### 🔧 **Deployment Security Recommendations (v1.2.2)**
 
 ```bash
-# Firewall configuration
+# Web Interface firewall (tự động nếu needed)
 # Chỉ mở port 2345 cho trusted networks
-netsh advfirewall firewall add rule name="BTMS Web" dir=in action=allow protocol=TCP localport=2345
+netsh advfirewall firewall add rule name="BTMS Web" dir=in action=allow protocol=TCP localport=2345 remoteip=192.168.1.0/24
 
-# H2 TCP Server (optional, for remote DB access)
-netsh advfirewall firewall add rule name="BTMS H2" dir=in action=allow protocol=TCP localport=9092
+# H2 TCP Server firewall (AUTOMATICALLY SET by application)
+# Tự động tạo rule với /24 subnet restriction
+netsh advfirewall firewall add rule name="H2 TCP Server - LAN Only" dir=in action=allow protocol=TCP localport=9092 remoteip=192.168.1.0/24
 
-# Reverse proxy với HTTPS (nếu cần expose ra ngoài LAN)
+# Network Interface Selection
+# Application sẽ hiện dialog chọn IPv4 interface khi khởi động
+# Chỉ IPv4 interfaces được hiển thị (IPv6 bị loại bỏ)
+
+# Reverse proxy với HTTPS (nếu cần expose ra ngoài LAN - NOT RECOMMENDED)
 # Sử dụng nginx hoặc Apache với SSL certificates
+# Cảnh báo: Hệ thống được thiết kế cho LAN-only deployment
 ```
 
 ### ⚡ **Performance Optimization (Java 21 Enhanced)**
@@ -669,11 +679,14 @@ mvn clean package jpackage:jpackage
 
 #### MSI Configuration
 
-- **Install Location**:
-  - `D:\BTMS` (nếu có ổ D:)
+- **Install Location** (Auto-detection):
+  - `D:\BTMS` (nếu có ổ D: - Recommended for multi-machine setup)
   - `C:\BTMS` (fallback khi không có ổ D:)
+- **Database Folder**:
+  - `[InstallDir]\database` (tự động tạo khi khởi động)
+  - Có thể cấu hình thêm via `BTMS_DATA_DIR` environment variable
 - **Features**: Desktop shortcut, Start menu entry
-- **JRE**: Bundled Java Runtime Environment
+- **JRE**: Bundled Java Runtime Environment (Java 21)
 - **Upgrade Support**: MSI upgrade UUID configured
 
 ### 🚀 Deployment Options

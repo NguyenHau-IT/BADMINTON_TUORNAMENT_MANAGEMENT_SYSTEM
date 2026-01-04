@@ -2490,7 +2490,7 @@ public class MainFrame extends JFrame {
                 return;
             }
             windowManager.openBracketWindow(service, this,
-                    (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
+                    (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), 1, ni);
             windowManager.ensureBracketTab(service, cn.idNoiDung, cn.label, this);
             com.example.btms.ui.bracket.SoDoThiDauPanel p = windowManager.getBracketPanelByNoiDungId(cn.idNoiDung);
             if (p != null) {
@@ -2580,7 +2580,8 @@ public class MainFrame extends JFrame {
                 DefaultMutableTreeNode soDoNode = new DefaultMutableTreeNode("Sơ đồ thi đấu");
                 try {
                     if (service != null && service.current() != null) {
-                        var repo = new com.example.btms.repository.category.NoiDungRepository(service.current());
+                        var conn2 = service.current();
+                        var repo = new com.example.btms.repository.category.NoiDungRepository(conn2);
                         java.util.Map<String, Integer>[] maps = repo.loadCategories();
                         java.util.Map<String, Integer> singles = maps[0];
                         java.util.Map<String, Integer> doubles = maps[1];
@@ -2589,19 +2590,33 @@ public class MainFrame extends JFrame {
                         Integer _tmpId = (selectedGiaiDau != null) ? selectedGiaiDau.getId() : null;
                         int idGiai = (_tmpId != null) ? _tmpId : -1;
                         var bocThamDoiSvc = new com.example.btms.service.draw.BocThamDoiService(
-                                service.current(),
-                                new com.example.btms.repository.draw.BocThamDoiRepository(service.current()));
+                                conn2,
+                                new com.example.btms.repository.draw.BocThamDoiRepository(conn2));
                         var bocThamCaNhanSvc = new com.example.btms.service.draw.BocThamCaNhanService(
-                                new com.example.btms.repository.draw.BocThamCaNhanRepository(service.current()));
+                                new com.example.btms.repository.draw.BocThamCaNhanRepository(conn2));
+                        var chiTietService = new com.example.btms.service.cateoftuornament.ChiTietGiaiDauService(
+                                new com.example.btms.repository.cateoftuornament.ChiTietGiaiDauRepository(conn2));
 
                         // Cá nhân
                         for (var entry : singles.entrySet()) {
                             try {
                                 var list = bocThamCaNhanSvc.list(idGiai, entry.getValue());
                                 if (list != null && !list.isEmpty()) {
-                                    soDoNode.add(
-                                            new DefaultMutableTreeNode(
-                                                    new ContentNode(entry.getKey(), entry.getValue())));
+                                    // Lấy số sơ đồ từ ChiTietGiaiDau
+                                    var chiTiet = chiTietService.getOne(idGiai, entry.getValue());
+                                    int numBrackets = 1;
+                                    if (chiTiet != null && chiTiet.getSoDo() > 1) {
+                                        numBrackets = chiTiet.getSoDo();
+                                    }
+
+                                    DefaultMutableTreeNode contentNode = new DefaultMutableTreeNode(
+                                            new ContentNode(entry.getKey(), entry.getValue()));
+                                    for (int i = 1; i <= numBrackets; i++) {
+                                        contentNode.add(new DefaultMutableTreeNode(
+                                                new BracketNode("Sơ đồ " + i, entry.getValue(),
+                                                        i)));
+                                    }
+                                    soDoNode.add(contentNode);
                                 }
                             } catch (Exception ignore2) {
                             }
@@ -2611,9 +2626,21 @@ public class MainFrame extends JFrame {
                             try {
                                 var list = bocThamDoiSvc.list(idGiai, entry.getValue());
                                 if (list != null && !list.isEmpty()) {
-                                    soDoNode.add(
-                                            new DefaultMutableTreeNode(
-                                                    new ContentNode(entry.getKey(), entry.getValue())));
+                                    // Lấy số sơ đồ từ ChiTietGiaiDau
+                                    var chiTiet = chiTietService.getOne(idGiai, entry.getValue());
+                                    int numBrackets = 1;
+                                    if (chiTiet != null && chiTiet.getSoDo() > 1) {
+                                        numBrackets = chiTiet.getSoDo();
+                                    }
+
+                                    DefaultMutableTreeNode contentNode = new DefaultMutableTreeNode(
+                                            new ContentNode(entry.getKey(), entry.getValue()));
+                                    for (int i = 1; i <= numBrackets; i++) {
+                                        contentNode.add(new DefaultMutableTreeNode(
+                                                new BracketNode("Sơ đồ " + i, entry.getValue(),
+                                                        i)));
+                                    }
+                                    soDoNode.add(contentNode);
                                 }
                             } catch (Exception ignore2) {
                             }
@@ -2805,6 +2832,24 @@ public class MainFrame extends JFrame {
                 return; // chỉ xử lý leaf items
             }
             Object uo = node.getUserObject();
+            if (uo instanceof BracketNode bn) {
+                // Mở bracket window và tải sơ đồ cụ thể
+                windowManager.openBracketWindow(service, this,
+                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), bn.bracketNumber, ni);
+                windowManager.ensureBracketTab(service, bn.idNoiDung, bn.label, this);
+                // Delay một chút để panel kịp khởi tạo, rồi load content + bracket number
+                SwingUtilities.invokeLater(() -> {
+                    try {
+                        SoDoThiDauPanel panel = windowManager.getBracketPanelByNoiDungId(bn.idNoiDung);
+                        if (panel != null) {
+                            panel.selectNoiDungById(bn.idNoiDung);
+                            panel.selectBracketNumber(bn.bracketNumber);
+                        }
+                    } catch (Exception ignored) {
+                    }
+                });
+                return;
+            }
             if (uo instanceof ContentNode cn) {
                 DefaultMutableTreeNode parent = (DefaultMutableTreeNode) node.getParent();
                 String parentLabel = (parent != null && parent.getUserObject() instanceof String s) ? s : "";
@@ -2818,9 +2863,10 @@ public class MainFrame extends JFrame {
                             }
                         }
                         case "Sơ đồ thi đấu" -> {
-                            windowManager.openBracketWindow(service, this,
-                                    (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
-                            windowManager.ensureBracketTab(service, cn.idNoiDung, cn.label, this);
+                            // Chỉ select content, không load sơ đồ
+                            if (soDoThiDauPanel != null) {
+                                soDoThiDauPanel.selectNoiDungById(cn.idNoiDung);
+                            }
                         }
                         case "Nội dung của giải" -> {
                             if (dangKyNoiDungPanel != null) {
@@ -2841,11 +2887,6 @@ public class MainFrame extends JFrame {
                 return;
             }
             if (uo instanceof String label) {
-                if ("Sơ đồ thi đấu".equals(label)) {
-                    windowManager.openBracketWindow(service, this,
-                            (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
-                    return;
-                }
                 if ("Bốc thăm thi đấu".equals(label)) {
                     if (bocThamThiDauPanel != null) {
                         ensureViewPresent("Bốc thăm thi đấu", bocThamThiDauPanel);
@@ -2879,6 +2920,27 @@ public class MainFrame extends JFrame {
         ContentNode(String label, Integer idNoiDung) {
             this.label = label;
             this.idNoiDung = idNoiDung;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+
+    }
+
+    // Tree leaf model for "Sơ đồ thi đấu" -> Sơ đồ cụ thể (idNoiDung +
+    // bracketNumber)
+    private static final class BracketNode {
+
+        final String label;
+        final Integer idNoiDung;
+        final Integer bracketNumber; // 1, 2, 3, ...
+
+        BracketNode(String label, Integer idNoiDung, Integer bracketNumber) {
+            this.label = label;
+            this.idNoiDung = idNoiDung;
+            this.bracketNumber = bracketNumber;
         }
 
         @Override
@@ -2982,10 +3044,6 @@ public class MainFrame extends JFrame {
      */
     public void applyAlwaysOnTopFloating(boolean onTop) {
         try {
-            // MonitorTab hiện tạo các MonitorWindow (JFrame). Ta thử gọi method công khai
-            // nếu có trong tương lai.
-            // Tạm thời: set alwaysOnTop cho frame chính (giới hạn) – có thể cải tiến nếu
-            // expose danh sách windows.
             setAlwaysOnTop(onTop);
             try {
                 monitorTab.refreshAllViewerSettings();
@@ -3036,44 +3094,45 @@ public class MainFrame extends JFrame {
         }
     }
 
-    /**
-     * Mở "Sơ đồ thi đấu" ở một cửa sổ riêng, tái sử dụng kết nối hiện tại. Nếu
-     * cửa sổ đã mở, sẽ đưa ra phía trước.
-     */
-    // Đã chuyển toàn bộ logic Sơ đồ thi đấu sang BracketWindowManager
-    /**
-     * Đưa cửa sổ ra trước, và focus tab tương ứng idNoiDung nếu tồn tại.
-     */
-    @SuppressWarnings("unused")
-    private void showSoDoTabForNoiDung(Integer idNoiDung) {
-        NetworkInterface ni;
-        try {
-            ni = (netCfg != null && netCfg.ifName() != null)
-                    ? NetworkInterface.getByName(netCfg.ifName())
-                    : null;
-            // Method kept for compatibility; delegate to unified window manager
-            if (ni != null) {
-                windowManager.openBracketWindow(service, this,
-                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
-            } else {
-                // Open without network interface if none available
-                windowManager.openBracketWindow(service, this,
-                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), null);
-            }
-            if (idNoiDung != null) {
-                // Focus if already exists; creation requires a title which we don't have here
-                var p = windowManager.getBracketPanelByNoiDungId(idNoiDung);
-                // no-op: window is brought to front by openWindow; focusing is handled by user
-            }
-        } catch (SocketException ignored) {
-            // If we cannot resolve the network interface, open window without it.
-            try {
-                windowManager.openBracketWindow(service, this,
-                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), null);
-            } catch (Exception ignore) {
-            }
-        }
-    }
+    // /**
+    // * Mở "Sơ đồ thi đấu" ở một cửa sổ riêng, tái sử dụng kết nối hiện tại. Nếu
+    // * cửa sổ đã mở, sẽ đưa ra phía trước.
+    // */
+    // // Đã chuyển toàn bộ logic Sơ đồ thi đấu sang BracketWindowManager
+    // /**
+    // * Đưa cửa sổ ra trước, và focus tab tương ứng idNoiDung nếu tồn tại.
+    // */
+    // private void showSoDoTabForNoiDung(Integer idNoiDung) {
+    // NetworkInterface ni;
+    // try {
+    // ni = (netCfg != null && netCfg.ifName() != null)
+    // ? NetworkInterface.getByName(netCfg.ifName())
+    // : null;
+    // // Method kept for compatibility; delegate to unified window manager
+    // if (ni != null) {
+    // windowManager.openBracketWindow(service, this,
+    // (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
+    // } else {
+    // // Open without network interface if none available
+    // windowManager.openBracketWindow(service, this,
+    // (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), null);
+    // }
+    // if (idNoiDung != null) {
+    // // Focus if already exists; creation requires a title which we don't have
+    // here
+    // var p = windowManager.getBracketPanelByNoiDungId(idNoiDung);
+    // // no-op: window is brought to front by openWindow; focusing is handled by
+    // user
+    // }
+    // } catch (SocketException ignored) {
+    // // If we cannot resolve the network interface, open window without it.
+    // try {
+    // windowManager.openBracketWindow(service, this,
+    // (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), null);
+    // } catch (Exception ignore) {
+    // }
+    // }
+    // }
 
     /* -------------------- Export đăng ký đội (PDF) -------------------- */
     private enum ExportMode {

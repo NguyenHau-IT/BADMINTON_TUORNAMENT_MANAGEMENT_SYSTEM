@@ -64,6 +64,7 @@ public class MonitorTab extends JPanel implements AutoCloseable {
 
     private Thread rxThread;
     private volatile boolean running = false;
+    private volatile boolean rxEnabled = false; // Toggle để tắt/mở nhận broadcast
     private NetworkInterface nif;
 
     // Swing Timer cho refresh UI
@@ -128,6 +129,22 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             restart();
         });
 
+        // Nút tắt/mở nhận broadcast
+        JButton btnToggleRx = new JButton("⏸ Tắt nhận");
+        btnToggleRx.setToolTipText("Tắt/mở nhận ScoreboardBroadcaster từ các sân");
+        btnToggleRx.addActionListener(e -> {
+            rxEnabled = !rxEnabled;
+            if (rxEnabled) {
+                btnToggleRx.setText("⏸ Tắt nhận");
+                btnToggleRx.setToolTipText("Tắt nhận broadcast");
+                restart();
+            } else {
+                btnToggleRx.setText("▶ Mở nhận");
+                btnToggleRx.setToolTipText("Mở nhận broadcast");
+                stopRx();
+            }
+        });
+
         JButton btnToggle = new JButton("Mở cửa sổ");
         btnToggle.addActionListener(e -> toggleFloat(btnToggle));
 
@@ -137,6 +154,7 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         autoOpen.setOpaque(false);
         autoOpen.setSelected(false); // Tắt auto-open để tránh mở nhiều cửa sổ
         right.add(btnRefresh);
+        right.add(btnToggleRx);
         // Bỏ tự động mở bảng điểm: không thêm checkbox autoOpen vào UI nữa
         right.add(btnToggle);
         header.add(right, BorderLayout.EAST);
@@ -376,7 +394,7 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             byte[] buf = new byte[2048];
             DatagramPacket pkt = new DatagramPacket(buf, buf.length);
 
-            while (running) {
+            while (running && rxEnabled) {
                 ms.receive(pkt);
                 String json = new String(pkt.getData(), pkt.getOffset(), pkt.getLength(), StandardCharsets.UTF_8);
                 handleJson(json);
