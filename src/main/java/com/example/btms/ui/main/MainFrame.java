@@ -2490,7 +2490,7 @@ public class MainFrame extends JFrame {
                 return;
             }
             windowManager.openBracketWindow(service, this,
-                    (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
+                    (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), 1, ni);
             windowManager.ensureBracketTab(service, cn.idNoiDung, cn.label, this);
             com.example.btms.ui.bracket.SoDoThiDauPanel p = windowManager.getBracketPanelByNoiDungId(cn.idNoiDung);
             if (p != null) {
@@ -2613,7 +2613,7 @@ public class MainFrame extends JFrame {
                                             new ContentNode(entry.getKey(), entry.getValue()));
                                     for (int i = 1; i <= numBrackets; i++) {
                                         contentNode.add(new DefaultMutableTreeNode(
-                                                new BracketNode(entry.getKey() + " - Sơ đồ " + i, entry.getValue(),
+                                                new BracketNode("Sơ đồ " + i, entry.getValue(),
                                                         i)));
                                     }
                                     soDoNode.add(contentNode);
@@ -2835,7 +2835,7 @@ public class MainFrame extends JFrame {
             if (uo instanceof BracketNode bn) {
                 // Mở bracket window và tải sơ đồ cụ thể
                 windowManager.openBracketWindow(service, this,
-                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
+                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), bn.bracketNumber, ni);
                 windowManager.ensureBracketTab(service, bn.idNoiDung, bn.label, this);
                 // Delay một chút để panel kịp khởi tạo, rồi load content + bracket number
                 SwingUtilities.invokeLater(() -> {
@@ -2887,11 +2887,6 @@ public class MainFrame extends JFrame {
                 return;
             }
             if (uo instanceof String label) {
-                if ("Sơ đồ thi đấu".equals(label)) {
-                    windowManager.openBracketWindow(service, this,
-                            (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
-                    return;
-                }
                 if ("Bốc thăm thi đấu".equals(label)) {
                     if (bocThamThiDauPanel != null) {
                         ensureViewPresent("Bốc thăm thi đấu", bocThamThiDauPanel);
@@ -3049,10 +3044,6 @@ public class MainFrame extends JFrame {
      */
     public void applyAlwaysOnTopFloating(boolean onTop) {
         try {
-            // MonitorTab hiện tạo các MonitorWindow (JFrame). Ta thử gọi method công khai
-            // nếu có trong tương lai.
-            // Tạm thời: set alwaysOnTop cho frame chính (giới hạn) – có thể cải tiến nếu
-            // expose danh sách windows.
             setAlwaysOnTop(onTop);
             try {
                 monitorTab.refreshAllViewerSettings();
@@ -3103,44 +3094,45 @@ public class MainFrame extends JFrame {
         }
     }
 
-    /**
-     * Mở "Sơ đồ thi đấu" ở một cửa sổ riêng, tái sử dụng kết nối hiện tại. Nếu
-     * cửa sổ đã mở, sẽ đưa ra phía trước.
-     */
-    // Đã chuyển toàn bộ logic Sơ đồ thi đấu sang BracketWindowManager
-    /**
-     * Đưa cửa sổ ra trước, và focus tab tương ứng idNoiDung nếu tồn tại.
-     */
-    @SuppressWarnings("unused")
-    private void showSoDoTabForNoiDung(Integer idNoiDung) {
-        NetworkInterface ni;
-        try {
-            ni = (netCfg != null && netCfg.ifName() != null)
-                    ? NetworkInterface.getByName(netCfg.ifName())
-                    : null;
-            // Method kept for compatibility; delegate to unified window manager
-            if (ni != null) {
-                windowManager.openBracketWindow(service, this,
-                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
-            } else {
-                // Open without network interface if none available
-                windowManager.openBracketWindow(service, this,
-                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), null);
-            }
-            if (idNoiDung != null) {
-                // Focus if already exists; creation requires a title which we don't have here
-                var p = windowManager.getBracketPanelByNoiDungId(idNoiDung);
-                // no-op: window is brought to front by openWindow; focusing is handled by user
-            }
-        } catch (SocketException ignored) {
-            // If we cannot resolve the network interface, open window without it.
-            try {
-                windowManager.openBracketWindow(service, this,
-                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), null);
-            } catch (Exception ignore) {
-            }
-        }
-    }
+    // /**
+    // * Mở "Sơ đồ thi đấu" ở một cửa sổ riêng, tái sử dụng kết nối hiện tại. Nếu
+    // * cửa sổ đã mở, sẽ đưa ra phía trước.
+    // */
+    // // Đã chuyển toàn bộ logic Sơ đồ thi đấu sang BracketWindowManager
+    // /**
+    // * Đưa cửa sổ ra trước, và focus tab tương ứng idNoiDung nếu tồn tại.
+    // */
+    // private void showSoDoTabForNoiDung(Integer idNoiDung) {
+    // NetworkInterface ni;
+    // try {
+    // ni = (netCfg != null && netCfg.ifName() != null)
+    // ? NetworkInterface.getByName(netCfg.ifName())
+    // : null;
+    // // Method kept for compatibility; delegate to unified window manager
+    // if (ni != null) {
+    // windowManager.openBracketWindow(service, this,
+    // (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
+    // } else {
+    // // Open without network interface if none available
+    // windowManager.openBracketWindow(service, this,
+    // (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), null);
+    // }
+    // if (idNoiDung != null) {
+    // // Focus if already exists; creation requires a title which we don't have
+    // here
+    // var p = windowManager.getBracketPanelByNoiDungId(idNoiDung);
+    // // no-op: window is brought to front by openWindow; focusing is handled by
+    // user
+    // }
+    // } catch (SocketException ignored) {
+    // // If we cannot resolve the network interface, open window without it.
+    // try {
+    // windowManager.openBracketWindow(service, this,
+    // (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), null);
+    // } catch (Exception ignore) {
+    // }
+    // }
+    // }
 
     /* -------------------- Export đăng ký đội (PDF) -------------------- */
     private enum ExportMode {
