@@ -1779,21 +1779,156 @@ public class MainFrame extends JFrame {
                     javax.swing.JMenuItem mi2 = new javax.swing.JMenuItem("Bốc thăm tất cả");
                     mi2.addActionListener(ev -> {
                         try {
-                            int okCount = 0;
+                            // Collect all content nodes first
+                            java.util.List<ContentNode> contentList = new java.util.ArrayList<>();
                             for (int i = 0; i < node.getChildCount(); i++) {
                                 Object ch = node.getChildAt(i);
                                 if (ch instanceof DefaultMutableTreeNode cnode) {
                                     Object cuo = cnode.getUserObject();
                                     if (cuo instanceof ContentNode ccn) {
-                                        if (doAutoDrawSave(ccn.idNoiDung)) {
-                                            okCount++;
-                                        }
+                                        contentList.add(ccn);
                                     }
                                 }
                             }
-                            rebuildNavigationTree();
-                            JOptionPane.showMessageDialog(this, "Đã bốc thăm " + okCount + " nội dung.", "Hoàn tất",
-                                    JOptionPane.INFORMATION_MESSAGE);
+
+                            // Ask for confirmation before drawing all
+                            int totalCount = contentList.size();
+                            if (totalCount == 0) {
+                                JOptionPane.showMessageDialog(this, "Không có nội dung để bốc thăm.", "Thông báo",
+                                        JOptionPane.INFORMATION_MESSAGE);
+                                return;
+                            }
+
+                            int confirm = JOptionPane.showConfirmDialog(this,
+                                    "Bốc thăm tất cả " + totalCount
+                                            + " nội dung?\n\nHành động này sẽ mất một chút thời gian.",
+                                    "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+                            if (confirm != JOptionPane.YES_OPTION) {
+                                return;
+                            }
+
+                            // Create progress panel
+                            javax.swing.JPanel progressPanel = new javax.swing.JPanel(
+                                    new java.awt.BorderLayout(10, 10));
+                            progressPanel.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                                    javax.swing.BorderFactory.createLineBorder(java.awt.Color.GRAY, 1),
+                                    javax.swing.BorderFactory.createEmptyBorder(15, 15, 15, 15)));
+                            progressPanel.setBackground(new java.awt.Color(245, 245, 245));
+
+                            javax.swing.JLabel statusLabel = new javax.swing.JLabel("Đang bốc thăm...");
+                            statusLabel.setFont(new java.awt.Font(java.awt.Font.SANS_SERIF, java.awt.Font.PLAIN, 12));
+                            javax.swing.JProgressBar progressBar = new javax.swing.JProgressBar(0, totalCount);
+                            progressBar.setStringPainted(true);
+                            progressBar.setString("0/" + totalCount);
+
+                            progressPanel.add(statusLabel, java.awt.BorderLayout.NORTH);
+                            progressPanel.add(progressBar, java.awt.BorderLayout.CENTER);
+
+                            // Create progress dialog with panel
+                            javax.swing.JDialog progressDialog = new javax.swing.JDialog(this,
+                                    "Bốc thăm tất cả nội dung",
+                                    false);
+                            progressDialog.setDefaultCloseOperation(javax.swing.JDialog.DO_NOTHING_ON_CLOSE);
+                            progressDialog.setSize(450, 120);
+                            progressDialog.setLocationRelativeTo(this);
+                            progressDialog.setResizable(false);
+                            progressDialog.setAlwaysOnTop(true);
+                            progressDialog.setContentPane(progressPanel);
+                            progressDialog.setVisible(true);
+
+                            // Run draw in separate thread to keep UI responsive
+                            new Thread(() -> {
+                                try {
+                                    // Draw all contents with delay and logging
+                                    final int[] okCount = { 0 };
+                                    final StringBuilder[] log = { new StringBuilder() };
+                                    Connection conn = (service != null) ? service.current() : null;
+                                    int idGiai = new com.example.btms.config.Prefs().getInt("selectedGiaiDauId", -1);
+
+                                    for (int i = 0; i < contentList.size(); i++) {
+                                        ContentNode ccn = contentList.get(i);
+                                        try {
+                                            // Update UI from worker thread
+                                            final int index = i;
+                                            javax.swing.SwingUtilities.invokeLater(() -> {
+                                                statusLabel.setText("Bốc thăm: " + ccn.label);
+                                                progressBar.setValue(index);
+                                                progressBar.setString((index) + "/" + totalCount);
+                                            });
+
+                                            System.out.println(
+                                                    "Bốc thăm " + (i + 1) + "/" + totalCount + ": " + ccn.label);
+
+                                            // Check minimum participants (2 players/teams required)
+                                            boolean hasEnoughParticipants = false;
+                                            if (conn != null && idGiai > 0) {
+                                                // Check singles
+                                                var singService = new com.example.btms.service.player.DangKiCaNhanService(
+                                                        new com.example.btms.repository.player.DangKiCaNhanRepository(
+                                                                conn));
+                                                int singCount = singService
+                                                        .listByGiaiAndNoiDung(idGiai, ccn.idNoiDung, null)
+                                                        .size();
+
+                                                // Check teams
+                                                var teamService = new com.example.btms.service.team.DangKiDoiService(
+                                                        new com.example.btms.repository.team.DangKiDoiRepository(conn));
+                                                int teamCount = teamService.listTeams(idGiai, ccn.idNoiDung).size();
+
+                                                hasEnoughParticipants = (singCount >= 2) || (teamCount >= 2);
+
+                                                if (!hasEnoughParticipants) {
+                                                    int maxCount = Math.max(singCount, teamCount);
+                                                    log[0].append("✗ ").append(ccn.label).append(" (chỉ có ")
+                                                            .append(maxCount)
+                                                            .append(" VĐV/đội, cần tối thiểu 2)\n");
+                                                    if (i < contentList.size() - 1) {
+                                                        Thread.sleep(500);
+                                                    }
+                                                    continue;
+                                                }
+                                            } else {
+                                                hasEnoughParticipants = true; // If can't check, allow it
+                                            }
+
+                                            doAutoDrawSaveAndOpenForContent(ccn);
+                                            okCount[0]++;
+                                            log[0].append("✓ ").append(ccn.label).append("\n");
+                                        } catch (Exception ex) {
+                                            log[0].append("✗ ").append(ccn.label).append(" (lỗi: ")
+                                                    .append(ex.getMessage())
+                                                    .append(")\n");
+                                        }
+
+                                        // Add delay between draws to prevent database overload
+                                        if (i < contentList.size() - 1) {
+                                            Thread.sleep(500);
+                                        }
+                                    }
+
+                                    // Close progress dialog and show result
+                                    javax.swing.SwingUtilities.invokeLater(() -> {
+                                        progressDialog.dispose();
+                                        rebuildNavigationTree();
+
+                                        // Show result with details
+                                        String message = "Đã bốc thăm " + okCount[0] + "/" + totalCount
+                                                + " nội dung.\n\n";
+                                        if (log[0].length() > 0) {
+                                            message += (okCount[0] == totalCount ? "Tất cả thành công!" : "Chi tiết:\n")
+                                                    + log[0].toString();
+                                        }
+                                        JOptionPane.showMessageDialog(MainFrame.this, message, "Hoàn tất",
+                                                JOptionPane.INFORMATION_MESSAGE);
+                                    });
+                                } catch (Exception ex) {
+                                    javax.swing.SwingUtilities.invokeLater(() -> {
+                                        progressDialog.dispose();
+                                        JOptionPane.showMessageDialog(MainFrame.this, "Lỗi: " + ex.getMessage(), "Lỗi",
+                                                JOptionPane.ERROR_MESSAGE);
+                                    });
+                                }
+                            }).start();
                         } catch (Exception ex) {
                             JOptionPane.showMessageDialog(this, "Lỗi: " + ex.getMessage(), "Lỗi",
                                     JOptionPane.ERROR_MESSAGE);
