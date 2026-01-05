@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.NetworkInterface;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.Date;
@@ -71,7 +72,6 @@ import com.example.btms.repository.match.ChiTietVanRepository;
 import com.example.btms.repository.player.VanDongVienRepository;
 import com.example.btms.service.bracket.SoDoCaNhanService;
 import com.example.btms.service.bracket.SoDoDoiService;
-import com.example.btms.service.category.NoiDungService;
 import com.example.btms.service.match.ChiTietTranDauService;
 import com.example.btms.service.match.ChiTietVanService;
 import com.example.btms.service.scoreboard.ScoreboardRemote;
@@ -1407,10 +1407,19 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     int theThuc = (bo == 1 ? 1 : 3); // map BO -> theThuc
                     int san = Math.max(1, getCourtPort());
                     SoDoCaNhanService soDoService = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
-                    NoiDungService ndsv = new NoiDungService(new NoiDungRepository(conn));
                     int idGiai = prefs.getInt("selectedGiaiDauId", -1);
-                    int idNoidung = ndsv.getIdByNameAndGiai(header, idGiai);
-                    int soDo = soDoService.findSoDoByMatchId(idGiai, idNoidung, match.getMatchId());
+                    // Lấy ID_NOIDUNG từ map dropdown thay vì tìm lại từ DB
+                    Integer idNoiDungObj = headerKnrDoubles.get(header);
+                    if (idNoiDungObj == null) {
+                        throw new SQLException("Không tìm thấy Nội Dung: " + header);
+                    }
+                    int idNoidung = idNoiDungObj;
+                    int soDo = -1;
+                    // Chỉ tìm soDo nếu đã có matchId (trận đã được tạo trước đó)
+                    String currentMatchIdStr = match.getMatchId();
+                    if (currentMatchIdStr != null && !currentMatchIdStr.isBlank()) {
+                        soDo = soDoService.findSoDoByMatchId(idGiai, idNoidung, currentMatchIdStr);
+                    }
                     String existing = resolveExistingMatchId(header, /* isDoubles */ true, null, null, ta, tb, soDo);
                     if (existing != null && !existing.isBlank()) {
                         currentMatchId = existing;
@@ -1481,10 +1490,19 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     Integer idAVal = singlesNameToId.getOrDefault(nameA, -1);
                     Integer idBVal = singlesNameToId.getOrDefault(nameB, -1);
                     SoDoCaNhanService soDoService = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
-                    NoiDungService ndsv = new NoiDungService(new NoiDungRepository(conn));
                     int idGiai = prefs.getInt("selectedGiaiDauId", -1);
-                    int idNoidung = ndsv.getIdByNameAndGiai(header, idGiai);
-                    int soDo = soDoService.findSoDoByMatchId(idGiai, idNoidung, match.getMatchId());
+                    // Lấy ID_NOIDUNG từ map dropdown thay vì tìm lại từ DB
+                    Integer idNoiDungObj = headerKnrSingles.get(header);
+                    if (idNoiDungObj == null) {
+                        throw new SQLException("Không tìm thấy Nội Dung: " + header);
+                    }
+                    int idNoidung = idNoiDungObj;
+                    int soDo = -1;
+                    // Chỉ tìm soDo nếu đã có matchId (trận đã được tạo trước đó)
+                    String currentMatchIdStr = match.getMatchId();
+                    if (currentMatchIdStr != null && !currentMatchIdStr.isBlank()) {
+                        soDo = soDoService.findSoDoByMatchId(idGiai, idNoidung, currentMatchIdStr);
+                    }
                     String existing = resolveExistingMatchId(header, /* isDoubles */ false, idAVal, idBVal, null, null,
                             soDo);
                     if (existing != null && !existing.isBlank()) {
