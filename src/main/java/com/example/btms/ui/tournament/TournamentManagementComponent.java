@@ -40,7 +40,6 @@ public class TournamentManagementComponent extends JPanel {
         setLayout(new BorderLayout(10, 10));
         setPreferredSize(new java.awt.Dimension(1200, 600));
         updateConnection();
-        setupDoubleClickSelection();
     }
 
     /** Cập nhật kết nối database và render lại panel quản lý giải đấu. */
@@ -58,6 +57,11 @@ public class TournamentManagementComponent extends JPanel {
             managementPanel.setBorder(javax.swing.BorderFactory.createTitledBorder("Quản lý giải đấu"));
             managementPanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 20, 10, 20));
             add(managementPanel, BorderLayout.CENTER);
+
+            // Setup double-click to select in selection mode
+            if (selectionMode) {
+                setupDoubleClickToSelect();
+            }
 
             if (selectionMode) {
                 add(createSelectionButtons(), BorderLayout.SOUTH);
@@ -89,8 +93,20 @@ public class TournamentManagementComponent extends JPanel {
         return buttonPanel;
     }
 
-    private void setupDoubleClickSelection() {
-        // This will be set up after the management panel is created
+    private void setupDoubleClickToSelect() {
+        // Add double-click listener to the management panel's table
+        // to automatically select the tournament in selection mode
+        javax.swing.JTable table = managementPanel.getGiaiDauTable();
+        if (table != null) {
+            table.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    if (e.getClickCount() == 2 && selectionMode) {
+                        selectCurrentTournament();
+                    }
+                }
+            });
+        }
     }
 
     private void selectCurrentTournament() {
