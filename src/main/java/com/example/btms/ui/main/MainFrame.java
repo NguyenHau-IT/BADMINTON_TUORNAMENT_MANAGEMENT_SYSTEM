@@ -382,6 +382,7 @@ public class MainFrame extends JFrame {
         pack();
 
         setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setMinimumSize(new java.awt.Dimension(800, 600)); // Kích thước tối thiểu khi thu nhỏ cửa sổ
         setLocationRelativeTo(null);
         setAlwaysOnTop(false);
         // Defer icon application until after constructor to avoid 'leaking this in
