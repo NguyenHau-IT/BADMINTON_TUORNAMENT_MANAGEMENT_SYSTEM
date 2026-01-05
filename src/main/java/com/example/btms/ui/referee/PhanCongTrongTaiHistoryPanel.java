@@ -85,7 +85,9 @@ public class PhanCongTrongTaiHistoryPanel extends JPanel {
 
         table = new JTable(tableModel);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        table.setRowHeight(25);
+        table.setRowHeight(35);
+        table.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
+        table.getTableHeader().setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
         table.getTableHeader().setReorderingAllowed(false);
 
         // Row sorter
@@ -94,7 +96,7 @@ public class PhanCongTrongTaiHistoryPanel extends JPanel {
 
         // Components
         lblTitle = new JLabel("📋 Lịch sử phân công trọng tài");
-        lblTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
+        lblTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 20));
         lblTitle.setHorizontalAlignment(SwingConstants.CENTER);
 
         txtSearch = new JTextField(20);
@@ -126,7 +128,7 @@ public class PhanCongTrongTaiHistoryPanel extends JPanel {
         headerPanel.add(lblTitle);
 
         // Control panel
-        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));
+        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 4));
         controlPanel.add(new JLabel("Lọc theo:"));
         controlPanel.add(cboFilterType);
         controlPanel.add(new JLabel("Tìm kiếm:"));
@@ -146,9 +148,11 @@ public class PhanCongTrongTaiHistoryPanel extends JPanel {
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 
         // Layout
-        add(headerPanel, BorderLayout.NORTH);
-        add(controlPanel, BorderLayout.CENTER);
-        add(scrollPane, BorderLayout.SOUTH);
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.add(headerPanel, BorderLayout.NORTH);
+        topPanel.add(controlPanel, BorderLayout.SOUTH);
+        add(topPanel, BorderLayout.NORTH);
+        add(scrollPane, BorderLayout.CENTER);
 
         // Column configuration
         configureColumns();
@@ -156,12 +160,12 @@ public class PhanCongTrongTaiHistoryPanel extends JPanel {
 
     private void configureColumns() {
         // Set column widths
-        table.getColumnModel().getColumn(COL_MA_PHAN_CONG).setPreferredWidth(120);
-        table.getColumnModel().getColumn(COL_MA_TRONG_TAI).setPreferredWidth(100);
-        table.getColumnModel().getColumn(COL_TEN_TRONG_TAI).setPreferredWidth(150);
+        table.getColumnModel().getColumn(COL_MA_PHAN_CONG).setPreferredWidth(140);
+        table.getColumnModel().getColumn(COL_MA_TRONG_TAI).setPreferredWidth(120);
+        table.getColumnModel().getColumn(COL_TEN_TRONG_TAI).setPreferredWidth(110);
         table.getColumnModel().getColumn(COL_MA_TRAN_DAU).setPreferredWidth(200);
-        table.getColumnModel().getColumn(COL_VAI_TRO).setPreferredWidth(80);
-        table.getColumnModel().getColumn(COL_GHI_CHU).setPreferredWidth(200);
+        table.getColumnModel().getColumn(COL_VAI_TRO).setPreferredWidth(100);
+        table.getColumnModel().getColumn(COL_GHI_CHU).setPreferredWidth(350);
 
         // Center align specific columns
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
