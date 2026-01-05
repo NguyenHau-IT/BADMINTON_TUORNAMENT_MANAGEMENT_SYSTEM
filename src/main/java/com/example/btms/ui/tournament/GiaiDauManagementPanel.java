@@ -5,6 +5,8 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.HeadlessException;
 import java.awt.Insets;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.List;
@@ -89,6 +91,25 @@ public class GiaiDauManagementPanel extends JPanel {
             giaiDauTable.getColumnModel().getColumn(0).setMaxWidth(0);
             giaiDauTable.getColumnModel().getColumn(0).setPreferredWidth(0);
         }
+        // Cấu hình độ rộng cột
+        giaiDauTable.getColumnModel().getColumn(1).setPreferredWidth(780); // Tên Giải
+        giaiDauTable.getColumnModel().getColumn(2).setPreferredWidth(75); // Ngày Bắt Đầu
+        giaiDauTable.getColumnModel().getColumn(3).setPreferredWidth(75); // Ngày Kết Thúc
+        giaiDauTable.getColumnModel().getColumn(4).setPreferredWidth(75); // Trạng Thái
+
+        // Double click để chọn giải đấu
+        giaiDauTable.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    int row = giaiDauTable.getSelectedRow();
+                    if (row >= 0) {
+                        int modelRow = giaiDauTable.convertRowIndexToModel(row);
+                        giaiDauTable.setRowSelectionInterval(modelRow, modelRow);
+                    }
+                }
+            }
+        });
 
         searchField = new JTextField(20);
         statusFilter = new JComboBox<>(new String[] { "Tất cả", "Đang hoạt động", "Sắp tới", "Đã kết thúc" });
@@ -385,5 +406,10 @@ public class GiaiDauManagementPanel extends JPanel {
         } catch (Exception e) {
             // Ignore selection errors
         }
+    }
+
+    /** Getter để lấy JTable cho các component khác */
+    public JTable getGiaiDauTable() {
+        return giaiDauTable;
     }
 }
