@@ -38,12 +38,11 @@ public class RefereeManagementFrame extends JFrame {
             Connection conn = null; // Sẽ cần setup thực tế
 
             // Khởi tạo repositories với connection
-            CauLacBoRepository clbRepo = new CauLacBoRepository(conn);
 
             // Khởi tạo services - các service referee sử dụng default constructor
             this.trongTaiService = new TrongTaiService();
             this.phanCongService = new PhanCongTrongTaiService();
-            this.clbService = new CauLacBoService(clbRepo);
+            this.clbService = new CauLacBoService(new CauLacBoRepository(conn));
 
             initFrame();
         } catch (Exception e) {

@@ -17,6 +17,8 @@ import java.net.SocketException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map; // still used earlier? (kept for backward compatibility but theme menu removed)
@@ -60,12 +62,15 @@ import com.example.btms.model.bracket.SoDoDoi;
 import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.db.SQLSRVConnectionManager;
 import com.example.btms.model.role.Role;
+import com.example.btms.model.team.DangKiDoi;
 import com.example.btms.model.tournament.GiaiDau;
 import com.example.btms.repository.bracket.SoDoCaNhanRepository;
 import com.example.btms.repository.bracket.SoDoDoiRepository;
 import com.example.btms.repository.category.NoiDungRepository;
 import com.example.btms.repository.cateoftuornament.ChiTietGiaiDauRepository;
 import com.example.btms.repository.club.CauLacBoRepository;
+import com.example.btms.repository.draw.BocThamCaNhanRepository;
+import com.example.btms.repository.draw.BocThamDoiRepository;
 import com.example.btms.repository.player.DangKiCaNhanRepository;
 import com.example.btms.repository.player.VanDongVienRepository;
 import com.example.btms.repository.referee.TrongTaiRepository;
@@ -80,8 +85,12 @@ import com.example.btms.service.category.NoiDungService;
 import com.example.btms.service.cateoftuornament.ChiTietGiaiDauService;
 import com.example.btms.service.club.CauLacBoService;
 import com.example.btms.service.db.DatabaseService;
+import com.example.btms.service.device.DeviceSessionService;
+import com.example.btms.service.draw.BocThamCaNhanService;
+import com.example.btms.service.draw.BocThamDoiService;
 import com.example.btms.service.player.DangKiCaNhanService;
 import com.example.btms.service.player.VanDongVienService;
+import com.example.btms.service.referee.PhanCongTrongTaiService;
 import com.example.btms.service.referee.TrongTaiService;
 import com.example.btms.service.result.KetQuaCaNhanService;
 import com.example.btms.service.result.KetQuaDoiService;
@@ -97,7 +106,7 @@ import com.example.btms.ui.fee.ClubFeesPanel;
 import com.example.btms.ui.club.CauLacBoManagementPanel;
 import com.example.btms.ui.control.BadmintonControlPanel;
 import com.example.btms.ui.control.MultiCourtControlPanel;
-import com.example.btms.ui.draw.BocThamThiDau;
+import com.example.btms.ui.device.DeviceMonitorPanel;
 import com.example.btms.ui.log.LogTab;
 import com.example.btms.ui.log.LogViewerDialog;
 import com.example.btms.ui.manager.UnifiedWindowManager;
@@ -135,20 +144,31 @@ public class MainFrame extends JFrame {
 
     // Lưu map font gốc để tránh nhân đôi khi đổi scale nhiều lần
     private static java.util.Map<Object, Font> baseUIFontMap;
-
-    // Tạo sau khi có Connection
-    private NoiDungService noiDungService;
-    private CauLacBoService cauLacBoService;
-    private VanDongVienService vdvService;
-    private TrongTaiService trongTaiService;
-    private com.example.btms.service.referee.PhanCongTrongTaiService phanCongTrongTaiService;
-    private DangKiCaNhanService dkCaNhanService;
-    private DangKiDoiService dkDoiService;
-    private ChiTietDoiService chiTietDoiService;
-    private ChiTietGiaiDauService chitietService;
-    private GiaiDauService giaiDauService;
     private Connection conn;
     private Prefs prefs;
+
+    // Tạo sau khi có Connection
+    private NoiDungService noiDungService = new NoiDungService(new NoiDungRepository(conn));
+    private CauLacBoService cauLacBoService = new CauLacBoService(new CauLacBoRepository(conn));
+    private VanDongVienService vdvService = new VanDongVienService(new VanDongVienRepository(conn));
+    private ChiTietGiaiDauService chiTietGiaiDauService = new ChiTietGiaiDauService(new ChiTietGiaiDauRepository(conn));
+    private DangKiCaNhanService dangKiCaNhanService = new DangKiCaNhanService(
+            new DangKiCaNhanRepository(conn));
+    private DangKiDoiService dangKiDoiService = new DangKiDoiService(new DangKiDoiRepository(conn));
+    private ChiTietDoiService chiTietDoiService = new ChiTietDoiService(conn, new DangKiDoiRepository(conn),
+            new ChiTietDoiRepository(conn));
+    private BocThamDoiService bocThamDoiService = new BocThamDoiService(conn,
+            new BocThamDoiRepository(conn));
+    private BocThamCaNhanService bocThamCaNhanService = new BocThamCaNhanService(new BocThamCaNhanRepository(conn));
+    private SoDoDoiService soDoDoiService = new SoDoDoiService(
+            new SoDoDoiRepository(conn));
+    private SoDoCaNhanService soDoCaNhanService = new SoDoCaNhanService(
+            new SoDoCaNhanRepository(conn));
+    private KetQuaCaNhanService ketQuaCaNhanService = new KetQuaCaNhanService(new KetQuaCaNhanRepository(conn));
+    private KetQuaDoiService ketQuaDoiService = new KetQuaDoiService(new KetQuaDoiRepository(conn));
+    private TrongTaiService trongTaiService;
+    private PhanCongTrongTaiService phanCongTrongTaiService;
+    private GiaiDauService giaiDauService;
     private ApplicationContext applicationContext;
     private NoiDungManagementPanel noiDungPanel;
     private CauLacBoManagementPanel cauLacBoPanel;
@@ -160,7 +180,6 @@ public class MainFrame extends JFrame {
     private DangKyDoiPanel dangKyDoiPanel;
     private DangKyCaNhanPanel dangKyCaNhanPanel; // đăng ký cá nhân (đơn)
     private ContentParticipantsPanel contentParticipantsPanel; // xem VDV/Đội theo nội dung
-    private BocThamThiDau bocThamThiDauPanel; // bốc thăm thi đấu (đơn/đôi) 0-based
     private SoDoThiDauPanel soDoThiDauPanel; // sơ đồ thi đấu trực quan
     // Trang báo cáo PDF tổng hợp
     private BaoCaoPdfPanel baoCaoPdfPanel;
@@ -754,10 +773,7 @@ public class MainFrame extends JFrame {
         }
     }
 
-    /**
-     * Phase 1: Khởi tạo kết nối cơ bản và dữ liệu NGUOI_DUNG cho đăng nhập
-     */
-    private void initializeBasicConnectionAndAuth(Connection conn) {
+    private void initializeBasicConnectionAndAuth(Connection conn) throws SQLException {
         // Kết nối cơ bản cho control panels
         controlPanel.setConnection(conn);
         multiCourtPanel.setConnection(conn);
@@ -780,17 +796,15 @@ public class MainFrame extends JFrame {
         System.out.println("DEBUG: initializeAllDataAfterTournamentSelection() started");
         try {
             // ==== Services chung ====
-            noiDungService = new NoiDungService(new NoiDungRepository(conn));
 
             // ---- CLB
             // Service (giữ nguyên)
-            CauLacBoService clbService = new CauLacBoService(new CauLacBoRepository(conn));
 
             // UI + Controller tách riêng
             var clbView = new CauLacBoManagementPanel();
             var clbController = new CauLacBoManagementController(
                     clbView,
-                    clbService);
+                    cauLacBoService);
 
             // Lưu lại view để hiển thị trong tab / main panel
             this.cauLacBoPanel = clbView;
@@ -799,18 +813,17 @@ public class MainFrame extends JFrame {
             ensureViewPresent("Quản lý câu lạc bộ", clbView);
 
             // ---- Vận động viên
-            VanDongVienService vdvService = new VanDongVienService(new VanDongVienRepository(conn));
-            vanDongVienPanel = new VanDongVienManagementPanel(vdvService, clbService);
+            vanDongVienPanel = new VanDongVienManagementPanel(vdvService, cauLacBoService);
 
             // ---- Trọng tài
             trongTaiService = applicationContext.getBean(TrongTaiService.class);
             // Sử dụng connection chung thay vì tạo mới
             trongTaiService.setDirectConnection(conn);
-            trongTaiPanel = new TrongTaiManagementPanel(trongTaiService, clbService);
+            trongTaiPanel = new TrongTaiManagementPanel(trongTaiService, cauLacBoService);
 
             // ---- Phân công trọng tài
             phanCongTrongTaiService = applicationContext
-                    .getBean(com.example.btms.service.referee.PhanCongTrongTaiService.class);
+                    .getBean(PhanCongTrongTaiService.class);
             // Sử dụng connection chung thay vì tạo mới
             phanCongTrongTaiService.setDirectConnection(conn);
 
@@ -818,18 +831,17 @@ public class MainFrame extends JFrame {
             phanCongTrongTaiHistoryPanel = new PhanCongTrongTaiHistoryPanel(phanCongTrongTaiService, trongTaiService);
 
             // ---- Giám sát thiết bị
-            com.example.btms.service.device.DeviceSessionService deviceSessionService = applicationContext
-                    .getBean(com.example.btms.service.device.DeviceSessionService.class);
-            deviceMonitorPanel = new com.example.btms.ui.device.DeviceMonitorPanel(deviceSessionService);
+            DeviceSessionService deviceSessionService = applicationContext
+                    .getBean(DeviceSessionService.class);
+            deviceMonitorPanel = new DeviceMonitorPanel(deviceSessionService);
 
             // ---- Chi tiết nội dung theo giải (tab đăng ký ND) — 1 UI + 1 Controller
-            ChiTietGiaiDauService chiTietService = new ChiTietGiaiDauService(new ChiTietGiaiDauRepository(conn));
             var dkNdView = new DangKyNoiDungPanel();
             this.dangKyNoiDungPanel = dkNdView; // nếu field cũ tên vậy, đổi kiểu về View
             this.dangKyNoiDungController = new DangKyNoiDungController(
                     dkNdView,
                     noiDungService,
-                    chiTietService,
+                    chiTietGiaiDauService,
                     new Prefs(),
                     tournamentTabPanel.getGiaiDauService() // có thể null
             );
@@ -842,26 +854,18 @@ public class MainFrame extends JFrame {
                     noiDungView, noiDungService);
             ensureViewPresent("Quản lý nội dung", noiDungView);
 
-            // ==== CONTENT PARTICIPANTS — 1 UI + 1 Controller
-            var dkCaNhanService = new DangKiCaNhanService(
-                    new DangKiCaNhanRepository(conn));
-            var doiRepo = new DangKiDoiRepository(conn);
-            var doiService = new DangKiDoiService(doiRepo);
-            var chiTietDoiService = new ChiTietDoiService(
-                    conn, doiRepo, new ChiTietDoiRepository(conn));
-
             var cpView = new ContentParticipantsPanel();
             this.contentParticipantsPanel = cpView; // đổi kiểu field sang View
             this.contentParticipantsController = new ContentParticipantsController(
                     cpView, conn, new Prefs(),
-                    noiDungService, vdvService, dkCaNhanService, doiService, chiTietDoiService, clbService);
+                    noiDungService, vdvService, dangKiCaNhanService, dangKiDoiService, chiTietDoiService,
+                    cauLacBoService);
             ensureViewPresent("Người tham gia theo nội dung", cpView);
 
             // ==== Các màn khác giữ nguyên ====
             dangKyDoiPanel = new DangKyDoiPanel(conn);
             dangKyCaNhanPanel = new DangKyCaNhanPanel(conn);
 
-            bocThamThiDauPanel = new BocThamThiDau(conn);
             soDoThiDauPanel = new SoDoThiDauPanel(conn);
             try {
                 NetworkInterface ni = multiCourtPanel.getNetworkInterface();
@@ -905,7 +909,7 @@ public class MainFrame extends JFrame {
             } catch (Throwable ignore) {
             }
             try {
-                var tongSapHuyChuongPanel = new TongSapHuyChuongPanel(conn, clbService);
+                var tongSapHuyChuongPanel = new TongSapHuyChuongPanel(conn, cauLacBoService);
                 ensureViewPresent("Tổng sắp huy chương", tongSapHuyChuongPanel);
             } catch (Throwable ignore) {
             }
@@ -1375,7 +1379,6 @@ public class MainFrame extends JFrame {
             ensureViewPresent("Đăng ký đội", dangKyDoiPanel);
             ensureViewPresent("Đăng ký cá nhân", dangKyCaNhanPanel);
             ensureViewPresent("Danh sách đăng kí", contentParticipantsPanel);
-            ensureViewPresent("Bốc thăm thi đấu", bocThamThiDauPanel);
             ensureViewPresent("Sơ đồ thi đấu", soDoThiDauPanel);
             ensureViewPresent("Thi đấu", multiCourtPanel);
             ensureViewPresent("Giám sát", monitorTab);
@@ -1631,9 +1634,7 @@ public class MainFrame extends JFrame {
                         if (c != JOptionPane.YES_OPTION) {
                             return;
                         }
-                        var svc = new com.example.btms.service.player.DangKiCaNhanService(
-                                new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
-                        int deleted = svc.deleteAllByGiaiAndNoiDung(idGiai, cn.idNoiDung);
+                        int deleted = dangKiCaNhanService.deleteAllByGiaiAndNoiDung(idGiai, cn.idNoiDung);
                         if (dangKyCaNhanPanel != null) {
                             dangKyCaNhanPanel.refreshAll();
                         }
@@ -1671,9 +1672,7 @@ public class MainFrame extends JFrame {
                         if (c != JOptionPane.YES_OPTION) {
                             return;
                         }
-                        var svc = new com.example.btms.service.team.DangKiDoiService(
-                                new com.example.btms.repository.team.DangKiDoiRepository(conn));
-                        int deleted = svc.deleteAllByGiaiAndNoiDung(idGiai, cn.idNoiDung);
+                        int deleted = dangKiDoiService.deleteAllByGiaiAndNoiDung(idGiai, cn.idNoiDung);
                         if (dangKyDoiPanel != null) {
                             dangKyDoiPanel.refreshAll();
                         }
@@ -1711,12 +1710,8 @@ public class MainFrame extends JFrame {
                         if (c != JOptionPane.YES_OPTION) {
                             return;
                         }
-                        var teamSvc = new com.example.btms.service.team.DangKiDoiService(
-                                new com.example.btms.repository.team.DangKiDoiRepository(conn));
-                        var singSvc = new com.example.btms.service.player.DangKiCaNhanService(
-                                new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
-                        int delTeams = teamSvc.deleteAllByGiaiAndNoiDung(idGiai, cn.idNoiDung);
-                        int delSingles = singSvc.deleteAllByGiaiAndNoiDung(idGiai, cn.idNoiDung);
+                        int delTeams = dangKiDoiService.deleteAllByGiaiAndNoiDung(idGiai, cn.idNoiDung);
+                        int delSingles = dangKiCaNhanService.deleteAllByGiaiAndNoiDung(idGiai, cn.idNoiDung);
                         if (dangKyDoiPanel != null) {
                             dangKyDoiPanel.refreshAll();
                         }
@@ -1863,17 +1858,13 @@ public class MainFrame extends JFrame {
                                             boolean hasEnoughParticipants = false;
                                             if (conn != null && idGiai > 0) {
                                                 // Check singles
-                                                var singService = new com.example.btms.service.player.DangKiCaNhanService(
-                                                        new com.example.btms.repository.player.DangKiCaNhanRepository(
-                                                                conn));
-                                                int singCount = singService
+                                                int singCount = dangKiCaNhanService
                                                         .listByGiaiAndNoiDung(idGiai, ccn.idNoiDung, null)
                                                         .size();
 
                                                 // Check teams
-                                                var teamService = new com.example.btms.service.team.DangKiDoiService(
-                                                        new com.example.btms.repository.team.DangKiDoiRepository(conn));
-                                                int teamCount = teamService.listTeams(idGiai, ccn.idNoiDung).size();
+                                                int teamCount = dangKiDoiService.listTeams(idGiai, ccn.idNoiDung)
+                                                        .size();
 
                                                 hasEnoughParticipants = (singCount >= 2) || (teamCount >= 2);
 
@@ -1964,9 +1955,8 @@ public class MainFrame extends JFrame {
                                 if (c != JOptionPane.YES_OPTION) {
                                     return;
                                 }
-                                var svc = new com.example.btms.service.player.DangKiCaNhanService(
-                                        new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
-                                int deleted = svc.deleteAllByGiaiAndNoiDung(idGiai,
+
+                                int deleted = dangKiCaNhanService.deleteAllByGiaiAndNoiDung(idGiai,
                                         lastSelectedRegListContent.idNoiDung);
                                 if (dangKyCaNhanPanel != null) {
                                     dangKyCaNhanPanel.refreshAll();
@@ -2006,9 +1996,8 @@ public class MainFrame extends JFrame {
                                 if (c != JOptionPane.YES_OPTION) {
                                     return;
                                 }
-                                var svc = new com.example.btms.service.team.DangKiDoiService(
-                                        new com.example.btms.repository.team.DangKiDoiRepository(conn));
-                                int deleted = svc.deleteAllByGiaiAndNoiDung(idGiai,
+
+                                int deleted = dangKiDoiService.deleteAllByGiaiAndNoiDung(idGiai,
                                         lastSelectedRegListContent.idNoiDung);
                                 if (dangKyDoiPanel != null) {
                                     dangKyDoiPanel.refreshAll();
@@ -2047,13 +2036,10 @@ public class MainFrame extends JFrame {
                                 if (c != JOptionPane.YES_OPTION) {
                                     return;
                                 }
-                                var teamSvc = new com.example.btms.service.team.DangKiDoiService(
-                                        new com.example.btms.repository.team.DangKiDoiRepository(conn));
-                                var singSvc = new com.example.btms.service.player.DangKiCaNhanService(
-                                        new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
-                                int delTeams = teamSvc.deleteAllByGiaiAndNoiDung(idGiai,
+
+                                int delTeams = dangKiDoiService.deleteAllByGiaiAndNoiDung(idGiai,
                                         lastSelectedRegListContent.idNoiDung);
-                                int delSingles = singSvc.deleteAllByGiaiAndNoiDung(idGiai,
+                                int delSingles = dangKiCaNhanService.deleteAllByGiaiAndNoiDung(idGiai,
                                         lastSelectedRegListContent.idNoiDung);
                                 if (dangKyDoiPanel != null) {
                                     dangKyDoiPanel.refreshAll();
@@ -2150,9 +2136,8 @@ public class MainFrame extends JFrame {
                             if (c != JOptionPane.YES_OPTION) {
                                 return;
                             }
-                            var svc = new com.example.btms.service.player.DangKiCaNhanService(
-                                    new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
-                            int deleted = svc.deleteAllByGiai(idGiai);
+
+                            int deleted = dangKiCaNhanService.deleteAllByGiai(idGiai);
                             if (dangKyCaNhanPanel != null) {
                                 dangKyCaNhanPanel.refreshAll();
                             }
@@ -2187,9 +2172,8 @@ public class MainFrame extends JFrame {
                             if (c != JOptionPane.YES_OPTION) {
                                 return;
                             }
-                            var svc = new com.example.btms.service.team.DangKiDoiService(
-                                    new com.example.btms.repository.team.DangKiDoiRepository(conn));
-                            int deleted = svc.deleteAllByGiai(idGiai);
+
+                            int deleted = dangKiDoiService.deleteAllByGiai(idGiai);
                             if (dangKyDoiPanel != null) {
                                 dangKyDoiPanel.refreshAll();
                             }
@@ -2224,12 +2208,9 @@ public class MainFrame extends JFrame {
                             if (c != JOptionPane.YES_OPTION) {
                                 return;
                             }
-                            var teamSvc = new com.example.btms.service.team.DangKiDoiService(
-                                    new com.example.btms.repository.team.DangKiDoiRepository(conn));
-                            var singSvc = new com.example.btms.service.player.DangKiCaNhanService(
-                                    new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
-                            int delTeams = teamSvc.deleteAllByGiai(idGiai);
-                            int delSingles = singSvc.deleteAllByGiai(idGiai);
+
+                            int delTeams = dangKiDoiService.deleteAllByGiai(idGiai);
+                            int delSingles = dangKiCaNhanService.deleteAllByGiai(idGiai);
                             if (dangKyDoiPanel != null) {
                                 dangKyDoiPanel.refreshAll();
                             }
@@ -2284,9 +2265,8 @@ public class MainFrame extends JFrame {
                             if (c != JOptionPane.YES_OPTION) {
                                 return;
                             }
-                            var svc = new com.example.btms.service.team.DangKiDoiService(
-                                    new com.example.btms.repository.team.DangKiDoiRepository(conn));
-                            int deleted = svc.deleteAllByGiai(idGiai);
+
+                            int deleted = dangKiDoiService.deleteAllByGiai(idGiai);
                             if (dangKyDoiPanel != null) {
                                 dangKyDoiPanel.refreshAll();
                             }
@@ -2333,9 +2313,8 @@ public class MainFrame extends JFrame {
                             if (c != JOptionPane.YES_OPTION) {
                                 return;
                             }
-                            var svc = new com.example.btms.service.player.DangKiCaNhanService(
-                                    new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
-                            int deleted = svc.deleteAllByGiai(idGiai);
+
+                            int deleted = dangKiCaNhanService.deleteAllByGiai(idGiai);
                             if (dangKyCaNhanPanel != null) {
                                 dangKyCaNhanPanel.refreshAll();
                             }
@@ -2475,38 +2454,31 @@ public class MainFrame extends JFrame {
             return false;
         }
 
-        var ndOpt = new NoiDungService(new NoiDungRepository(conn)).getNoiDungById(idNoiDung);
+        var ndOpt = noiDungService.getNoiDungById(idNoiDung);
         boolean isTeam = ndOpt.isPresent() && Boolean.TRUE.equals(ndOpt.get().getTeam());
 
         if (isTeam) {
-            var doiSvc = new com.example.btms.service.team.DangKiDoiService(
-                    new com.example.btms.repository.team.DangKiDoiRepository(conn));
-            var bocSvc = new com.example.btms.service.draw.BocThamDoiService(
-                    conn, new com.example.btms.repository.draw.BocThamDoiRepository(conn));
-            java.util.List<com.example.btms.model.team.DangKiDoi> teams = doiSvc.listTeams(idGiai, idNoiDung);
-            java.util.Collections.shuffle(teams);
-            java.util.List<com.example.btms.model.draw.BocThamDoi> rows = new java.util.ArrayList<>();
+
+            List<DangKiDoi> teams = dangKiDoiService.listTeams(idGiai, idNoiDung);
+            Collections.shuffle(teams);
+            List<com.example.btms.model.draw.BocThamDoi> rows = new ArrayList<>();
             for (int i = 0; i < teams.size(); i++) {
                 var t = teams.get(i);
                 Integer idClb = t.getIdClb();
                 rows.add(new com.example.btms.model.draw.BocThamDoi(idGiai, idNoiDung,
                         idClb == null ? 0 : idClb, t.getTenTeam(), i, 1));
             }
-            bocSvc.resetWithOrder(idGiai, idNoiDung, rows);
+            bocThamDoiService.resetWithOrder(idGiai, idNoiDung, rows);
         } else {
-            var dkSvc = new com.example.btms.service.player.DangKiCaNhanService(
-                    new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
-            var bocSvc = new com.example.btms.service.draw.BocThamCaNhanService(
-                    new com.example.btms.repository.draw.BocThamCaNhanRepository(conn));
-            var regs = dkSvc.listByGiaiAndNoiDung(idGiai, idNoiDung, null);
+            var regs = dangKiCaNhanService.listByGiaiAndNoiDung(idGiai, idNoiDung, null);
             java.util.Collections.shuffle(regs);
-            var existed = bocSvc.list(idGiai, idNoiDung);
+            var existed = bocThamCaNhanService.list(idGiai, idNoiDung);
             for (var r : existed) {
-                bocSvc.delete(idGiai, idNoiDung, r.getIdVdv());
+                bocThamCaNhanService.delete(idGiai, idNoiDung, r.getIdVdv());
             }
             for (int i = 0; i < regs.size(); i++) {
                 var r = regs.get(i);
-                bocSvc.create(idGiai, idNoiDung, r.getIdVdv(), i, 1);
+                bocThamCaNhanService.create(idGiai, idNoiDung, r.getIdVdv(), i, 1);
             }
         }
         return true;
@@ -2518,10 +2490,6 @@ public class MainFrame extends JFrame {
             JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        SoDoCaNhanService soDoCaNhanService = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
-        SoDoDoiService soDoDoiService = new SoDoDoiService(new SoDoDoiRepository(conn));
-        KetQuaCaNhanService ketQuaCaNhanService = new KetQuaCaNhanService(new KetQuaCaNhanRepository(conn));
-        KetQuaDoiService ketQuaDoiService = new KetQuaDoiService(new KetQuaDoiRepository(conn));
         int idGiai = new com.example.btms.config.Prefs().getInt("selectedGiaiDauId", -1);
         if (idGiai <= 0) {
             JOptionPane.showMessageDialog(this, "Chưa chọn giải hoặc nội dung", "Thông báo",
@@ -2537,11 +2505,9 @@ public class MainFrame extends JFrame {
             return;
         }
 
-        // Xác định nội dung là đội/đôi hay cá nhân từ repository (an toàn, không ném
-        // SQLException ra ngoài)
         boolean isTeam;
         try {
-            var ndOpt = new NoiDungService(new NoiDungRepository(conn)).getNoiDungById(cn.idNoiDung);
+            var ndOpt = noiDungService.getNoiDungById(cn.idNoiDung);
             isTeam = ndOpt.isPresent() && Boolean.TRUE.equals(ndOpt.get().getTeam());
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(this, "Không xác định được loại nội dung: " + ex.getMessage(), "Lỗi",
@@ -2585,22 +2551,18 @@ public class MainFrame extends JFrame {
             // 3) Xoá danh sách bốc thăm (draws)
             try {
                 if (isTeam) {
-                    var bocThamDoiSvc = new com.example.btms.service.draw.BocThamDoiService(
-                            conn, new com.example.btms.repository.draw.BocThamDoiRepository(conn));
-                    var drawList = bocThamDoiSvc.list(idGiai, idNoiDung);
+                    var drawList = bocThamDoiService.list(idGiai, idNoiDung);
                     for (var r : drawList) {
                         try {
-                            bocThamDoiSvc.delete(idGiai, idNoiDung, r.getThuTu());
+                            bocThamDoiService.delete(idGiai, idNoiDung, r.getThuTu());
                         } catch (Exception ignore) {
                         }
                     }
                 } else {
-                    var bocThamCaNhanSvc = new com.example.btms.service.draw.BocThamCaNhanService(
-                            new com.example.btms.repository.draw.BocThamCaNhanRepository(conn));
-                    var drawList = bocThamCaNhanSvc.list(idGiai, idNoiDung);
+                    var drawList = bocThamCaNhanService.list(idGiai, idNoiDung);
                     for (var r : drawList) {
                         try {
-                            bocThamCaNhanSvc.delete(idGiai, idNoiDung, r.getIdVdv());
+                            bocThamCaNhanService.delete(idGiai, idNoiDung, r.getIdVdv());
                         } catch (Exception ignore) {
                         }
                     }
@@ -2674,8 +2636,7 @@ public class MainFrame extends JFrame {
                 DefaultMutableTreeNode ndg = new DefaultMutableTreeNode("Nội dung của giải");
                 try {
                     if (service != null && service.current() != null) {
-                        var repo = new com.example.btms.repository.category.NoiDungRepository(service.current());
-                        java.util.Map<String, Integer>[] maps = repo.loadCategories();
+                        java.util.Map<String, Integer>[] maps = noiDungService.getAllNoiDungType();
                         java.util.Map<String, Integer> singles = maps[0];
                         java.util.Map<String, Integer> doubles = maps[1];
                         for (var entry : singles.entrySet()) {
@@ -2696,8 +2657,7 @@ public class MainFrame extends JFrame {
                 DefaultMutableTreeNode regList = new DefaultMutableTreeNode("Danh sách đăng kí");
                 try {
                     if (service != null && service.current() != null) {
-                        var repo = new com.example.btms.repository.category.NoiDungRepository(service.current());
-                        java.util.Map<String, Integer>[] maps = repo.loadCategories();
+                        java.util.Map<String, Integer>[] maps = noiDungService.getAllNoiDungType();
                         java.util.Map<String, Integer> singles = maps[0];
                         java.util.Map<String, Integer> doubles = maps[1];
                         for (var entry : singles.entrySet()) {
@@ -2719,29 +2679,21 @@ public class MainFrame extends JFrame {
                 try {
                     if (service != null && service.current() != null) {
                         var conn2 = service.current();
-                        var repo = new com.example.btms.repository.category.NoiDungRepository(conn2);
-                        java.util.Map<String, Integer>[] maps = repo.loadCategories();
+                        java.util.Map<String, Integer>[] maps = noiDungService.getAllNoiDungType();
                         java.util.Map<String, Integer> singles = maps[0];
                         java.util.Map<String, Integer> doubles = maps[1];
 
                         // Chỉ hiển thị các nội dung đã có bốc thăm rồi
                         Integer _tmpId = (selectedGiaiDau != null) ? selectedGiaiDau.getId() : null;
                         int idGiai = (_tmpId != null) ? _tmpId : -1;
-                        var bocThamDoiSvc = new com.example.btms.service.draw.BocThamDoiService(
-                                conn2,
-                                new com.example.btms.repository.draw.BocThamDoiRepository(conn2));
-                        var bocThamCaNhanSvc = new com.example.btms.service.draw.BocThamCaNhanService(
-                                new com.example.btms.repository.draw.BocThamCaNhanRepository(conn2));
-                        var chiTietService = new com.example.btms.service.cateoftuornament.ChiTietGiaiDauService(
-                                new com.example.btms.repository.cateoftuornament.ChiTietGiaiDauRepository(conn2));
 
                         // Cá nhân
                         for (var entry : singles.entrySet()) {
                             try {
-                                var list = bocThamCaNhanSvc.list(idGiai, entry.getValue());
+                                var list = bocThamCaNhanService.list(idGiai, entry.getValue());
                                 if (list != null && !list.isEmpty()) {
                                     // Lấy số sơ đồ từ ChiTietGiaiDau
-                                    var chiTiet = chiTietService.getOne(idGiai, entry.getValue());
+                                    var chiTiet = chiTietGiaiDauService.getOne(idGiai, entry.getValue());
                                     int numBrackets = 1;
                                     if (chiTiet != null && chiTiet.getSoDo() > 1) {
                                         numBrackets = chiTiet.getSoDo();
@@ -2762,10 +2714,10 @@ public class MainFrame extends JFrame {
                         // Đội/Đôi
                         for (var entry : doubles.entrySet()) {
                             try {
-                                var list = bocThamDoiSvc.list(idGiai, entry.getValue());
+                                var list = bocThamDoiService.list(idGiai, entry.getValue());
                                 if (list != null && !list.isEmpty()) {
                                     // Lấy số sơ đồ từ ChiTietGiaiDau
-                                    var chiTiet = chiTietService.getOne(idGiai, entry.getValue());
+                                    var chiTiet = chiTietGiaiDauService.getOne(idGiai, entry.getValue());
                                     int numBrackets = 1;
                                     if (chiTiet != null && chiTiet.getSoDo() > 1) {
                                         numBrackets = chiTiet.getSoDo();
@@ -2815,22 +2767,16 @@ public class MainFrame extends JFrame {
                 DefaultMutableTreeNode soDoNode = new DefaultMutableTreeNode("Sơ đồ thi đấu");
                 try {
                     if (service != null && service.current() != null) {
-                        var repo = new com.example.btms.repository.category.NoiDungRepository(service.current());
-                        java.util.Map<String, Integer>[] maps = repo.loadCategories();
+                        java.util.Map<String, Integer>[] maps = noiDungService.getAllNoiDungType();
                         java.util.Map<String, Integer> singles = maps[0];
                         java.util.Map<String, Integer> doubles = maps[1];
 
                         Integer _tmpId = (selectedGiaiDau != null) ? selectedGiaiDau.getId() : null;
                         int idGiai = (_tmpId != null) ? _tmpId : -1;
-                        var bocThamDoiSvc = new com.example.btms.service.draw.BocThamDoiService(
-                                service.current(),
-                                new com.example.btms.repository.draw.BocThamDoiRepository(service.current()));
-                        var bocThamCaNhanSvc = new com.example.btms.service.draw.BocThamCaNhanService(
-                                new com.example.btms.repository.draw.BocThamCaNhanRepository(service.current()));
 
                         for (var entry : singles.entrySet()) {
                             try {
-                                var list = bocThamCaNhanSvc.list(idGiai, entry.getValue());
+                                var list = bocThamCaNhanService.list(idGiai, entry.getValue());
                                 if (list != null && !list.isEmpty()) {
                                     soDoNode.add(new DefaultMutableTreeNode(
                                             new ContentNode(entry.getKey(), entry.getValue())));
@@ -2840,7 +2786,7 @@ public class MainFrame extends JFrame {
                         }
                         for (var entry : doubles.entrySet()) {
                             try {
-                                var list = bocThamDoiSvc.list(idGiai, entry.getValue());
+                                var list = bocThamDoiService.list(idGiai, entry.getValue());
                                 if (list != null && !list.isEmpty()) {
                                     soDoNode.add(new DefaultMutableTreeNode(
                                             new ContentNode(entry.getKey(), entry.getValue())));
@@ -3026,11 +2972,6 @@ public class MainFrame extends JFrame {
                 return;
             }
             if (uo instanceof String label) {
-                if ("Bốc thăm thi đấu".equals(label)) {
-                    if (bocThamThiDauPanel != null) {
-                        ensureViewPresent("Bốc thăm thi đấu", bocThamThiDauPanel);
-                    }
-                }
                 if ("Trang biên bản".equals(label)) {
                     openBienBanWindow();
                     return;

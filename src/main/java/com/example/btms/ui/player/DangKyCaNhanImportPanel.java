@@ -12,20 +12,24 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 
 import com.example.btms.config.Prefs;
+import com.example.btms.model.cateoftuornament.ChiTietGiaiDau;
+import com.example.btms.repository.cateoftuornament.ChiTietGiaiDauRepository;
 import com.example.btms.service.category.NoiDungService;
+import com.example.btms.service.cateoftuornament.ChiTietGiaiDauService;
 import com.example.btms.service.player.DangKiCaNhanService;
 import com.example.btms.service.player.VanDongVienService;
 import com.example.btms.service.club.CauLacBoService;
 import com.example.btms.util.ui.IconUtil;
 
 public class DangKyCaNhanImportPanel extends JFrame {
-    private final Connection conn;
+    private Connection conn;
     private final Prefs prefs;
     private final NoiDungService noiDungService;
     private final DangKiCaNhanService dkService;
     private final VanDongVienService vdvService;
     private final CauLacBoService clbService;
     private final Runnable onDone;
+    private ChiTietGiaiDauService chiTietGiaiDauService = new ChiTietGiaiDauService(new ChiTietGiaiDauRepository(conn));
 
     public static void showImportWindow(
             Connection conn,
@@ -503,12 +507,11 @@ public class DangKyCaNhanImportPanel extends JFrame {
             }
 
             // 4) Link nội dung to tournament if not yet
-            var ctRepo = new com.example.btms.repository.cateoftuornament.ChiTietGiaiDauRepository(conn);
-            var existedLink = ctRepo.getChiTietGiaiDauById(idGiai, nd.getId());
+            var existedLink = chiTietGiaiDauService.getOne(idGiai, nd.getId());
             if (existedLink == null) {
                 int ageMin = nz(tuoiMin, nz(nd.getTuoiDuoi(), 0));
                 int ageMax = nz(tuoiMax, nz(nd.getTuoiTren(), 200));
-                ctRepo.addChiTietGiaiDau(new com.example.btms.model.cateoftuornament.ChiTietGiaiDau(
+                chiTietGiaiDauService.create(new ChiTietGiaiDau(
                         idGiai, nd.getId(), ageMin, ageMax, 1)); // soDo=1 (Auto)
             }
 

@@ -31,7 +31,8 @@ import com.example.btms.util.report.RegistrationPdfExporter;
  * - Huy chương (tận dụng panel hiện có để xuất)
  */
 public class BaoCaoPdfPanel extends JPanel {
-    private final Connection conn;
+    private Connection conn;
+    private final CauLacBoService clbService = new CauLacBoService(new CauLacBoRepository(conn));
 
     public BaoCaoPdfPanel(Connection conn) {
         this.conn = conn;
@@ -113,7 +114,6 @@ public class BaoCaoPdfPanel extends JPanel {
         // Tận dụng panel hiện có – chứa các nút Xuất PDF (Tổng sắp, Danh sách, Tổng
         // hợp)
         try {
-            CauLacBoService clbService = new CauLacBoService(new CauLacBoRepository(conn));
             TongSapHuyChuongPanel medalPanel = new TongSapHuyChuongPanel(conn, clbService);
             medalPanel.setPreferredSize(new Dimension(200, 320));
             box.add(medalPanel, BorderLayout.CENTER);

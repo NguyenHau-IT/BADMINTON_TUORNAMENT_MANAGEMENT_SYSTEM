@@ -202,15 +202,12 @@ public class DangKyCaNhanPanel extends JPanel {
                 "Đăng ký cá nhân cho giải: " + (tenGiai != null && !tenGiai.isBlank() ? tenGiai : ("ID=" + idGiai)));
         model.setRowCount(0);
         try {
-            // Load combobox nội dung filter (giữ lựa chọn cũ nếu có)
             NoiDung selectedNd = (NoiDung) cboNoiDungFilter.getSelectedItem();
-            // Chỉ load nội dung (đơn) đã đăng ký cho giải bằng hàm có sẵn loadCategories()
             java.util.List<NoiDung> all = noiDungService.getAllNoiDung();
             java.util.List<NoiDung> singles = new java.util.ArrayList<>();
             try {
-                com.example.btms.repository.category.NoiDungRepository repo = new com.example.btms.repository.category.NoiDungRepository(
-                        conn);
-                java.util.Map<String, Integer>[] maps = repo.loadCategories(); // maps[0] = singles, maps[1] = doubles
+                java.util.Map<String, Integer>[] maps = noiDungService.getAllNoiDungType(); // maps[0] = singles,
+                                                                                            // maps[1] = doubles
                 java.util.Set<Integer> singleIds = new java.util.HashSet<>(maps[0].values());
                 for (NoiDung nd : all) {
                     if (singleIds.contains(nd.getId()) && !Boolean.TRUE.equals(nd.getTeam())) {
@@ -260,8 +257,7 @@ public class DangKyCaNhanPanel extends JPanel {
             lblCount.setText(model.getRowCount() + " đăng ký");
             updateFilter();
         } catch (java.sql.SQLException ex) {
-            // Hiển thị thêm nguyên nhân gốc nếu có (vd: SQLState, ErrorCode) đã được bọc ở
-            // Repository
+
             JOptionPane.showMessageDialog(this, "Lỗi tải đăng ký: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
         } catch (RuntimeException ex) {
@@ -380,8 +376,7 @@ public class DangKyCaNhanPanel extends JPanel {
     // Load danh sách nội dung ĐƠN đã đăng ký từ CHI_TIET_GIAI_DAU
     private java.util.List<NoiDung> loadRegisteredSinglesCategories() throws java.sql.SQLException {
         java.util.List<NoiDung> singles = new java.util.ArrayList<>();
-        var repo = new NoiDungRepository(conn);
-        java.util.Map<String, Integer>[] maps = repo.loadCategories(); // [0]=singles
+        java.util.Map<String, Integer>[] maps = noiDungService.getAllNoiDungType(); // [0]=singles
         java.util.Set<Integer> singleIds = new java.util.LinkedHashSet<>(maps[0].values());
         for (NoiDung nd : noiDungService.getAllNoiDung()) {
             if (nd.getId() != null && singleIds.contains(nd.getId()) && !Boolean.TRUE.equals(nd.getTeam())) {
