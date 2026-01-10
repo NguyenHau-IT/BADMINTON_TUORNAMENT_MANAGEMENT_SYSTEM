@@ -234,7 +234,6 @@ public class DbConnectionFrame extends JFrame {
         c.fill = GridBagConstraints.HORIZONTAL;
         c.insets = new Insets(0, 6, 0, 0);
         if (rightCompact && right instanceof JComboBox<?> comboAny) {
-            @SuppressWarnings("unchecked")
             JComboBox<String> comboStr = (JComboBox<String>) comboAny;
             comboStr.setPrototypeDisplayValue("Local H2 Databases...");
         }
