@@ -17,7 +17,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <app.name>Badminton Tournament Management System (BTMS)</app.name>
+        <app.name>BTMS-OVR</app.name>
         <maven.compiler.release>21</maven.compiler.release>
         <main.class>com.example.btms.BadmintonTournamentManagementSystemApplication</main.class>
 
