@@ -1,6 +1,6 @@
-# 🏸 Hệ thống Quản lý Giải đấu Cầu lông (BTMS) · v1.2.2
+# 🏸 Hệ thống Quản lý Giải đấu Cầu lông (BTMS) · v1.5.0
 
-> **📅 Cập nhật mới nhất**: January 3, 2026  
+> **📅 Cập nhật mới nhất**: January 11, 2026  
 > **🏗️ Kiến trúc**: Hybrid Desktop + Web Application  
 > **🎯 Phạm vi**: Professional Tournament Management với Multi-machine Network Support
 
@@ -41,7 +41,7 @@ Hệ thống quản lý giải đấu cầu lông toàn diện với **kiến tr
 
 ### 📊 Thông tin kỹ thuật
 
-- **Phiên bản**: 1.2.2 (Multi-machine Network Support with H2 TCP & UDP Multicast)
+- **Phiên bản**: 1.5.0 (Advanced Analytics, Tournament Templates & i18n Support)
 - **Tác giả**: Nguyen Viet Hau (@NguyenHau-IT)
 - **Runtime**: Java 21 LTS với enhanced threading features
 - **Framework**: Spring Boot 3.4.0 (Non-headless mode)
@@ -571,7 +571,7 @@ Lưu ý: Khi lỗi/timeout, kết nối SSE sẽ đóng và client nên tự đ�
 
 ## 🔒 Bảo mật & Hiệu năng
 
-### 🔐 **Enterprise Security Features (v1.2.2)**
+### 🔐 **Enterprise Security Features (v1.5.0)**
 
 - **📱 PIN-based Authentication**: Mỗi sân có mã PIN 4 chữ số unique cho remote access
 - **🌐 Network Isolation**: Chạy trên LAN, không expose ra internet công cộng
@@ -583,7 +583,7 @@ Lưu ý: Khi lỗi/timeout, kết nối SSE sẽ đóng và client nên tự đ�
 - **📋 Interface Selection**: User chọn IPv4 network interface khi khởi động
 - **🔐 Database Encryption**: Hỗ trợ encrypted H2 database (tùy chọn)
 
-#### 🔧 **Deployment Security Recommendations (v1.2.2)**
+#### 🔧 **Deployment Security Recommendations (v1.5.0)**
 
 ```bash
 # Web Interface firewall (tự động nếu needed)

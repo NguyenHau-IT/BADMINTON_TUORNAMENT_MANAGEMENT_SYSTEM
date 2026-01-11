@@ -1,4 +1,4 @@
-# 🏸 Badminton Tournament Management System (BTMS) v1.0.0
+# 🏸 Badminton Tournament Management System (BTMS) v1.5.0
 
 > **Professional badminton tournament management system with desktop and web interface**
 

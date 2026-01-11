@@ -1,4 +1,4 @@
-# 🏸 Hệ Thống Quản Lý Giải Đấu Cầu Lông (BTMS) v1.0.0
+# 🏸 Hệ Thống Quản Lý Giải Đấu Cầu Lông (BTMS) v1.5.0
 
 > **Hệ thống quản lý giải đấu cầu lông chuyên nghiệp với giao diện desktop và web**
 
