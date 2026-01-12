@@ -33,7 +33,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.Timer;
 
 import com.example.btms.config.Prefs;
 import com.example.btms.model.bracket.SoDoCaNhan;
@@ -86,7 +85,7 @@ import com.lowagie.text.Element;
  */
 public class SoDoThiDauPanel extends JPanel {
     // Timer tự động reload sơ đồ mỗi 10 giây
-    private final Timer autoRefreshTimer;
+    private final javax.swing.Timer autoRefreshTimer;
 
     // Main tabs: "Sơ đồ" (bracket) and "Thi đấu" (embedded MultiCourtControlPanel)
     private final JTabbedPane mainTabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
@@ -117,7 +116,7 @@ public class SoDoThiDauPanel extends JPanel {
     private transient com.lowagie.text.pdf.BaseFont pdfBaseFont;
 
     // Nội dung được chọn (không dùng combobox nữa)
-    private final List<NoiDung> noiDungList = new ArrayList<>();
+    private final java.util.List<NoiDung> noiDungList = new java.util.ArrayList<>();
     private NoiDung selectedNoiDung = null;
     private final JLabel lblGiai = new JLabel();
     // Remember a pending selection when combo items haven't loaded yet

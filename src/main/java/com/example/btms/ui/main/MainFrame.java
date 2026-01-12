@@ -172,7 +172,7 @@ public class MainFrame extends JFrame {
     private VanDongVienManagementPanel vanDongVienPanel;
     private TrongTaiManagementPanel trongTaiPanel;
     private PhanCongTrongTaiHistoryPanel phanCongTrongTaiHistoryPanel;
-    private DeviceMonitorPanel deviceMonitorPanel;
+    private com.example.btms.ui.device.DeviceMonitorPanel deviceMonitorPanel;
     private DangKyDoiPanel dangKyDoiPanel;
     private DangKyCaNhanPanel dangKyCaNhanPanel; // đăng ký cá nhân (đơn)
     private ContentParticipantsPanel contentParticipantsPanel; // xem VDV/Đội theo nội dung

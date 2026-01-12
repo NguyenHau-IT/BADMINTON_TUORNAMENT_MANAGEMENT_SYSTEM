@@ -34,10 +34,3 @@ spring.thymeleaf.mode=HTML
 spring.thymeleaf.encoding=UTF-8
 spring.thymeleaf.cache=false
 spring.thymeleaf.check-template-location=true
-
-# Swagger / OpenAPI configuration
-springdoc.api-docs.path=/v3/api-docs
-springdoc.swagger-ui.path=/swagger-ui.html
-springdoc.swagger-ui.enabled=true
-springdoc.swagger-ui.operations-sorter=method
-springdoc.swagger-ui.tags-sorter=alpha

@@ -103,13 +103,14 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private NetworkInterface selectedIf;
     private int courtPort = -1; // Port của sân tương ứng
     private String courtId = ""; // ID của sân để hiển thị trên monitor
-    private NoiDungService noiDungService;
-    private VanDongVienService vdvService;
-    private SoDoCaNhanService soDoCaNhanService;
-    private SoDoDoiService soDoDoiService;
-    private ChiTietTranDauService chiTietTranDauService;
-    private ChiTietVanService chiTietVanService;
-    private CauLacBoService clbService;
+    private final NoiDungService noiDungService = new NoiDungService(new NoiDungRepository(conn));
+    private final VanDongVienService vdvService = new VanDongVienService(new VanDongVienRepository(conn));
+    private final SoDoCaNhanService soDoCaNhanService = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
+    private final SoDoDoiService soDoDoiService = new SoDoDoiService(new SoDoDoiRepository(conn));
+    private final ChiTietTranDauService chiTietTranDauService = new ChiTietTranDauService(
+            new ChiTietTranDauRepository(conn));
+    private final ChiTietVanService chiTietVanService = new ChiTietVanService(new ChiTietVanRepository(conn));
+    private final CauLacBoService clbService = new CauLacBoService(new CauLacBoRepository(conn));
 
     /* ===== Widgets: Config ===== */
     private final JComboBox<String> cboHeaderSingles = new JComboBox<>();
@@ -351,16 +352,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
     public void setConnection(Connection connection) throws SQLException {
         this.conn = connection;
-
-        // Initialize all services after connection is set
-        this.noiDungService = new NoiDungService(new NoiDungRepository(conn));
-        this.vdvService = new VanDongVienService(new VanDongVienRepository(conn));
-        this.soDoCaNhanService = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
-        this.soDoDoiService = new SoDoDoiService(new SoDoDoiRepository(conn));
-        this.chiTietTranDauService = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
-        this.chiTietVanService = new ChiTietVanService(new ChiTietVanRepository(conn));
-        this.clbService = new CauLacBoService(new CauLacBoRepository(conn));
-
         reloadListsFromDb();
     }
 
