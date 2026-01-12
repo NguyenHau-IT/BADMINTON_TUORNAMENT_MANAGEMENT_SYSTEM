@@ -147,25 +147,21 @@ public class MainFrame extends JFrame {
     private Connection conn;
     private Prefs prefs;
 
-    // Tạo sau khi có Connection
-    private NoiDungService noiDungService = new NoiDungService(new NoiDungRepository(conn));
-    private CauLacBoService cauLacBoService = new CauLacBoService(new CauLacBoRepository(conn));
-    private VanDongVienService vdvService = new VanDongVienService(new VanDongVienRepository(conn));
-    private ChiTietGiaiDauService chiTietGiaiDauService = new ChiTietGiaiDauService(new ChiTietGiaiDauRepository(conn));
-    private DangKiCaNhanService dangKiCaNhanService = new DangKiCaNhanService(
-            new DangKiCaNhanRepository(conn));
-    private DangKiDoiService dangKiDoiService = new DangKiDoiService(new DangKiDoiRepository(conn));
-    private ChiTietDoiService chiTietDoiService = new ChiTietDoiService(conn, new DangKiDoiRepository(conn),
-            new ChiTietDoiRepository(conn));
-    private BocThamDoiService bocThamDoiService = new BocThamDoiService(conn,
-            new BocThamDoiRepository(conn));
-    private BocThamCaNhanService bocThamCaNhanService = new BocThamCaNhanService(new BocThamCaNhanRepository(conn));
-    private SoDoDoiService soDoDoiService = new SoDoDoiService(
-            new SoDoDoiRepository(conn));
-    private SoDoCaNhanService soDoCaNhanService = new SoDoCaNhanService(
-            new SoDoCaNhanRepository(conn));
-    private KetQuaCaNhanService ketQuaCaNhanService = new KetQuaCaNhanService(new KetQuaCaNhanRepository(conn));
-    private KetQuaDoiService ketQuaDoiService = new KetQuaDoiService(new KetQuaDoiRepository(conn));
+    // Tạo sau khi có Connection (initialized in
+    // initializeAllDataAfterTournamentSelection)
+    private NoiDungService noiDungService;
+    private CauLacBoService cauLacBoService;
+    private VanDongVienService vdvService;
+    private ChiTietGiaiDauService chiTietGiaiDauService;
+    private DangKiCaNhanService dangKiCaNhanService;
+    private DangKiDoiService dangKiDoiService;
+    private ChiTietDoiService chiTietDoiService;
+    private BocThamDoiService bocThamDoiService;
+    private BocThamCaNhanService bocThamCaNhanService;
+    private SoDoDoiService soDoDoiService;
+    private SoDoCaNhanService soDoCaNhanService;
+    private KetQuaCaNhanService ketQuaCaNhanService;
+    private KetQuaDoiService ketQuaDoiService;
     private TrongTaiService trongTaiService;
     private PhanCongTrongTaiService phanCongTrongTaiService;
     private GiaiDauService giaiDauService;
@@ -796,6 +792,21 @@ public class MainFrame extends JFrame {
         System.out.println("DEBUG: initializeAllDataAfterTournamentSelection() started");
         try {
             // ==== Services chung ====
+            // Initialize all services now that we have a valid connection
+            this.noiDungService = new NoiDungService(new NoiDungRepository(conn));
+            this.cauLacBoService = new CauLacBoService(new CauLacBoRepository(conn));
+            this.vdvService = new VanDongVienService(new VanDongVienRepository(conn));
+            this.chiTietGiaiDauService = new ChiTietGiaiDauService(new ChiTietGiaiDauRepository(conn));
+            this.dangKiCaNhanService = new DangKiCaNhanService(new DangKiCaNhanRepository(conn));
+            this.dangKiDoiService = new DangKiDoiService(new DangKiDoiRepository(conn));
+            this.chiTietDoiService = new ChiTietDoiService(conn, new DangKiDoiRepository(conn),
+                    new ChiTietDoiRepository(conn));
+            this.bocThamDoiService = new BocThamDoiService(conn, new BocThamDoiRepository(conn));
+            this.bocThamCaNhanService = new BocThamCaNhanService(new BocThamCaNhanRepository(conn));
+            this.soDoDoiService = new SoDoDoiService(new SoDoDoiRepository(conn));
+            this.soDoCaNhanService = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
+            this.ketQuaCaNhanService = new KetQuaCaNhanService(new KetQuaCaNhanRepository(conn));
+            this.ketQuaDoiService = new KetQuaDoiService(new KetQuaDoiRepository(conn));
 
             // ---- CLB
             // Service (giữ nguyên)
