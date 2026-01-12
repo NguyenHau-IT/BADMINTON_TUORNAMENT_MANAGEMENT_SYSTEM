@@ -17,7 +17,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <app.name>Badminton Tournament Management System (BTMS)</app.name>
+        <app.name>BTMS - Badminton Tournament Management System</app.name>
         <maven.compiler.release>21</maven.compiler.release>
         <main.class>com.example.btms.BadmintonTournamentManagementSystemApplication</main.class>
 
@@ -113,6 +113,13 @@
             <artifactId>openpdf</artifactId>
             <version>1.3.39</version>
         </dependency>
+
+        <!-- Swagger / SpringDoc OpenAPI -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.1.0</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -156,7 +163,7 @@
                             <destination>${dist.dir}</destination>
                             <input>${project.build.directory}</input>
 
-                            <name>${app.name}</name>
+                            <name>${app.name}(${project.version})</name>
                             <appVersion>${project.version}</appVersion>
                             <vendor>BTMS</vendor>
                             <description>BTMS - Badminton Tournament Management System.</description>

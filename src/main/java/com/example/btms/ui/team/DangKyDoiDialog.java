@@ -49,7 +49,7 @@ public class DangKyDoiDialog extends JDialog {
 
     private Connection conn;
 
-    private final NoiDungService noiDungService = new NoiDungService(new NoiDungRepository(conn));
+    private NoiDungService noiDungService;
     private final DangKiDoiService teamService;
     private final ChiTietDoiService detailService;
     private final VanDongVienService vdvService;
@@ -86,6 +86,9 @@ public class DangKyDoiDialog extends JDialog {
             Integer idVdv1Init,
             Integer idVdv2Init) {
         super(parent, title, ModalityType.APPLICATION_MODAL);
+        this.conn = conn;
+        // Initialize noiDungService after conn is set
+        this.noiDungService = new NoiDungService(new NoiDungRepository(conn));
         this.teamService = Objects.requireNonNull(teamService);
         this.detailService = Objects.requireNonNull(detailService);
         this.vdvService = Objects.requireNonNull(vdvService);
