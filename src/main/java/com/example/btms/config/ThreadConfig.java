@@ -31,28 +31,28 @@ public class ThreadConfig {
     private ScheduledExecutorService scheduledExecutor;
 
     /**
-     * 🌟 Enhanced Thread Executor - BOUNDED để tránh thread explosion
-     * Tối ưu cho các tác vụ I/O intensive và SSE broadcasting
+     * 🌟 Virtual Thread Executor (Java 21 Project Loom)
+     * Unlimited virtual threads - OS manages them efficiently
+     * Memory per thread: 1-2KB vs 1MB (platform threads)
+     * Perfect for I/O intensive tasks and SSE broadcasting
      */
     @Bean(name = "virtualThreadExecutor")
     public ExecutorService virtualThreadExecutor() {
-        // Optimized for 10-court: increased from cores*4 to cores*5 (50→60 for 8-core)
-        int maxThreads = Math.max(60, Runtime.getRuntime().availableProcessors() * 5);
-        log.info("🚀 Creating Enhanced Thread Executor with max {} threads (10-court optimized)", maxThreads);
-        this.virtualThreadExecutor = Executors.newFixedThreadPool(maxThreads,
-                new NamedThreadFactory("Enhanced"));
+        log.info("🚀 Creating Virtual Thread Executor (Java 21 Project Loom - unlimited threads)");
+        this.virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
         return this.virtualThreadExecutor;
     }
 
     /**
      * 🔄 I/O Intensive Thread Pool - Optimized size
      * Cho database operations, file I/O, network requests
+     * Reduced from 30 to 16 threads (matches HikariCP max-pool-size)
      */
     @Bean(name = "ioIntensiveExecutor")
     public ExecutorService ioIntensiveExecutor() {
-        // Optimized for 10-court: increased from 20 to 30 max (16→24 for 8-core)
-        int ioThreads = Math.min(30, Math.max(12, Runtime.getRuntime().availableProcessors() * 3));
-        log.info("💾 Creating I/O Intensive Thread Pool with {} threads (10-court optimized)", ioThreads);
+        // Optimized: 2x cores for I/O (8 cores → 16 threads)
+        int ioThreads = Runtime.getRuntime().availableProcessors() * 2;
+        log.info("💾 Creating I/O Intensive Thread Pool with {} threads", ioThreads);
         this.ioIntensiveExecutor = Executors.newFixedThreadPool(ioThreads,
                 new NamedThreadFactory("IO-Intensive"));
         return this.ioIntensiveExecutor;
@@ -61,13 +61,13 @@ public class ThreadConfig {
     /**
      * ⚡ CPU Intensive Thread Pool
      * Cho PDF generation, image processing, calculations
+     * Optimized: exactly CPU cores (no over-allocation)
      */
     @Bean(name = "cpuIntensiveExecutor")
     public ExecutorService cpuIntensiveExecutor() {
-        // Optimized for 10-court: 1.25x CPU cores (8→10 for 8-core)
-        int cores = Runtime.getRuntime().availableProcessors();
-        int cpuThreads = Math.max(cores, (int) (cores * 1.25));
-        log.info("🧮 Creating CPU Intensive Thread Pool with {} threads (10-court optimized)", cpuThreads);
+        // CPU-bound tasks: 1x cores (8 cores → 8 threads)
+        int cpuThreads = Runtime.getRuntime().availableProcessors();
+        log.info("🧮 Creating CPU Intensive Thread Pool with {} threads", cpuThreads);
         this.cpuIntensiveExecutor = Executors.newFixedThreadPool(
                 cpuThreads,
                 new NamedThreadFactory("CPU-Intensive"));
@@ -77,12 +77,13 @@ public class ThreadConfig {
     /**
      * ⏰ Scheduled Task Executor
      * Cho periodic tasks, timeouts, cleanup operations
+     * Reduced from 6 to 4 threads (adequate for scheduled tasks)
      */
     @Bean(name = "scheduledExecutor")
     public ScheduledExecutorService scheduledExecutor() {
-        // Optimized for 10-court: increased from 4 to 6 threads
-        log.info("⏰ Creating Scheduled Executor Service (6 threads for 10-court)");
-        this.scheduledExecutor = Executors.newScheduledThreadPool(6,
+        // Scheduled tasks: 4 threads (typical 1-5 concurrent scheduled tasks)
+        log.info("⏰ Creating Scheduled Executor Service (4 threads)");
+        this.scheduledExecutor = Executors.newScheduledThreadPool(4,
                 new NamedThreadFactory("Scheduled"));
         return this.scheduledExecutor;
     }
