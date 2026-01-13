@@ -330,8 +330,10 @@ public class SoDoThiDauPanel extends JPanel {
     public void reloadData() {
         try {
             updateGiaiLabel();
-            if (prefs.getInt("selectedGiaiDauId", -1) > 0) {
-                // Không reload tự động, chỉ load khi user chọn sơ đồ
+            int idGiai = prefs.getInt("selectedGiaiDauId", -1);
+            if (idGiai > 0) {
+                // Thực sự reload dữ liệu sơ đồ từ database
+                loadBestAvailable();
             }
         } catch (Exception ignore) {
         }
