@@ -161,7 +161,6 @@ public class NoiDungRepository {
         return nd;
     }
 
-    @SuppressWarnings("unchecked")
     public Map<String, Integer>[] loadCategories() {
         Map<String, Integer> singles = new LinkedHashMap<>();
         Map<String, Integer> doubles = new LinkedHashMap<>();

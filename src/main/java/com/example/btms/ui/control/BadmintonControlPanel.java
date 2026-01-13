@@ -5,6 +5,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GraphicsDevice;
@@ -16,6 +17,9 @@ import java.awt.HeadlessException;
 import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.Window;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
 import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
@@ -35,7 +39,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.prefs.Preferences;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractAction;
@@ -63,6 +66,7 @@ import javax.swing.border.EmptyBorder;
 import com.example.btms.config.Prefs;
 import com.example.btms.model.bracket.SoDoCaNhan;
 import com.example.btms.model.bracket.SoDoDoi;
+import com.example.btms.model.court.Court;
 import com.example.btms.model.match.BadmintonMatch;
 import com.example.btms.model.match.ChiTietVan;
 import com.example.btms.model.player.VanDongVien;
@@ -101,16 +105,15 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private final ScoreboardService scoreboardSvc = new ScoreboardService();
     private Connection conn;
     private NetworkInterface selectedIf;
-    private int courtPort = -1; // Port của sân tương ứng
+    private Court court; // Court object để lấy thông tin sân
     private String courtId = ""; // ID của sân để hiển thị trên monitor
-    private final NoiDungService noiDungService = new NoiDungService(new NoiDungRepository(conn));
-    private final VanDongVienService vdvService = new VanDongVienService(new VanDongVienRepository(conn));
-    private final SoDoCaNhanService soDoCaNhanService = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
-    private final SoDoDoiService soDoDoiService = new SoDoDoiService(new SoDoDoiRepository(conn));
-    private final ChiTietTranDauService chiTietTranDauService = new ChiTietTranDauService(
-            new ChiTietTranDauRepository(conn));
-    private final ChiTietVanService chiTietVanService = new ChiTietVanService(new ChiTietVanRepository(conn));
-    private final CauLacBoService clbService = new CauLacBoService(new CauLacBoRepository(conn));
+    private NoiDungService noiDungService;
+    private VanDongVienService vdvService;
+    private SoDoCaNhanService soDoCaNhanService;
+    private SoDoDoiService soDoDoiService;
+    private ChiTietTranDauService chiTietTranDauService;
+    private ChiTietVanService chiTietVanService;
+    private CauLacBoService clbService;
 
     /* ===== Widgets: Config ===== */
     private final JComboBox<String> cboHeaderSingles = new JComboBox<>();
@@ -180,7 +183,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private final JSplitPane leftVert; // (Config | Controls)
     private final JSplitPane midVert; // (Live | Score+QR)
     private final JSplitPane rightVert; // (Status | Log)
-    private final Preferences prefs = Preferences.userNodeForPackage(BadmintonControlPanel.class);
+    private final Prefs prefs = new Prefs();
 
     /* ===== UI const ===== */
     private static final String PH_HEADER_S = "— Chọn nội dung đơn —";
@@ -297,16 +300,11 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     public BadmintonControlPanel() {
         super(new BorderLayout());
         initializeMatch();
-        // Tránh "leaking this" trong constructor
         SwingUtilities.invokeLater(() -> {
             if (match != null) {
                 match.addPropertyChangeListener(this);
             }
         });
-
-        // Debug: Kiểm tra port khi khởi tạo
-        logger.logTs("BadmintonControlPanel constructor: courtPort = %d", this.courtPort);
-
         /* ===== Column LEFT: Cấu hình + Điều khiển ===== */
         JPanel config = buildConfigCard();
         JPanel controls = buildControlsCard();
@@ -352,6 +350,14 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
     public void setConnection(Connection connection) throws SQLException {
         this.conn = connection;
+        // Khởi tạo services sau khi Connection được set
+        this.noiDungService = new NoiDungService(new NoiDungRepository(conn));
+        this.vdvService = new VanDongVienService(new VanDongVienRepository(conn));
+        this.soDoCaNhanService = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
+        this.soDoDoiService = new SoDoDoiService(new SoDoDoiRepository(conn));
+        this.chiTietTranDauService = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
+        this.chiTietVanService = new ChiTietVanService(new ChiTietVanRepository(conn));
+        this.clbService = new CauLacBoService(new CauLacBoRepository(conn));
         reloadListsFromDb();
     }
 
@@ -360,39 +366,23 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         updateRemoteLinkUi();
     }
 
-    /** Gọi từ MainFrame để set client name cho broadcast */
+    /** Set Court object - gọi từ MultiCourtControlPanel khi tạo sân */
+    public void setCourt(Court court) {
+        this.court = court;
+        if (court != null) {
+            this.courtId = court.getName();
+            logger.logTs("Đặt Court - ID='%s', Số sân=%d", courtId, court.getCourtNumber());
+        }
+    }
+
+    public Court getCourt() {
+        return this.court;
+    }
+
     public void setClientName(String clientName) {
         this.customClientName = clientName;
     }
 
-    /** Set port của sân cho bảng điểm */
-    public void setCourtPort(int port) {
-        logger.logTs("BadmintonControlPanel.setCourtPort: Đang set port từ %d thành %d", this.courtPort, port);
-        logger.logTs("BadmintonControlPanel.setCourtPort: Port parameter = %d, Port type = %s", port,
-                port > 0 ? "valid" : "invalid");
-        this.courtPort = port;
-        logger.logTs("BadmintonControlPanel.setCourtPort: Đã set port %d cho sân", port);
-        logger.logTs("BadmintonControlPanel.setCourtPort: Kiểm tra sau khi set: courtPort = %d", this.courtPort);
-        logger.logTs("BadmintonControlPanel.setCourtPort: courtPort > 0? %s", (this.courtPort > 0) ? "YES" : "NO");
-        // Không gọi updateRemoteLinkUi ngay lập tức để tránh lỗi khi selectedIf chưa
-        // được set
-    }
-
-    /** Set ID của sân để hiển thị trên monitor */
-    public void setCourtId(String courtId) {
-        this.courtId = courtId != null ? courtId : "";
-        logger.logTs("BadmintonControlPanel.setCourtId: Đã set courtId = %s", this.courtId);
-    }
-
-    /** Lấy ID của sân */
-    public String getCourtId() {
-        return courtId;
-    }
-
-    /**
-     * Bắt đầu broadcast ở trạng thái chờ (chưa bấm Bắt đầu trận) để hiện card trên
-     * Monitor ngay khi mở sân
-     */
     public void startIdleBroadcast(String header) {
         try {
             String hdr = (header == null || header.isBlank()) ? "TRẬN ĐẤU" : header;
@@ -400,32 +390,17 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             String clientName = customClientName != null ? customClientName : System.getProperty("user.name", "client");
             String hostShown = "";
 
-            // Không thay đổi trạng thái match, chỉ phát thông tin rỗng ban đầu
             scoreboardSvc.startBroadcast(match, selectedIf, clientName, hostShown, displayKind,
                     hdr, doubles.isSelected(), "", "", courtId);
-            logger.logTs("startIdleBroadcast: court=%s, header=%s", courtId, hdr);
         } catch (Exception ex) {
-            logger.logTs("Lỗi startIdleBroadcast: %s", ex.getMessage());
         }
     }
 
-    /** Dừng mọi broadcast (dùng khi đóng/xóa sân) */
     public void stopBroadcast() {
         try {
             scoreboardSvc.stopBroadcast();
         } catch (Exception ignore) {
         }
-    }
-
-    /** Force update remote link UI */
-    public void forceUpdateRemoteLinkUi() {
-        updateRemoteLinkUi();
-    }
-
-    /** Lấy port của sân */
-    public int getCourtPort() {
-        logger.logTs("BadmintonControlPanel.getCourtPort: Trả về port %d", this.courtPort);
-        return courtPort;
     }
 
     public void saveSplitLocations() {
@@ -443,8 +418,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         } catch (Exception ignore) {
         }
     }
-
-    /* =================== BUILD SECTIONS =================== */
 
     private JPanel buildConfigCard() {
         JPanel card = section("Cấu hình trận đấu");
@@ -486,7 +459,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         filler.fill = GridBagConstraints.BOTH;
         card.add(Box.createGlue(), filler);
 
-        // init + listeners
         setPlaceholdersAndVisibility();
         cboHeaderSingles.addActionListener(e -> {
             if (!doubles.isSelected() && !guard.isSuppressed())
@@ -609,7 +581,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     lblStatus.setText("Tạm dừng");
                 } catch (IllegalAccessException | IllegalArgumentException | NoSuchMethodException | SecurityException
                         | InvocationTargetException ex) {
-                    logger.logTs("Không thể tạm dừng: %s", ex.getMessage());
                 }
             } else {
                 try {
@@ -619,7 +590,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     lblStatus.setText("Đang thi đấu");
                 } catch (IllegalAccessException | IllegalArgumentException | NoSuchMethodException | SecurityException
                         | InvocationTargetException ex) {
-                    logger.logTs("Không thể tiếp tục: %s", ex.getMessage());
                 }
             }
             updatePauseButtonText();
@@ -1421,7 +1391,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             try {
                 if (conn != null) {
                     int theThuc = (bo == 1 ? 1 : 3); // map BO -> theThuc
-                    int san = Math.max(1, getCourtPort());
+                    int san = (court != null) ? court.getCourtNumber() : 1; // lấy số sân từ Court object
                     int idGiai = prefs.getInt("selectedGiaiDauId", -1);
                     // Lấy ID_NOIDUNG từ map dropdown thay vì tìm lại từ DB
                     Integer idNoiDungObj = headerKnrDoubles.get(header);
@@ -1434,43 +1404,34 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     String currentMatchIdStr = match.getMatchId();
                     if (currentMatchIdStr != null && !currentMatchIdStr.isBlank()) {
                         soDo = soDoDoiService.findSoDoByMatchId(idGiai, idNoidung, currentMatchIdStr);
+                    } else {
+                        soDo = soDoDoiService.findSoDoByTeamNames(idGiai, idNoidung, ta.getTenTeam(), tb.getTenTeam());
                     }
                     String existing = resolveExistingMatchId(header, /* isDoubles */ true, null, null, ta, tb, soDo);
                     if (existing != null && !existing.isBlank()) {
                         currentMatchId = existing;
                         match.setMatchId(currentMatchId);
-                        logger.logTs("Dùng lại ID_TRẬN đã có: %s", currentMatchId);
-                        // Hỏi người dùng có muốn đặt lại (xóa chi tiết ván) hay không
                         try {
                             boolean reset = maybePromptResetExistingMatch(currentMatchId, header, true, fullNameA,
                                     fullNameB);
                             if (reset) {
-                                // Lần +1 đầu tiên sau khi đặt lại phải ghi mới
                                 restartSetPending = true;
                             }
                         } catch (Exception exPrompt) {
-                            logger.logTs("Lỗi khi xác nhận đặt lại trận có sẵn: %s", exPrompt.getMessage());
                         }
                         ensureAndAlignMatchRecord(currentMatchId, theThuc, san);
                     } else {
                         currentMatchId = chiTietTranDauService.createV7(LocalDateTime.now(), theThuc, san);
                         match.setMatchId(currentMatchId);
-                        logger.logTs("Tạo CHI_TIET_TRAN_DAU (UUIDv7) = %s", currentMatchId);
-                        // Bản ghi đã vừa được tạo: không cần align thêm
+                        soDoDoiService.linkTranDauByTeamNames(idGiai, idNoidung, soDo, ta.getTenTeam(), tb.getTenTeam(),
+                                currentMatchId);
                     }
-                    // Liên kết ID trận vào sơ đồ ĐÔI (SO_DO_DOI) — chỉ ghi vào các ô còn null
-                    linkMatchIdToBracketForCurrentSelection(header, /* isDoubles */ true, currentMatchId,
-                            null, null, ta, tb);
                 }
             } catch (Exception ex) {
-                logger.logTs("Lỗi lấy/tạo ID_TRẬN: %s", ex.getMessage());
             }
-            com.example.btms.util.sound.SoundPlayer.playStartIfEnabled();
+            SoundPlayer.playStartIfEnabled();
             hasStarted = true;
             afterStartUi();
-
-            // Broadcast đã được gọi ở trên, không cần gọi lại
-
             logger.startDoubles(header, ta.getTenTeam(), ta.getIdTeam(), tb.getTenTeam(), tb.getIdTeam(), bo);
             updateRemoteLinkUi();
         } else {
@@ -1500,10 +1461,11 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             try {
                 if (conn != null) {
                     int theThuc = (bo == 1 ? 1 : 3);
-                    int san = Math.max(1, getCourtPort());
+                    int san = (court != null) ? court.getCourtNumber() : 1; // lấy số sân từ Court object
                     Integer idAVal = singlesNameToId.getOrDefault(nameA, -1);
                     Integer idBVal = singlesNameToId.getOrDefault(nameB, -1);
                     int idGiai = prefs.getInt("selectedGiaiDauId", -1);
+                    System.out.println("competition:" + idGiai);
                     // Lấy ID_NOIDUNG từ map dropdown thay vì tìm lại từ DB
                     Integer idNoiDungObj = headerKnrSingles.get(header);
                     if (idNoiDungObj == null) {
@@ -1511,18 +1473,12 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     }
                     int idNoidung = idNoiDungObj;
                     int soDo = -1;
-                    // Chỉ tìm soDo nếu đã có matchId (trận đã được tạo trước đó)
-                    String currentMatchIdStr = match.getMatchId();
-                    if (currentMatchIdStr != null && !currentMatchIdStr.isBlank()) {
-                        soDo = soDoCaNhanService.findSoDoByMatchId(idGiai, idNoidung, currentMatchIdStr);
-                    }
+                    soDo = soDoCaNhanService.findSoDoByPlayerIds(idGiai, idNoidung, idA, idB);
                     String existing = resolveExistingMatchId(header, /* isDoubles */ false, idAVal, idBVal, null, null,
                             soDo);
                     if (existing != null && !existing.isBlank()) {
                         currentMatchId = existing;
                         match.setMatchId(currentMatchId);
-                        logger.logTs("Dùng lại ID_TRẬN đã có: %s", currentMatchId);
-                        // Hỏi người dùng có muốn đặt lại (xóa chi tiết ván) hay không
                         try {
                             boolean reset = maybePromptResetExistingMatch(currentMatchId, header, false, nameA, nameB);
                             if (reset) {
@@ -1535,16 +1491,11 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                         ensureAndAlignMatchRecord(currentMatchId, theThuc, san);
                     } else {
                         currentMatchId = chiTietTranDauService.createV7(java.time.LocalDateTime.now(), theThuc, san);
+                        soDoCaNhanService.linkTranDauByVdvIds(idGiai, idNoidung, idA, idB, soDo, currentMatchId);
                         match.setMatchId(currentMatchId);
-                        logger.logTs("Tạo CHI_TIET_TRAN_DAU (UUIDv7) = %s", currentMatchId);
-                        // Bản ghi đã vừa được tạo: không cần align thêm
                     }
-                    // Liên kết ID trận vào sơ đồ ĐƠN (SO_DO_CA_NHAN) — chỉ ghi vào các ô còn null
-                    linkMatchIdToBracketForCurrentSelection(header, /* isDoubles */ false, currentMatchId,
-                            idAVal, idBVal, null, null);
                 }
             } catch (Exception ex) {
-                logger.logTs("Lỗi lấy/tạo ID_TRẬN: %s", ex.getMessage());
             }
             SoundPlayer.playStartIfEnabled();
 
@@ -1638,8 +1589,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 }
                 return true;
             } else {
-                // 🔄 User chọn "Không" (tiếp tục) → restore match state từ database
-                logger.logTs("📊 User chọn tiếp tục trận có sẵn → restore state từ database");
                 try {
                     restoreMatchStateFromDatabase(matchId);
                 } catch (Exception exRestore) {
@@ -1648,7 +1597,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 return false;
             }
         } catch (Exception ex) {
-            logger.logTs("Lỗi khi hiển thị thông tin trận đã có: %s", ex.getMessage());
         }
         return false;
     }
@@ -1674,16 +1622,12 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 int soDo = soDoCaNhanService.findSoDoByMatchId(idGiai, idNoiDung, newMatchId);
                 List<SoDoCaNhan> rows = soDoCaNhanService.list(idGiai, idNoiDung, soDo);
 
-                // Nhóm slots theo ID_TRAN_DAU để phân tích
                 Map<String, List<SoDoCaNhan>> matchGroups = new HashMap<>();
                 for (var r : rows) {
                     if (r.getIdTranDau() != null && !r.getIdTranDau().isBlank()) {
                         matchGroups.computeIfAbsent(r.getIdTranDau(), k -> new ArrayList<>()).add(r);
                     }
                 }
-
-                // Chỉ ghi log để theo dõi, KHÔNG xóa ID trận cũ (giữ lại để xem lịch sử)
-                logger.logTs("=== TRẠNG THÁI BRACKET TRƯỚC KHI GÁN ID MỚI ===");
                 Map<String, List<Integer>> existingMatches = new HashMap<>();
 
                 for (var r : rows) {
@@ -1699,21 +1643,12 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     logger.logTs("Trận hiện có %s: VĐVs %s (có A=%s, có B=%s)",
                             entry.getKey(), entry.getValue(), hasA, hasB);
                 }
-
-                logger.logTs("Sẽ tạo trận mới %s cho VĐV %d vs %d", newMatchId, idVdvA, idVdvB);
-                logger.logTs("=== KẾT THÚC TRẠNG THÁI BRACKET ===");
             }
         } catch (Exception ex) {
             logger.logTs("Lỗi khi làm sạch ID trận trùng lặp: %s", ex.getMessage());
         }
     }
 
-    /**
-     * Ghi UUID trận (currentMatchId) vào cột ID_TRAN_DAU trong sơ đồ tương ứng với
-     * lựa chọn hiện tại.
-     * - ĐƠN: cập nhật theo ID_VDV (cả A và B) trong SO_DO_CA_NHAN
-     * - ĐÔI: cập nhật theo TEN_TEAM (cả A và B) trong SO_DO_DOI
-     */
     private void linkMatchIdToBracketForCurrentSelection(String header, boolean isDoubles, String matchId,
             Integer idVdvA, Integer idVdvB, DangKiDoi teamA, DangKiDoi teamB) {
         String nameA, nameB, keyA = "", keyB = "", clubA, clubB;
@@ -1722,17 +1657,14 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         try {
             int idGiai = new Prefs().getInt("selectedGiaiDauId", -1);
             if (idGiai <= 0) {
-                logger.logTs("Bỏ qua link ID_TRAN_DAU: ID_GIAI không hợp lệ (%d)", idGiai);
                 return;
             }
             Integer idNoiDung = isDoubles ? headerKnrDoubles.get(header) : headerKnrSingles.get(header);
             if (idNoiDung == null || idNoiDung <= 0) {
-                logger.logTs("Bỏ qua link ID_TRAN_DAU: ID_NOI_DUNG không hợp lệ (%s)", String.valueOf(idNoiDung));
                 return;
             }
 
             if (!isDoubles) {
-                // Ghi log trạng thái bracket trước khi gán
                 cleanupDuplicateMatchIds(header, isDoubles, matchId, idVdvA, idVdvB, teamA, teamB);
 
                 int updated = 0;
@@ -1744,30 +1676,19 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     int soDoA = soDoCaNhanService.findSoDoByMatchId(idGiai, idNoiDung, matchId);
                     updateA = soDoCaNhanService.linkTranDauByVdv(idGiai, idNoiDung, idVdvA, soDoA, matchId);
                     updated += updateA;
-                    if (updateA == 0) {
-                        logger.logTs("CẢNH BÁO: Không tìm thấy slot trống cho VĐV %d - giữ nguyên lịch sử", idVdvA);
-                    }
                 }
                 if (idVdvB != null && idVdvB > 0) {
                     expectedUpdates++;
                     int soDoB = soDoCaNhanService.findSoDoByMatchId(idGiai, idNoiDung, matchId);
                     updateB = soDoCaNhanService.linkTranDauByVdv(idGiai, idNoiDung, idVdvB, soDoB, matchId);
                     updated += updateB;
-                    if (updateB == 0) {
-                        logger.logTs("CẢNH BÁO: Không tìm thấy slot trống cho VĐV %d - giữ nguyên lịch sử", idVdvB);
-                    }
                 }
-
-                logger.logTs("SO_DO_CA_NHAN: đã liên kết ID_TRAN_DAU=%s cho %d/%d vị trí (giai=%d, nd=%d)",
-                        matchId, updated, expectedUpdates, idGiai, idNoiDung);
-
                 // Nếu chỉ 1 VĐV được gán ID trận mới, cảnh báo rõ ràng
                 if ((updateA == 0 && updateB > 0) || (updateA > 0 && updateB == 0)) {
                     logger.logTs(
                             "CẢNH BÁO QUAN TRỌNG: Chỉ 1 VĐV được gán ID trận mới! Hãy kiểm tra lại bracket (sơ đồ) để đảm bảo cả 2 VĐV đều có slot trống ở vòng này. Nếu thiếu, cần bổ sung slot cho VĐV còn lại.");
                 }
             } else {
-                // Lấy danh sách hiện có để khớp mềm theo tên lưu trong bảng (tránh lệch format)
                 int soDo = soDoDoiService.findSoDoByMatchId(idGiai, idNoiDung, matchId);
                 List<SoDoDoi> rows = soDoDoiService.list(idGiai, idNoiDung, soDo);
                 int updated = 0;
@@ -1812,35 +1733,16 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         }
     }
 
-    /**
-     * Tìm ID_TRẬN đã có sẵn trong sơ đồ cho lựa chọn hiện tại.
-     * - ĐƠN: tìm theo ID_VDV A/B trong bảng SO_DO_CA_NHAN, nếu có ID_TRAN_DAU thì
-     * trả về.
-     * - ĐÔI: tìm theo TEN_TEAM A/B trong bảng SO_DO_DOI, nếu có ID_TRAN_DAU thì trả
-     * về.
-     * Ưu tiên: nếu cả hai bên đều có ID và giống nhau → dùng ID đó; nếu chỉ một bên
-     * có → dùng ID đó;
-     * nếu hai bên có ID khác nhau → log cảnh báo và trả null để tạo mới.
-     */
     private String resolveExistingMatchId(String header, boolean isDoubles,
             Integer idVdvA, Integer idVdvB, DangKiDoi teamA, DangKiDoi teamB, int soDo) {
-        if (conn == null)
-            return null;
         int idGiai = new Prefs().getInt("selectedGiaiDauId", -1);
-        if (idGiai <= 0 || header == null || header.isBlank())
-            return null;
         Integer idNoiDung = isDoubles ? headerKnrDoubles.get(header) : headerKnrSingles.get(header);
-        if (idNoiDung == null || idNoiDung <= 0)
-            return null;
-
         try {
             String idA = null;
             String idB = null;
             if (!isDoubles) {
                 List<SoDoCaNhan> rows = soDoCaNhanService.list(idGiai, idNoiDung, soDo);
 
-                // Kiểm tra ID trận chung chỉ trong cùng vị trí/vòng để tránh lấy ID trận từ
-                // vòng trước
                 String commonMatchId = null;
                 if (idVdvA != null && idVdvA > 0 && idVdvB != null && idVdvB > 0) {
                     // Nhóm các slots theo ID_TRAN_DAU
@@ -1851,7 +1753,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                         }
                     }
 
-                    // Tìm trận có cả 2 VĐV và có vị trí gần nhau (cùng vòng)
                     for (var entry : matchToSlots.entrySet()) {
                         var slots = entry.getValue();
                         boolean hasA = false, hasB = false;
@@ -1868,7 +1769,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                             }
                         }
 
-                        // Chỉ chấp nhận nếu có cả 2 VĐV và vị trí gần nhau (trong cùng khoảng vòng)
                         if (hasA && hasB && (maxPos - minPos) <= 4) { // Threshold: cùng vòng
                             commonMatchId = entry.getKey();
                             logger.logTs("Tìm thấy trận chung của VĐV %d và %d: %s (vị trí %d-%d)",
@@ -1878,14 +1778,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     }
                 }
 
-                // 🔄 KHÔI PHỤC: Hỏi user muốn tiếp tục hay đặt lại trận đã có
                 if (commonMatchId != null) {
-                    logger.logTs(
-                            "🔄 Tìm thấy ID trận chung %s cho VĐV %d và %d → sẽ hỏi user muốn đặt lại hay tiếp tục",
-                            commonMatchId, idVdvA, idVdvB);
                     return commonMatchId; // Trả về ID để maybePromptResetExistingMatch() xử lý
                 } else {
-                    logger.logTs("Không tìm thấy ID trận chung cho VĐV %d và %d → sẽ tạo mới", idVdvA, idVdvB);
                     return null; // Tạo mới
                 }
             } else {
@@ -1963,14 +1858,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         return null;
     }
 
-    /**
-     * Khi tái sử dụng ID_TRẬN đã có, kiểm tra cập nhật các trường trong
-     * CHI_TIET_TRAN_DAU
-     * cho phù hợp với cấu hình hiện tại: thể thức (theThuc) và sân (san).
-     * - Nếu bản ghi không tồn tại (bị xóa), tạo mới theo tham số đầu vào.
-     * - Nếu tồn tại nhưng theThuc/san khác, thực hiện update giữ nguyên
-     * batDau/ketThuc hiện có.
-     */
     private void ensureAndAlignMatchRecord(String matchId, int theThuc, int san) {
         if (conn == null || matchId == null || matchId.isBlank())
             return;
@@ -1993,17 +1880,13 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 if (needUpdate) {
                     chiTietTranDauService.update(matchId, newTheThuc, cur.getIdVdvThang(), cur.getBatDau(),
                             cur.getKetThuc(), newSan);
-                    logger.logTs("Đã đồng bộ CHI_TIET_TRAN_DAU: theThuc=%d, san=%d (id=%s)", newTheThuc, newSan,
-                            matchId);
                 }
             } catch (Exception notFound) {
                 // Không tồn tại: tạo mới theo cấu hình hiện tại, GIỮ NGUYÊN ID
                 var now = java.time.LocalDateTime.now();
                 chiTietTranDauService.create(matchId, theThuc, 0 /* chưa biết VĐV thắng */, now, now, san);
-                logger.logTs("Không tìm thấy CHI_TIET_TRAN_DAU id=%s, đã tạo mới với cùng ID.", matchId);
             }
         } catch (Exception ex) {
-            logger.logTs("Lỗi align CHI_TIET_TRAN_DAU: %s", ex.getMessage());
         }
     }
 
@@ -2186,10 +2069,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         return defaultValue;
     }
 
-    /**
-     * Khi kết thúc trận, ghi tỉ số (số ván thắng) vào cột DIEM cho 2 VĐV/đội
-     * tương ứng với trận hiện tại (nhận diện bằng ID_TRAN_DAU = matchId).
-     */
     private void updateBracketScoresOnFinish(String matchId) {
         if (conn == null || matchId == null || matchId.isBlank())
             return;
@@ -2223,7 +2102,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             int updatedA = 0, updatedB = 0;
             for (var r : rows) {
                 if (r.getIdTranDau() != null && r.getIdTranDau().equals(matchId)) {
-                    if (idVdvA != null && r.getIdVdv() != null && r.getIdVdv().equals(idVdvA)) {
+                    if (idVdvA != null && idVdvA > 0 && r.getIdVdv() != null && r.getIdVdv().equals(idVdvA)) {
                         soDoCaNhanService.setDiem(idGiai, idNoiDung, r.getViTri(), diemA);
                         updatedA++;
                     } else if (idVdvB != null && r.getIdVdv() != null
@@ -2356,7 +2235,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             Integer idA = singlesNameToId.getOrDefault(nameA, -1);
             Integer idB = singlesNameToId.getOrDefault(nameB, -1);
             match.setClubs(getClubNameByVdvId(idA), getClubNameByVdvId(idB));
-            System.out.println("ClubA =" + getClubNameByVdvId(idA) + ", ClubB=" + getClubNameByVdvId(idB));
             mini.setHeader(header);
             match.startMatch(initialServer.getSelectedIndex());
 
@@ -2426,8 +2304,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 return;
             }
 
-            // Sử dụng port của sân nếu đã set, nếu không thì dùng port mặc định
-            int port = (courtPort > 0) ? courtPort : 2345;
+            // Sử dụng port mặc định
+            int port = 2345;
 
             // Tạo URL với mã PIN
             String pinCode = getCourtPinCode();
@@ -2440,7 +2318,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
             // Chỉ tạo và hiển thị QR code khi qrCodeVisible = true
             if (qrCodeVisible) {
-                var img = QRCodeUtil.generate(url, 100);
+                var img = QRCodeUtil.generate(url, 150);
                 lblRemoteQr.setIcon(new ImageIcon(img));
             } else {
                 lblRemoteQr.setIcon(null);
@@ -2483,12 +2361,12 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                             JOptionPane.WARNING_MESSAGE);
                     return;
                 }
-                int port = (courtPort > 0) ? courtPort : 2345;
+                int port = 2345;
                 url = "http://" + ip + ":" + port + "/scoreboard/" + getCourtPinCode();
             }
 
-            java.awt.datatransfer.StringSelection stringSelection = new java.awt.datatransfer.StringSelection(url);
-            java.awt.datatransfer.Clipboard clipboard = java.awt.Toolkit.getDefaultToolkit().getSystemClipboard();
+            StringSelection stringSelection = new StringSelection(url);
+            Clipboard clipboard = java.awt.Toolkit.getDefaultToolkit().getSystemClipboard();
             clipboard.setContents(stringSelection, null);
             logger.logTs("Đã copy link vào clipboard: %s", url);
 
@@ -2572,16 +2450,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             // Lưu ảnh
             ImageIO.write(image, "PNG", outputFile);
 
-            logger.logTs("Đã chụp ảnh bảng điểm: %s", outputFile.getAbsolutePath());
-
-            // Lưu ảnh vào thư mục screenshots; bỏ tính năng gửi qua mạng
-
-            // Tắt thông báo popup để tránh spam
-            // JOptionPane.showMessageDialog(this,
-            // "Đã chụp ảnh bảng điểm!\n" + outputFile.getName(),
-            // "Chụp ảnh thành công",
-            // JOptionPane.INFORMATION_MESSAGE);
-
         } catch (HeadlessException | IOException ex) {
             logger.logTs("Lỗi khi chụp ảnh bảng điểm: %s", ex.getMessage());
             JOptionPane.showMessageDialog(this,
@@ -2613,7 +2481,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         String propName = evt.getPropertyName();
         if ("matchFinished".equals(propName) || "gameEnd".equals(propName) || "swap".equals(propName) ||
                 (propName != null && propName.contains("score"))) {
-            logger.logTs("PropertyChange event: '%s' từ BadmintonControlPanel@%s", propName, debugId);
         }
 
         BadmintonMatch.Snapshot s = match.snapshot();
@@ -2660,7 +2527,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     }
                 }
             } catch (Exception ex) {
-                logger.logTs("Lỗi cập nhật SO_DO/ID_VDV_THANG khi kết thúc tự động: %s", ex.getMessage());
+                logger.logTs("Lỗi cập nhật kết quả thắng khi kết thúc trận: %s", ex.getMessage());
             }
 
             if (!finishScheduled) {
@@ -2730,22 +2597,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
         // Xử lý sự kiện swap để cập nhật mini panel
         if ("swap".equals(evt.getPropertyName()) && mini != null) {
-            logger.logTs("=== BADMINTON CONTROL PANEL - SWAP EVENT DETECTED ===");
-            logger.logTs("Forcing mini panel refresh for swap event");
-
-            // Log chi tiết trạng thái sau khi đổi sân
             BadmintonMatch.Snapshot swapSnapshot = match.snapshot();
-            logger.logTs("=== TRẠNG THÁI SAU KHI ĐỔI SÂN ===");
-            logger.logTs("VĐV A: '%s' - Điểm hiện tại: %d, Ván thắng: %d", swapSnapshot.names[0], swapSnapshot.score[0],
-                    swapSnapshot.games[0]);
-            logger.logTs("VĐV B: '%s' - Điểm hiện tại: %d, Ván thắng: %d", swapSnapshot.names[1], swapSnapshot.score[1],
-                    swapSnapshot.games[1]);
-            logger.logTs("Server hiện tại: %s (VĐV %s)", swapSnapshot.server == 0 ? "A" : "B",
-                    swapSnapshot.server == 0 ? swapSnapshot.names[0] : swapSnapshot.names[1]);
-            logger.logTs("Ván hiện tại: %d/%d", swapSnapshot.gameNumber, swapSnapshot.bestOf);
-
-            // Log điểm các ván đã hoàn thành
-            logger.logTs("Điểm các ván đã hoàn thành:");
             for (int i = 0; i < swapSnapshot.gameScores.length; i++) {
                 if (swapSnapshot.gameScores[i][0] >= 0 && swapSnapshot.gameScores[i][1] >= 0) {
                     logger.logTs("  Ván %d: %s=%d, %s=%d",
@@ -2754,8 +2606,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                             swapSnapshot.names[1], swapSnapshot.gameScores[i][1]);
                 }
             }
-            logger.logTs("================================================");
-
             mini.forceRefresh();
         }
 
@@ -2855,9 +2705,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             scoreboardSvc.minimizeDisplays();
         } catch (Throwable t) {
             // Fallback nhẹ nhàng
-            for (java.awt.Window w : java.awt.Window.getWindows()) {
-                if (w.isShowing() && w instanceof java.awt.Frame f) {
-                    f.setState(java.awt.Frame.ICONIFIED);
+            for (Window w : Window.getWindows()) {
+                if (w.isShowing() && w instanceof Frame f) {
+                    f.setState(Frame.ICONIFIED);
                 }
             }
         }
@@ -2888,7 +2738,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             if (ip == null || ip.isEmpty()) {
                 return "LỖI: Interface không có IPv4";
             }
-            int port = (courtPort > 0) ? courtPort : 2345;
+            int port = 2345;
             return "http://" + ip + ":" + port + "/pin";
         } catch (Exception ex) {
             return "LỖI: " + ex.getMessage();
@@ -3148,345 +2998,164 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     /* =================== Auto-advance winner to next round =================== */
 
     private void autoAdvanceWinnerToNextRound(String matchId) {
-        logger.logTs("=== BẮT ĐẦU TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG VÀO VÒNG TIẾP THEO ===");
-        logger.logTs("Bước 1: Kiểm tra điều kiện tiên quyết cho tự động đưa người thắng (matchId=%s)", matchId);
-
-        if (conn == null) {
-            logger.logTs("Bước 1 THẤT BẠI: Kết nối cơ sở dữ liệu là null - hủy bỏ tự động đưa người thắng");
-            return;
-        }
-        logger.logTs("Bước 1 THÀNH CÔNG: Kết nối cơ sở dữ liệu khả dụng");
-
-        // Note: matchId is used for traceability in logs
-        if (matchId != null && !matchId.isBlank()) {
-            logger.logTs("Bước 2: Tự động đưa người thắng được kích hoạt cho matchId=%s", matchId);
-        } else {
-            logger.logTs("Bước 2: Tự động đưa người thắng được kích hoạt mà không có matchId");
-        }
-
-        // Validation: Đảm bảo trận đấu đã thực sự kết thúc
-        logger.logTs("Bước 3: Xác thực trạng thái trận đấu");
-        if (match == null) {
-            logger.logTs("Bước 3 THẤT BẠI: Đối tượng trận đấu là null - hủy bỏ tự động đưa người thắng");
-            return;
-        }
-        if (!match.isMatchFinished()) {
-            logger.logTs(
-                    "Bước 3 THẤT BẠI: Trận đấu chưa kết thúc (isMatchFinished=false) - hủy bỏ tự động đưa người thắng");
-            return;
-        }
-        logger.logTs("Bước 3 THÀNH CÔNG: Trận đấu đã kết thúc và sẵn sàng cho tự động đưa người thắng");
-
-        logger.logTs("Bước 4: Thu thập thông tin ngữ cảnh");
         String header = currentHeader();
-        int idGiai = new Prefs().getInt("selectedGiaiDauId", -1);
-        logger.logTs("Bước 4: Ngữ cảnh - header='%s', idGiai=%d", header, idGiai);
-
-        if (header == null || header.isBlank() || idGiai <= 0) {
-            logger.logTs(
-                    "Bước 4 THẤT BẠI: Ngữ cảnh không hợp lệ - header='%s', idGiai=%d - hủy bỏ tự động đưa người thắng",
-                    header,
-                    idGiai);
-            return;
-        }
-        logger.logTs("Bước 4 THÀNH CÔNG: Thông tin ngữ cảnh hợp lệ đã được lấy");
-
-        logger.logTs("Bước 5: Xác định loại thi đấu và hạng mục");
+        int idGiai = prefs.getInt("selectedGiaiDauId", -1);
         boolean isDoubles = doubles.isSelected();
         Integer idNoiDung = isDoubles ? headerKnrDoubles.get(header) : headerKnrSingles.get(header);
-        logger.logTs("Bước 5: Loại thi đấu - isDoubles=%s, idNoiDung=%s", isDoubles, idNoiDung);
-
-        if (idNoiDung == null || idNoiDung <= 0) {
-            logger.logTs(
-                    "Bước 5 THẤT BẠI: idNoiDung không hợp lệ cho header='%s', isDoubles=%s - hủy bỏ tự động đưa người thắng",
-                    header, isDoubles);
-            return;
-        }
-        logger.logTs("Bước 5 THÀNH CÔNG: Hạng mục thi đấu hợp lệ (idNoiDung=%d)", idNoiDung);
-
-        logger.logTs("Bước 6: Phân tích kết quả trận đấu");
         int[] games = match.getGames();
-        logger.logTs("Bước 6: Kết quả trận đấu - Đội A: %d ván, Đội B: %d ván", games[0], games[1]);
-
-        if (games[0] == games[1]) {
-            logger.logTs("Bước 6 THẤT BẠI: Trận đấu kết thúc hòa (%d-%d) - tự động đưa người thắng không áp dụng",
-                    games[0],
-                    games[1]);
-            return;
-        }
-
         int winnerSide = (games[0] > games[1]) ? 0 : 1;
         String winnerName = winnerSide == 0 ? "Đội A" : "Đội B";
-        logger.logTs("Bước 6 THÀNH CÔNG: Người thắng đã được xác định - %s (side=%d) với %d ván thắng",
-                winnerName, winnerSide, games[winnerSide]);
-
-        logger.logTs("Bước 7: Chuyển hướng đến logic tự động đưa người thắng cụ thể");
         if (!isDoubles) {
-            logger.logTs("Bước 7: Chuyển hướng đến tự động đưa người thắng ĐƠN");
-            // tìm sodo bằng matchId
             int soDo = soDoCaNhanService.findSoDoByMatchId(idGiai, idNoiDung, matchId);
             autoAdvanceSingles(idGiai, idNoiDung, soDo, winnerSide);
         } else {
-            logger.logTs("Bước 7: Chuyển hướng đến tự động đưa người thắng ĐÔI");
-            // tìm sodo bằng matchId
             int soDo = soDoDoiService.findSoDoByMatchId(idGiai, idNoiDung, matchId);
             autoAdvanceDoubles(idGiai, idNoiDung, soDo, winnerSide);
         }
-
-        logger.logTs("=== KẾT THÚC TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG VÀO VÒNG TIẾP THEO ===");
     }
 
     private void autoAdvanceSingles(int idGiai, int idNoiDung, int soDo, int winnerSide) {
-        logger.logTs("--- BẮT ĐẦU TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG ĐƠN ---");
-        logger.logTs("Đơn Bước 1: Khởi tạo cho idGiai=%d, idNoiDung=%d, winnerSide=%d",
-                idGiai, idNoiDung, winnerSide);
-
         try {
-            logger.logTs("Đơn Bước 2: Tải dữ liệu sơ đồ thi đấu từ cơ sở dữ liệu");
             List<SoDoCaNhan> rows = soDoCaNhanService.list(idGiai, idNoiDung, soDo);
-
-            if (rows == null || rows.isEmpty()) {
-                logger.logTs("Đơn Bước 2 THẤT BẠI: Không tìm thấy dữ liệu sơ đồ thi đấu - idGiai=%d, idNoiDung=%d",
-                        idGiai, idNoiDung);
-                return;
-            }
-            logger.logTs("Đơn Bước 2 THÀNH CÔNG: Đã tải %d mục từ cơ sở dữ liệu", rows.size());
-
-            logger.logTs("Đơn Bước 3: Xác định các vận động viên thi đấu từ giao diện");
+            int rowsCount = rows.size();
             String nameA = sel(cboNameA);
             String nameB = sel(cboNameB);
-            logger.logTs("Đơn Bước 3: Tên vận động viên - A='%s', B='%s'", nameA, nameB);
-
-            logger.logTs("Đơn Bước 4: Xác định ID vận động viên");
             Integer idVdvA = (nameA == null || nameA.isBlank()) ? null : singlesNameToId.get(nameA);
             Integer idVdvB = (nameB == null || nameB.isBlank()) ? null : singlesNameToId.get(nameB);
-            logger.logTs("Đơn Bước 4: ID vận động viên - A=%s, B=%s (kích thước map: %d)",
-                    idVdvA, idVdvB, singlesNameToId.size());
-
-            if (idVdvA == null || idVdvA <= 0 || idVdvB == null || idVdvB <= 0) {
-                logger.logTs("Đơn Bước 4 THẤT BẠI: ID vận động viên không hợp lệ - idVdvA=%s, idVdvB=%s", idVdvA,
-                        idVdvB);
-                logger.logTs("Đơn Bước 4 DEBUG: Các vận động viên có sẵn trong map: %s", singlesNameToId.keySet());
-                return;
-            }
-            logger.logTs("Đơn Bước 4 THÀNH CÔNG: Đã lấy được ID vận động viên hợp lệ");
-
-            logger.logTs("Đơn Bước 5: Phân tích cấu trúc sơ đồ thi đấu");
             int columns = detectColumnsByMaxOrder(rows);
             int[] offsets = columnOffsets(columns);
-            logger.logTs("Đơn Bước 5: Cấu trúc sơ đồ - columns=%d, offsets=%s",
-                    columns, java.util.Arrays.toString(offsets));
-
-            int winnerVdv = (winnerSide == 0) ? idVdvA : idVdvB;
+            int winnerVdv = (winnerSide == 0 && idVdvA != null) ? idVdvA : (idVdvB != null ? idVdvB : 0);
             String winnerName = (winnerSide == 0) ? nameA : nameB;
-            logger.logTs("Đơn Bước 6: Người thắng đã được xác định - VĐV ID=%d, Tên='%s'", winnerVdv, winnerName);
-
-            logger.logTs("Đơn Bước 7: Xác định cột hiện tại của trận đấu");
-            // số dòng rows hiện tại
-            int rowsCount = rows.size();
-            logger.logTs("Đơn Bước 7: Số dòng sơ đồ cá nhân hiện tại = %d", rowsCount);
-            // load lại data sơ đồ cá nhân
-            rows = soDoCaNhanService.list(idGiai, idNoiDung, soDo);
-            rowsCount = rows.size();
-            logger.logTs("Đơn Bước 7: Số dòng sơ đồ cá nhân mới = %d", rowsCount);
             int currentCol = -1;
+            if (idVdvA == null || idVdvB == null) {
+                logger.logTs("Lỗi autoAdvanceSingles: idVdvA=%s, idVdvB=%s - hủy bỏ", idVdvA, idVdvB);
+                return;
+            }
             for (int col = 1; col <= columns; col++) {
                 SoDoCaNhan rA = findRowByVdvAndCol(rows, idVdvA, col);
                 SoDoCaNhan rB = findRowByVdvAndCol(rows, idVdvB, col);
-
-                logger.logTs("Đơn Bước 7.%d: Kiểm tra cột %d - A=%s, B=%s", col, col,
-                        (rA != null ? "pos=" + rA.getViTri() : "null"),
-                        (rB != null ? "pos=" + rB.getViTri() : "null"));
-
                 if (rA != null && rB != null) {
                     int tA = toThuTu(rA.getViTri(), col, offsets);
                     int tB = toThuTu(rB.getViTri(), col, offsets);
-
                     if (tA >= 0 && tB >= 0) {
                         int pairGroupA = tA / 2;
                         int pairGroupB = tB / 2;
-
-                        logger.logTs("Đơn Bước 7.%d: Vị trí tương đối - A=%d (nhóm=%d), B=%d (nhóm=%d)",
-                                col, tA, pairGroupA, tB, pairGroupB);
-
                         if (pairGroupA == pairGroupB) {
                             currentCol = col;
-                            logger.logTs("Đơn Bước 7.%d: Tìm thấy cột trận đấu hiện tại = %d", col, currentCol);
                             break;
                         }
                     }
                 }
             }
-
-            if (currentCol == -1) {
-                logger.logTs("Đơn Bước 7 THẤT BẠI: Không tìm thấy cột của trận đấu hiện tại");
-                logger.logTs("--- KẾT THÚC TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG ĐƠN (KHÔNG TÌM THẤY CỘT) ---");
-                return;
-            }
-
-            logger.logTs("Đơn Bước 8: Tính toán vị trí cha cho người thắng");
             int parentCol = currentCol + 1;
-            if (parentCol > columns) {
-                logger.logTs("Đơn Bước 8: Cột cha %d vượt quá số cột tối đa %d - giải đấu hoàn thành",
-                        parentCol, columns);
-                return;
-            }
 
             // Lấy lại thông tin của hai VĐV ở cột hiện tại
-            com.example.btms.model.bracket.SoDoCaNhan rA = findRowByVdvAndCol(rows, idVdvA, currentCol);
-            com.example.btms.model.bracket.SoDoCaNhan rB = findRowByVdvAndCol(rows, idVdvB, currentCol);
+            SoDoCaNhan rA = findRowByVdvAndCol(rows, idVdvA, currentCol);
+            SoDoCaNhan rB = findRowByVdvAndCol(rows, idVdvB, currentCol);
 
             int tA = toThuTu(rA.getViTri(), currentCol, offsets);
             int tB = toThuTu(rB.getViTri(), currentCol, offsets);
             int parentThuTu = Math.min(tA, tB) / 2;
-            int parentOrder = offsets[parentCol - 1] + parentThuTu + 1;
+            int vitri = offsets[parentCol - 1] + parentThuTu + 1;
 
-            logger.logTs("Đơn Bước 8: Chi tiết cha - cột hiện tại=%d, cột cha=%d, thuTu=%d, order=%d",
-                    currentCol, parentCol, parentThuTu, parentOrder);
+            try {
+                SoDoCaNhan existing = null;
+                try {
+                    existing = soDoCaNhanService.getOne(idGiai, idNoiDung, vitri);
+                } catch (Exception checkEx) {
+                    logger.logTs("Upsert Bước 2: Ngoại lệ khi kiểm tra slot hiện có - %s", checkEx.getMessage());
+                }
 
-            logger.logTs("Đơn Bước 9: Đưa người thắng vào vòng tiếp theo");
-            upsertSinglesParentSlot(idGiai, idNoiDung, parentCol, parentThuTu, parentOrder, winnerVdv);
-
-            logger.logTs("Đơn Bước 9 THÀNH CÔNG: Người thắng đã được đưa vào vòng tiếp theo");
-            logger.logTs("--- KẾT THÚC TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG ĐƠN (THÀNH CÔNG) ---");
-
+                if (existing != null) {
+                    soDoCaNhanService.update(idGiai, idNoiDung, vitri,
+                            winnerVdv,
+                            existing.getToaDoX(), existing.getToaDoY(), soDo,
+                            LocalDateTime.now(), null, null);
+                } else {
+                    int[] xy = computeSlotCoordinates(parentCol, parentThuTu);
+                    soDoCaNhanService.create(idGiai, idNoiDung, winnerVdv,
+                            xy[0], xy[1], vitri, soDo,
+                            LocalDateTime.now(), null, null);
+                }
+            } catch (Exception ex) {
+                logger.logTs("Upsert NGOẠI LỆ: Upsert slot đơn thất bại - %s", ex.getMessage());
+                ex.printStackTrace();
+            }
         } catch (Exception ex) {
-            logger.logTs("Đơn NGOẠI LỆ: Tự động đưa người thắng thất bại - %s", ex.getMessage());
-            logger.logTs("--- KẾT THÚC TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG ĐƠN (NGOẠI LỆ) ---");
+            logger.logTs("Lỗi trong autoAdvanceSingles: %s", ex.getMessage());
         }
     }
 
     private void autoAdvanceDoubles(int idGiai, int idNoiDung, int soDo, int winnerSide) {
-
-        logger.logTs("--- BẮT ĐẦU TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG ĐÔI ---");
-        logger.logTs("Đôi Bước 1: Khởi tạo cho idGiai=%d, idNoiDung=%d, winnerSide=%d",
-                idGiai, idNoiDung, winnerSide);
-
         try {
-            logger.logTs("Đôi Bước 2: Tải dữ liệu sơ đồ thi đấu đôi từ cơ sở dữ liệu");
             List<SoDoDoi> rows = soDoDoiService.list(idGiai, idNoiDung, soDo);
-
-            if (rows == null || rows.isEmpty()) {
-                logger.logTs("Đôi Bước 2 THẤT BẠI: Không tìm thấy dữ liệu sơ đồ thi đấu đôi - idGiai=%d, idNoiDung=%d",
-                        idGiai, idNoiDung);
-                return;
-            }
-            logger.logTs("Đôi Bước 2 THÀNH CÔNG: Đã tải %d mục sơ đồ thi đấu đôi từ cơ sở dữ liệu", rows.size());
-
-            logger.logTs("Đôi Bước 3: Xác định các đội thi đấu từ giao diện");
             DangKiDoi teamA = (DangKiDoi) cboTeamA.getSelectedItem();
             DangKiDoi teamB = (DangKiDoi) cboTeamB.getSelectedItem();
             String tenA = teamA != null ? teamA.getTenTeam() : null;
             String tenB = teamB != null ? teamB.getTenTeam() : null;
-            logger.logTs("Đôi Bước 3: Tên đội - A='%s' (obj=%s), B='%s' (obj=%s)",
-                    tenA, teamA != null ? "hợp lệ" : "null",
-                    tenB, teamB != null ? "hợp lệ" : "null");
-
             if (tenA == null || tenA.isBlank() || tenB == null || tenB.isBlank()) {
-                logger.logTs("Đôi Bước 3 THẤT BẠI: Tên đội không hợp lệ - tenA='%s', tenB='%s'", tenA, tenB);
                 return;
             }
-            logger.logTs("Đôi Bước 3 THÀNH CÔNG: Đã lấy được tên đội hợp lệ");
-
-            logger.logTs("Đôi Bước 4: Phân tích cấu trúc sơ đồ thi đấu đôi");
             int columns = detectColumnsByMaxOrder(rows);
             int[] offsets = columnOffsets(columns);
-            logger.logTs("Đôi Bước 4: Cấu trúc sơ đồ - columns=%d, offsets=%s",
-                    columns, java.util.Arrays.toString(offsets));
-
             String winnerTeamName = (winnerSide == 0) ? tenA : tenB;
             DangKiDoi winnerTeam = (winnerSide == 0) ? teamA : teamB;
-            logger.logTs("Đôi Bước 5: Đội thắng đã được xác định - Đội='%s', Side=%d", winnerTeamName, winnerSide);
-
-            logger.logTs("Đôi Bước 6: Tìm kiếm cặp đội trong các cột sơ đồ");
             for (int col = 1; col < columns; col++) {
-                logger.logTs("Đôi Bước 6.%d: Kiểm tra cột %d", col, col);
-
-                com.example.btms.model.bracket.SoDoDoi rA = findRowByTeamAndCol(rows, tenA, col);
-                com.example.btms.model.bracket.SoDoDoi rB = findRowByTeamAndCol(rows, tenB, col);
-
-                logger.logTs("Đôi Bước 6.%d: Tìm thấy mục - A=%s, B=%s", col,
-                        (rA != null ? "pos=" + rA.getViTri() : "null"),
-                        (rB != null ? "pos=" + rB.getViTri() : "null"));
-
-                if (rA == null || rB == null) {
-                    logger.logTs("Đôi Bước 6.%d: Thiếu mục trong cột %d - bỏ qua", col, col);
-                    continue;
-                }
-
+                SoDoDoi rA = findRowByTeamAndCol(rows, tenA, col);
+                SoDoDoi rB = findRowByTeamAndCol(rows, tenB, col);
                 int tA = toThuTu(rA.getViTri(), col, offsets);
                 int tB = toThuTu(rB.getViTri(), col, offsets);
-                logger.logTs("Đôi Bước 6.%d: Vị trí tương đối - A=%d, B=%d", col, tA, tB);
-
-                if (tA < 0 || tB < 0) {
-                    logger.logTs("Đôi Bước 6.%d: Vị trí không hợp lệ - bỏ qua cột %d", col, col);
-                    continue;
-                }
-
                 int pairGroupA = tA / 2;
                 int pairGroupB = tB / 2;
-                logger.logTs("Đôi Bước 6.%d: Nhóm cặp đấu - A=%d, B=%d", col, pairGroupA, pairGroupB);
-
                 if (pairGroupA == pairGroupB) {
-                    logger.logTs("Đôi Bước 6.%d THÀNH CÔNG: Tìm thấy cặp đấu khớp trong cột %d", col, col);
-
                     int parentCol = col + 1;
                     if (parentCol > columns) {
-                        logger.logTs("Đôi Bước 6.%d: Cột cha %d vượt quá số cột tối đa %d - giải đấu hoàn thành",
-                                col, parentCol, columns);
                         return;
                     }
 
                     int parentThuTu = Math.min(tA, tB) / 2;
-                    int parentOrder = offsets[parentCol - 1] + parentThuTu + 1;
-
-                    logger.logTs("Đôi Bước 7: Tính toán vị trí cha");
-                    logger.logTs("Đôi Bước 7: Chi tiết cha - col=%d, thuTu=%d, order=%d",
-                            parentCol, parentThuTu, parentOrder);
-
-                    logger.logTs("Đôi Bước 8: Xác định thông tin câu lạc bộ của đội thắng");
+                    int vitri = offsets[parentCol - 1] + parentThuTu + 1;
                     Integer winnerClb = null;
                     try {
                         winnerClb = (winnerTeam != null) ? winnerTeam.getIdClb() : null;
-                        logger.logTs("Đôi Bước 8: ID câu lạc bộ ban đầu từ đối tượng đội - %s", winnerClb);
-
                         if ((winnerClb == null || winnerClb <= 0) && winnerTeamName != null
                                 && !winnerTeamName.isBlank()) {
-                            logger.logTs("Đôi Bước 8: Cố gắng xác định ID câu lạc bộ qua DoiService");
                             DoiService ds = new DoiService(conn);
-                            int found = ds.getIdClbByTeamName(winnerTeamName, idNoiDung, idGiai);
-                            if (found > 0) {
-                                winnerClb = found;
-                                logger.logTs("Đôi Bước 8: Đã xác định ID câu lạc bộ qua dịch vụ - %d", winnerClb);
-                            } else {
-                                logger.logTs("Đôi Bước 8: Không thể xác định ID câu lạc bộ qua dịch vụ");
-                            }
+                            winnerClb = ds.getIdClbByTeamName(winnerTeamName, idNoiDung, idGiai);
+
                         }
                     } catch (Exception clbEx) {
                         logger.logTs("Đôi Bước 8 CẢNH BÁO: Xác định câu lạc bộ thất bại - %s", clbEx.getMessage());
                     }
+                    try {
+                        SoDoDoi existing = null;
+                        existing = soDoDoiService.getOne(idGiai, idNoiDung, vitri);
 
-                    logger.logTs("Đôi Bước 9: Đưa đội thắng vào vòng tiếp theo");
-                    logger.logTs("Đôi Bước 9: Dữ liệu đội thắng cuối cùng - đội='%s', câu lạc bộ=%s", winnerTeamName,
-                            winnerClb);
+                        if (existing != null) {
+                            logger.logTs("Upsert Bước 3: CẬP NHẬT slot đôi hiện có");
+                            logger.logTs("Upsert Bước 3: Cập nhật từ đội='%s' sang đội='%s', CLB từ %s sang %s",
+                                    existing.getTenTeam(), winnerTeamName, existing.getIdClb(), winnerClb);
 
-                    upsertDoublesParentSlot(idGiai, idNoiDung, parentCol, parentThuTu, parentOrder, winnerTeamName,
-                            winnerClb);
-
-                    logger.logTs("Đôi Bước 9 THÀNH CÔNG: Đội thắng đã được đưa vào vòng tiếp theo");
-                    logger.logTs("--- KẾT THÚC TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG ĐÔI (THÀNH CÔNG) ---");
+                            soDoDoiService.update(idGiai, idNoiDung, vitri,
+                                    winnerClb, winnerTeamName,
+                                    existing.getToaDoX(), existing.getToaDoY(), existing.getSoDo(),
+                                    LocalDateTime.now(), null, null);
+                        } else {
+                            int[] xy = computeSlotCoordinates(parentCol, parentThuTu);
+                            soDoDoiService.create(idGiai, idNoiDung, winnerClb, winnerTeamName,
+                                    xy[0], xy[1], vitri, soDo,
+                                    LocalDateTime.now(), null, null);
+                        }
+                    } catch (Exception ex) {
+                        logger.logTs("Upsert NGOẠI LỆ: Upsert slot đôi thất bại - %s", ex.getMessage());
+                        ex.printStackTrace();
+                    }
                     return;
                 }
-
-                logger.logTs("Đôi Bước 6.%d: Không phải cặp đấu khớp - tiếp tục tìm kiếm", col);
             }
-
-            logger.logTs("Đôi Bước 6 HOÀN THÀNH: Không tìm thấy cặp đội khớp trong bất kỳ cột nào");
-            logger.logTs("--- KẾT THÚC TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG ĐÔI (KHÔNG TÌM THẤY KHỚP) ---");
         } catch (Exception ex) {
             logger.logTs("Đôi NGOẠI LỆ: Tự động đưa người thắng thất bại - %s", ex.getMessage());
             ex.printStackTrace();
-            logger.logTs("--- KẾT THÚC TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG ĐÔI (NGOẠI LỆ) ---");
         }
     }
 
@@ -3557,136 +3226,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         return best;
     }
 
-    private void upsertSinglesParentSlot(int idGiai, int idNoiDung, int parentCol, int parentThuTu, int parentOrder,
-            int winnerVdv) {
-        logger.logTs(">>> BẮT ĐẦU UPSERT SLOT CHA ĐƠN <<<");
-        logger.logTs(
-                "Dữ liệu Upsert: idGiai=%d, idNoiDung=%d, parentCol=%d, parentThuTu=%d, parentOrder=%d, winnerVdv=%d",
-                idGiai, idNoiDung, parentCol, parentThuTu, parentOrder, winnerVdv);
-
-        try {
-            logger.logTs("Upsert Bước 1: Khởi tạo SoDoCaNhanService");
-
-            logger.logTs("Upsert Bước 2: Kiểm tra slot hiện có tại parentOrder=%d", parentOrder);
-            com.example.btms.model.bracket.SoDoCaNhan existing = null;
-            try {
-                existing = soDoCaNhanService.getOne(idGiai, idNoiDung, parentOrder);
-                if (existing != null) {
-                    logger.logTs("Upsert Bước 2 TÌM THẤY: Slot hiện có - VĐV=%d, vị trí=%d, tọa độ=(%d,%d)",
-                            existing.getIdVdv(), existing.getViTri(), existing.getToaDoX(), existing.getToaDoY());
-                } else {
-                    logger.logTs("Upsert Bước 2: Không tìm thấy slot hiện có - sẽ tạo mới");
-                }
-            } catch (Exception checkEx) {
-                logger.logTs("Upsert Bước 2: Ngoại lệ khi kiểm tra slot hiện có - %s", checkEx.getMessage());
-            }
-
-            if (existing != null) {
-                logger.logTs("Upsert Bước 3: CẬP NHẬT slot hiện có");
-                logger.logTs("Upsert Bước 3: Cập nhật từ VĐV=%d sang VĐV=%d", existing.getIdVdv(), winnerVdv);
-
-                soDoCaNhanService.update(idGiai, idNoiDung, parentOrder,
-                        winnerVdv,
-                        existing.getToaDoX(), existing.getToaDoY(), parentCol,
-                        java.time.LocalDateTime.now(), null, null);
-
-                logger.logTs("Upsert Bước 3 THÀNH CÔNG: Đã cập nhật slot hiện có - parentOrder=%d, VĐV mới=%d",
-                        parentOrder, winnerVdv);
-            } else {
-                logger.logTs("Upsert Bước 3: TẠO slot mới");
-
-                logger.logTs("Upsert Bước 3.1: Tính toán tọa độ cho parentCol=%d, parentThuTu=%d",
-                        parentCol, parentThuTu);
-                int[] xy = computeSlotCoordinates(parentCol, parentThuTu);
-                logger.logTs("Upsert Bước 3.1: Tọa độ đã tính - x=%d, y=%d", xy[0], xy[1]);
-
-                logger.logTs("Upsert Bước 3.2: Tạo slot mới trong cơ sở dữ liệu");
-                soDoCaNhanService.create(idGiai, idNoiDung, winnerVdv,
-                        xy[0], xy[1], parentOrder, parentCol,
-                        java.time.LocalDateTime.now(), null, null);
-
-                logger.logTs("Upsert Bước 3.2 THÀNH CÔNG: Đã tạo slot mới - parentOrder=%d, VĐV=%d, tọa độ=(%d,%d)",
-                        parentOrder, winnerVdv, xy[0], xy[1]);
-            }
-
-            logger.logTs("Upsert Bước 4: KẾT QUẢ CUỐI CÙNG - VĐV #%d đã được đưa vào VI_TRI=%d (cột %d, thuTu=%d)",
-                    winnerVdv, parentOrder, parentCol, parentThuTu);
-            logger.logTs(">>> UPSERT SLOT CHA ĐƠN THÀNH CÔNG <<<");
-
-        } catch (Exception ex) {
-            logger.logTs("Upsert NGOẠI LỆ: Upsert slot đơn thất bại - %s", ex.getMessage());
-            ex.printStackTrace();
-            logger.logTs(">>> UPSERT SLOT CHA ĐƠN THẤT BẠI <<<");
-        }
-    }
-
     private void upsertDoublesParentSlot(int idGiai, int idNoiDung, int parentCol, int parentThuTu, int parentOrder,
             String winnerTeamName, Integer winnerClb) {
-        logger.logTs(">>> BẮT ĐẦU UPSERT SLOT CHA ĐÔI <<<");
-        logger.logTs("Dữ liệu Upsert: idGiai=%d, idNoiDung=%d, parentCol=%d, parentThuTu=%d, parentOrder=%d",
-                idGiai, idNoiDung, parentCol, parentThuTu, parentOrder);
-        logger.logTs("Đội Upsert: tên='%s', idCâuLạcBộ=%s", winnerTeamName, winnerClb);
 
-        try {
-            logger.logTs("Upsert Bước 1: Khởi tạo SoDoDoiService");
-
-            logger.logTs("Upsert Bước 2: Kiểm tra slot đôi hiện có tại parentOrder=%d", parentOrder);
-            com.example.btms.model.bracket.SoDoDoi existing = null;
-            try {
-                existing = soDoDoiService.getOne(idGiai, idNoiDung, parentOrder);
-                if (existing != null) {
-                    logger.logTs(
-                            "Upsert Bước 2 TÌM THẤY: Slot hiện có - đội='%s', CLB=%s, vị trí=%d, tọa độ=(%d,%d)",
-                            existing.getTenTeam(), existing.getIdClb(),
-                            existing.getViTri(), existing.getToaDoX(), existing.getToaDoY());
-                } else {
-                    logger.logTs("Upsert Bước 2: Không tìm thấy slot đôi hiện có - sẽ tạo mới");
-                }
-            } catch (Exception checkEx) {
-                logger.logTs("Upsert Bước 2: Ngoại lệ khi kiểm tra slot đôi hiện có - %s", checkEx.getMessage());
-            }
-
-            if (existing != null) {
-                logger.logTs("Upsert Bước 3: CẬP NHẬT slot đôi hiện có");
-                logger.logTs("Upsert Bước 3: Cập nhật từ đội='%s' sang đội='%s', CLB từ %s sang %s",
-                        existing.getTenTeam(), winnerTeamName, existing.getIdClb(), winnerClb);
-
-                soDoDoiService.update(idGiai, idNoiDung, parentOrder,
-                        winnerClb, winnerTeamName,
-                        existing.getToaDoX(), existing.getToaDoY(), existing.getSoDo(),
-                        java.time.LocalDateTime.now(), null, null);
-
-                logger.logTs(
-                        "Upsert Bước 3 THÀNH CÔNG: Đã cập nhật slot đôi hiện có - parentOrder=%d, đội mới='%s', CLB=%s",
-                        parentOrder, winnerTeamName, winnerClb);
-            } else {
-                logger.logTs("Upsert Bước 3: TẠO slot đôi mới");
-
-                logger.logTs("Upsert Bước 3.1: Tính toán tọa độ cho parentCol=%d, parentThuTu=%d",
-                        parentCol, parentThuTu);
-                int[] xy = computeSlotCoordinates(parentCol, parentThuTu);
-                logger.logTs("Upsert Bước 3.1: Tọa độ đã tính - x=%d, y=%d", xy[0], xy[1]);
-
-                logger.logTs("Upsert Bước 3.2: Tạo slot đôi mới trong cơ sở dữ liệu");
-                soDoDoiService.create(idGiai, idNoiDung, winnerClb, winnerTeamName,
-                        xy[0], xy[1], parentOrder, parentCol,
-                        LocalDateTime.now(), null, null);
-
-                logger.logTs(
-                        "Upsert Bước 3.2 THÀNH CÔNG: Đã tạo slot đôi mới - parentOrder=%d, đội='%s', CLB=%s, tọa độ=(%d,%d)",
-                        parentOrder, winnerTeamName, winnerClb, xy[0], xy[1]);
-            }
-
-            logger.logTs(
-                    "Upsert Bước 4: KẾT QUẢ CUỐI CÙNG - Đội '%s' (CLB=%s) đã được đưa vào VI_TRI=%d (cột %d, thuTu=%d)",
-                    winnerTeamName, winnerClb, parentOrder, parentCol, parentThuTu);
-            logger.logTs(">>> UPSERT SLOT CHA ĐÔI THÀNH CÔNG <<<");
-
-        } catch (Exception ex) {
-            logger.logTs("Upsert NGOẠI LỆ: Upsert slot đôi thất bại - %s", ex.getMessage());
-            ex.printStackTrace();
-            logger.logTs(">>> UPSERT SLOT CHA ĐÔI THẤT BẠI <<<");
-        }
     }
 
     private int[] computeSlotCoordinates(int col, int thuTu) {
@@ -3713,23 +3255,12 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
      */
     private void updateChiTietVanOnPoint(int side) {
         try {
-            if (conn == null) {
-                logger.logTs("Bỏ qua CHI_TIET_VAN (+1): Chưa kết nối DB");
-                return;
-            }
-            if (currentMatchId == null || currentMatchId.isBlank()) {
-                logger.logTs("Bỏ qua CHI_TIET_VAN (+1): Chưa có ID_TRẬN — hãy bấm 'Bắt đầu'");
-                return;
-            }
             var s = match.snapshot();
             int setNo = Math.max(1, s.gameNumber);
-
-            // Nếu vừa reset ván, xóa bản ghi set cũ để lần +1 này ghi mới hoàn toàn
             if (restartSetPending) {
                 try {
                     if (chiTietVanService.exists(currentMatchId, setNo)) {
                         chiTietVanService.delete(currentMatchId, setNo);
-                        logger.logTs("Đã xóa bản ghi set %d cũ do bắt đầu lại", setNo);
                     }
                 } catch (Exception ignore) {
                 }
@@ -3746,23 +3277,13 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 }
                 int[] totals = computeTokenTotalsConsideringSwap(newTime);
 
-                // 🔄 FIX: Sử dụng điểm UI hiện tại thay vì điểm từ tokens để tránh overwrite
-                // Vì tokens đã bao gồm lần bấm hiện tại, nên sẽ cao hơn UI 1 điểm
                 chiTietVanService.update(currentMatchId, setNo, s.score[0], s.score[1], newTime);
-                logger.logTs("CHI_TIET_VAN cập nhật (+1, set=%d): %d-%d (UI: %d-%d)",
-                        setNo, totals[0], totals[1], s.score[0], s.score[1]);
             } else {
                 int[] totals = computeTokenTotalsConsideringSwap(token);
-
-                // 🔄 FIX: Sử dụng điểm UI hiện tại thay vì điểm từ tokens
                 chiTietVanService.addSet(currentMatchId, setNo, s.score[0], s.score[1], token);
-                logger.logTs("CHI_TIET_VAN thêm mới (+1, set=%d): %d-%d (UI: %d-%d)",
-                        setNo, totals[0], totals[1], s.score[0], s.score[1]);
             }
-            // Sau lần +1 đầu tiên của ván sau reset, tắt cờ
             restartSetPending = false;
         } catch (Exception ex) {
-            logger.logTs("Lỗi cập nhật CHI_TIET_VAN (+1): %s", ex.getMessage());
         }
     }
 
@@ -3773,32 +3294,19 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
      */
     private void updateChiTietVanTotalsOnly() {
         try {
-            if (conn == null) {
-                logger.logTs("Bỏ qua CHI_TIET_VAN (totals): Chưa kết nối DB");
-                return;
-            }
-            if (currentMatchId == null || currentMatchId.isBlank()) {
-                logger.logTs("Bỏ qua CHI_TIET_VAN (totals): Chưa có ID_TRẬN — hãy bấm 'Bắt đầu'");
-                return;
-            }
             var s = match.snapshot();
             int setNo = Math.max(1, s.gameNumber);
-
             if (!chiTietVanService.exists(currentMatchId, setNo)) {
-                logger.logTs("Bỏ qua CHI_TIET_VAN (totals): chưa có bản ghi set %d để đồng bộ", setNo);
                 return;
             }
             var cur = chiTietVanService.get(currentMatchId, setNo);
             String timeStr = cur.getDauThoiGian();
             if (timeStr == null || timeStr.isBlank()) {
-                logger.logTs("Bỏ qua CHI_TIET_VAN (totals): DAU_THOI_GIAN trống (set %d)", setNo);
                 return; // service yêu cầu không rỗng; bỏ qua nếu trống
             }
             int[] totals = computeTokenTotalsConsideringSwap(timeStr);
             chiTietVanService.update(currentMatchId, setNo, totals[0], totals[1], timeStr);
-            logger.logTs("CHI_TIET_VAN đồng bộ totals (set=%d): %d-%d", setNo, totals[0], totals[1]);
         } catch (Exception ex) {
-            logger.logTs("Lỗi cập nhật CHI_TIET_VAN (totals only): %s", ex.getMessage());
         }
     }
 
@@ -3810,14 +3318,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
      */
     private void appendSwapMarkerAndResyncChiTietVan() {
         try {
-            if (conn == null) {
-                logger.logTs("Bỏ qua CHI_TIET_VAN (SWAP): Chưa kết nối DB");
-                return;
-            }
-            if (currentMatchId == null || currentMatchId.isBlank()) {
-                logger.logTs("Bỏ qua CHI_TIET_VAN (SWAP): Chưa có ID_TRẬN — hãy bấm 'Bắt đầu'");
-                return;
-            }
             var s = match.snapshot();
             int setNo = Math.max(1, s.gameNumber);
             String token = "SWAP@" + System.currentTimeMillis();
@@ -3832,14 +3332,11 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 }
                 int[] totals = computeTokenTotalsConsideringSwap(newTime);
                 chiTietVanService.update(currentMatchId, setNo, totals[0], totals[1], newTime);
-                logger.logTs("CHI_TIET_VAN ghi SWAP và đồng bộ totals (set=%d): %d-%d", setNo, totals[0], totals[1]);
             } else {
                 // Chưa có bản ghi set: tạo mới với chỉ dấu SWAP, tổng điểm = 0-0
                 chiTietVanService.addSet(currentMatchId, setNo, 0, 0, token);
-                logger.logTs("CHI_TIET_VAN tạo set mới với SWAP (set=%d): 0-0", setNo);
             }
         } catch (Exception ex) {
-            logger.logTs("Lỗi ghi SWAP cho CHI_TIET_VAN: %s", ex.getMessage());
         }
     }
 

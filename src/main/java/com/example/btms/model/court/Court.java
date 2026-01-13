@@ -77,4 +77,37 @@ public class Court {
     public String toString() {
         return displayName;
     }
+
+    /**
+     * Lấy số sân từ displayName
+     * Ví dụ: "Sân 1 (PIN: 1234)" → 1
+     * "Sân 01" → 1
+     * Nếu không tìm được số → -1
+     */
+    public int getCourtNumber() {
+        if (displayName == null || displayName.isEmpty()) {
+            return -1;
+        }
+
+        // Tìm các chữ số trong displayName
+        StringBuilder numbers = new StringBuilder();
+        for (char c : displayName.toCharArray()) {
+            if (Character.isDigit(c)) {
+                numbers.append(c);
+            } else if (!numbers.isEmpty()) {
+                // Dừng ở ký tự đầu tiên không phải số sau khi tìm được số
+                break;
+            }
+        }
+
+        if (numbers.isEmpty()) {
+            return -1;
+        }
+
+        try {
+            return Integer.parseInt(numbers.toString());
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
 }

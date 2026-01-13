@@ -94,6 +94,13 @@ public class SoDoDoiService {
         return 0;
     }
 
+    public int linkTranDauByTeamNames(int idGiai, int idNoiDung, Integer soDo, String tenTeamA, String tenTeamB,
+            String matchId) {
+        int updatedA = linkTranDauByTeamName(idGiai, idNoiDung, soDo, tenTeamA, matchId);
+        int updatedB = linkTranDauByTeamName(idGiai, idNoiDung, soDo, tenTeamB, matchId);
+        return updatedA + updatedB;
+    }
+
     /* helper */
     private void validate(String tenTeam, int viTri) {
         if (tenTeam == null || tenTeam.trim().isEmpty())
@@ -104,5 +111,13 @@ public class SoDoDoiService {
 
     public int findSoDoByMatchId(int idGiai, int idNoiDung, String matchId) {
         return repo.findSoDoByMatchId(idGiai, idNoiDung, matchId);
+    }
+
+    public int findSoDoByTeamName(int idGiai, int idNoiDung, String teamName) {
+        return repo.findSoDoByTeamName(idGiai, idNoiDung, teamName);
+    }
+
+    public int findSoDoByTeamNames(int idGiai, int idNoiDung, String teamNameA, String teamNameB) {
+        return repo.findSoDoByTeamNames(idGiai, idNoiDung, teamNameA, teamNameB);
     }
 }

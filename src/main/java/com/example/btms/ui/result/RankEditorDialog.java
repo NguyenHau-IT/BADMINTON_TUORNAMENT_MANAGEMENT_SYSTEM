@@ -407,12 +407,10 @@ public class RankEditorDialog extends JDialog {
     }
 
     // small casts helpers to keep generics happy
-    @SuppressWarnings("unchecked")
     private static JComboBox<IdName> castId(JComboBox<?> cb) {
         return (JComboBox<IdName>) cb;
     }
 
-    @SuppressWarnings("unchecked")
     private static JComboBox<TeamItem> castTeam(JComboBox<?> cb) {
         return (JComboBox<TeamItem>) cb;
     }

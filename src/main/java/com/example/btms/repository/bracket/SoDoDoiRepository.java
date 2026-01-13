@@ -250,4 +250,42 @@ public class SoDoDoiRepository {
             throw new RuntimeException("Lỗi tìm SO_DO theo ID_TRAN_DAU", e);
         }
     }
+
+    public int findSoDoByTeamName(int idGiai, int idNoiDung, String teamName) {
+        final String sql = "SELECT SO_DO FROM SO_DO_DOI WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND TEN_TEAM=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idGiai);
+            ps.setInt(2, idNoiDung);
+            ps.setString(3, teamName);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("SO_DO");
+                } else {
+                    throw new RuntimeException("Không tìm thấy SO_DO cho TEN_TEAM: " + teamName);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi tìm SO_DO theo TEN_TEAM", e);
+        }
+    }
+
+    public int findSoDoByTeamNames(int idGiai, int idNoiDung, String teamNameA, String teamNameB) {
+        final String sql = "SELECT SO_DO FROM SO_DO_DOI WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND (TEN_TEAM=? OR TEN_TEAM=?)";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idGiai);
+            ps.setInt(2, idNoiDung);
+            ps.setString(3, teamNameA);
+            ps.setString(4, teamNameB);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("SO_DO");
+                } else {
+                    throw new RuntimeException(
+                            "Không tìm thấy SO_DO cho TEN_TEAM: " + teamNameA + " hoặc " + teamNameB);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi tìm SO_DO theo TEN_TEAM", e);
+        }
+    }
 }

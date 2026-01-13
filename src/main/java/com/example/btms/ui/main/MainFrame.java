@@ -1298,9 +1298,9 @@ public class MainFrame extends JFrame {
         selectedGiaiDau = gd;
         System.out.println("DEBUG: Saving tournament selection to preferences");
         try {
-            new com.example.btms.config.Prefs().putInt("selectedGiaiDauId", gd.getId());
+            new Prefs().putInt("selectedGiaiDauId", gd.getId());
             if (gd.getTenGiai() != null) {
-                new com.example.btms.config.Prefs().put("selectedGiaiDauName", gd.getTenGiai());
+                new Prefs().put("selectedGiaiDauName", gd.getTenGiai());
             }
         } catch (Exception ignore) {
         }
