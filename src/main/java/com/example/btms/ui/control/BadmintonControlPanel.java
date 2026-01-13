@@ -3362,10 +3362,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         return new int[] { a, b };
     }
 
-    /**
-     * 📊 Restore match state từ database khi user chọn tiếp tục trận có sẵn
-     * Đồng bộ điểm, ván, trạng thái trận từ CHI_TIET_VAN và CHI_TIET_TRAN_DAU
-     */
     private void restoreMatchStateFromDatabase(String matchId) {
         if (matchId == null || matchId.isBlank() || conn == null) {
             logger.logTs("❌ Không thể restore: matchId hoặc connection null");
@@ -3382,9 +3378,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             }
 
             // Sắp xếp theo số ván
-            sets.sort(java.util.Comparator.comparing(
-                    com.example.btms.model.match.ChiTietVan::getSetNo,
-                    java.util.Comparator.nullsLast(Integer::compareTo)));
+            sets.sort(Comparator.comparing(
+                    ChiTietVan::getSetNo,
+                    Comparator.nullsLast(Integer::compareTo)));
 
             // Tìm ván cuối cùng (ván hiện tại)
             var lastSet = sets.get(sets.size() - 1);
@@ -3404,9 +3400,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 }
             }
 
-            logger.logTs("📊 Khôi phục ván %d dở dang: %d-%d", currentGameNumber, scoreA, scoreB);
-
-            // Restore state vào BadmintonMatch bằng reflection
             try {
                 var matchClass = match.getClass();
 
@@ -3446,18 +3439,10 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 firePropertyChange("gameNumber", null, currentGameNumber);
                 firePropertyChange("matchState", null, snapshot);
                 firePropertyChange("hasStarted", null, true);
-
-                logger.logTs("✅ Đã khôi phục trạng thái trận %s: %d ván, tỷ số %d-%d",
-                        matchId, currentGameNumber, gamesA, gamesB);
-
-                // Force update UI components
                 SwingUtilities.invokeLater(() -> {
                     updateControlsEnabledAccordingToState();
                     repaint();
                 });
-
-                logger.logTs("✅ Đã force update UI components");
-
             } catch (Exception reflectionEx) {
                 logger.logTs("❌ Lỗi reflection khi restore state: %s", reflectionEx.getMessage());
             }
