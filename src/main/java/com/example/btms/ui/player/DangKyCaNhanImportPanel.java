@@ -29,7 +29,7 @@ public class DangKyCaNhanImportPanel extends JFrame {
     private final VanDongVienService vdvService;
     private final CauLacBoService clbService;
     private final Runnable onDone;
-    private ChiTietGiaiDauService chiTietGiaiDauService = new ChiTietGiaiDauService(new ChiTietGiaiDauRepository(conn));
+    private ChiTietGiaiDauService chiTietGiaiDauService;
 
     public static void showImportWindow(
             Connection conn,
@@ -94,6 +94,7 @@ public class DangKyCaNhanImportPanel extends JFrame {
         this.dkService = dkService;
         this.vdvService = vdvService;
         this.clbService = clbService;
+        this.chiTietGiaiDauService = new ChiTietGiaiDauService(new ChiTietGiaiDauRepository(conn));
         this.onDone = onDone != null ? onDone : () -> {
         };
 
