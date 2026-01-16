@@ -71,6 +71,7 @@ import com.example.btms.ui.control.BadmintonControlPanel;
 import com.example.btms.ui.control.MultiCourtControlPanel;
 import com.lowagie.text.DocumentException;
 import com.lowagie.text.Element;
+import com.lowagie.text.pdf.BaseFont;
 
 /**
  * Trang "Sơ đồ thi đấu" hiển thị bracket loại trực tiếp 16 -> 1 (5 cột)
@@ -944,15 +945,10 @@ public class SoDoThiDauPanel extends JPanel {
             String path = file.getAbsolutePath().toLowerCase().endsWith(".pdf") ? file.getAbsolutePath()
                     : file.getAbsolutePath() + ".pdf";
 
-            // Create PDF (A4 landscape) and embed image scaled to fit
-            // Make content larger on paper: tighter margins and near-full scaling
-            // left, right, top, bottom margins (pt)
-            // Sơ đồ sát trái (left=0pt), 2 logo sát mép phải (right=0pt), sơ đồ sát dưới
-            // (bottom=0pt)
-            // Top margin: 22pt cho 16/32 (đủ chỗ cho tiêu đề), 28pt cho 64 (tránh tràn)
             int topMargin = (canvas.spots != null && canvas.spots.length > 0 && canvas.spots[0] <= 32) ? 22 : 28;
+            int leftMargin = 18;
             com.lowagie.text.Document doc = new com.lowagie.text.Document(
-                    com.lowagie.text.PageSize.A4.rotate(), 0, 0, topMargin, 0);
+                    com.lowagie.text.PageSize.A4.rotate(), leftMargin, 0, topMargin, 0);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
                 // Header/footer event with tournament name (no sponsor logo in header; sponsor
@@ -969,17 +965,16 @@ public class SoDoThiDauPanel extends JPanel {
                 pdfFont(12f, com.lowagie.text.Font.NORMAL);
                 // Do not draw sponsor logo in header; it'll be overlaid at bottom-right of the
                 // bracket image
-                writer.setPageEvent(new ReportPageEvent(null, null, ensureBaseFont(),
-                        tournament));
+                writer.setPageEvent(new ReportPageEvent(ensureBaseFont(), tournament));
 
                 doc.open();
                 // Title
                 String ndName = lblNoiDungValue.getText();
                 String titleStr = (ndName != null && !ndName.isBlank()) ? (ndName)
                         : "SƠ ĐỒ THI ĐẤU";
-                com.lowagie.text.Font titleFont = pdfFont(16f, com.lowagie.text.Font.BOLD);
+                com.lowagie.text.Font titleFont = pdfFont(14f, com.lowagie.text.Font.BOLD);
                 com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
-                title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+                title.setAlignment(com.lowagie.text.Element.ALIGN_LEFT);
                 title.setSpacingAfter(1f);
                 doc.add(title);
                 // Auto-trim white borders so the bracket can scale larger and sit closer to the
@@ -1096,12 +1091,12 @@ public class SoDoThiDauPanel extends JPanel {
                     : file.getAbsolutePath() + ".pdf";
 
             // Use tighter margins for file export as well
-            // Sơ đồ sát trái (left=0pt), 2 logo sát mép phải (right=0pt), sơ đồ sát dưới
-            // (bottom=0pt)
             // Top margin: 22pt cho 16/32 (đủ chỗ cho tiêu đề), 28pt cho 64 (tránh tràn)
+            // Left margin: 18pt để có khoảng cách với viền
             int topMargin = (canvas.spots != null && canvas.spots.length > 0 && canvas.spots[0] <= 32) ? 22 : 28;
+            int leftMargin = 18;
             com.lowagie.text.Document doc = new com.lowagie.text.Document(
-                    com.lowagie.text.PageSize.A4.rotate(), 0, 0, topMargin, 0);
+                    com.lowagie.text.PageSize.A4.rotate(), leftMargin, 0, topMargin, 0);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
                 String tournament = new Prefs().get("selectedGiaiDauName", null);
@@ -1115,15 +1110,14 @@ public class SoDoThiDauPanel extends JPanel {
                 pdfFont(12f, com.lowagie.text.Font.NORMAL);
                 // Do not draw sponsor logo in header; sponsor will be overlaid on image
                 // bottom-right
-                writer.setPageEvent(new ReportPageEvent(null, null, ensureBaseFont(),
-                        tournament));
+                writer.setPageEvent(new ReportPageEvent(ensureBaseFont(), tournament));
                 doc.open();
                 String ndName = lblNoiDungValue.getText();
                 String titleStr = (ndName != null && !ndName.isBlank()) ? (ndName)
                         : "SƠ ĐỒ THI ĐẤU";
-                com.lowagie.text.Font titleFont = pdfFont(16f, com.lowagie.text.Font.BOLD);
+                com.lowagie.text.Font titleFont = pdfFont(14f, com.lowagie.text.Font.BOLD);
                 com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
-                title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+                title.setAlignment(com.lowagie.text.Element.ALIGN_LEFT);
                 title.setSpacingAfter(1f);
                 doc.add(title);
                 java.awt.image.BufferedImage trimmed = trimWhiteBorders(img, 0);
@@ -1235,15 +1229,15 @@ public class SoDoThiDauPanel extends JPanel {
             }
             String path = file.getAbsolutePath().toLowerCase().endsWith(".pdf") ? file.getAbsolutePath()
                     : file.getAbsolutePath() + ".pdf";
-            // Smaller margins for multi-page export
+            // Unified margins: left=18pt (khoảng cách viền), top=24pt (header),
+            // right/bottom=0pt
             com.lowagie.text.Document doc = new com.lowagie.text.Document(
-                    com.lowagie.text.PageSize.A4.rotate(), 8, 8, 24, 8);
+                    com.lowagie.text.PageSize.A4.rotate(), 18, 0, 24, 0);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
                 pdfFont(12f, com.lowagie.text.Font.NORMAL);
                 // No sponsor in header; it will be overlaid on the bracket image
-                writer.setPageEvent(new ReportPageEvent(null, null, ensureBaseFont(),
-                        tournament));
+                writer.setPageEvent(new ReportPageEvent(ensureBaseFont(), tournament));
                 doc.open();
                 NoiDung old = selectedNoiDung;
                 for (int i = 0; i < targets.size(); i++) {
@@ -1257,9 +1251,9 @@ public class SoDoThiDauPanel extends JPanel {
                     // Title
                     String ndName = (nd.getTenNoiDung() != null) ? nd.getTenNoiDung().trim() : "";
                     String titleStr = !ndName.isBlank() ? (ndName) : "SƠ ĐỒ THI ĐẤU";
-                    com.lowagie.text.Font titleFont = pdfFont(16f, com.lowagie.text.Font.BOLD);
+                    com.lowagie.text.Font titleFont = pdfFont(14f, com.lowagie.text.Font.BOLD);
                     com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
-                    title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+                    title.setAlignment(com.lowagie.text.Element.ALIGN_LEFT);
                     title.setSpacingAfter(1f);
                     doc.add(title);
                     // Tournament logo will be overlaid onto the bracket image (no inline block)
@@ -1401,21 +1395,20 @@ public class SoDoThiDauPanel extends JPanel {
                 String fileName = suggestBracketPdfFileName();
                 java.io.File f = new java.io.File(dir, fileName);
                 // write single PDF for this nội dung
-                // Use tighter margins for each-file export
+                // Unified margins: left=18pt, top=24pt
                 com.lowagie.text.Document doc = new com.lowagie.text.Document(
-                        com.lowagie.text.PageSize.A4.rotate(), 8, 8, 24, 8);
+                        com.lowagie.text.PageSize.A4.rotate(), 18, 0, 24, 0);
                 try (java.io.FileOutputStream fos = new java.io.FileOutputStream(f)) {
                     com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
                     pdfFont(12f, com.lowagie.text.Font.NORMAL);
                     // No sponsor in header; it will be overlaid on the bracket image
-                    writer.setPageEvent(new ReportPageEvent(null, null, ensureBaseFont(),
-                            tournament));
+                    writer.setPageEvent(new ReportPageEvent(ensureBaseFont(), tournament));
                     doc.open();
                     String ndName = (nd.getTenNoiDung() != null) ? nd.getTenNoiDung().trim() : "";
                     String titleStr = !ndName.isBlank() ? (ndName) : "SƠ ĐỒ THI ĐẤU";
-                    com.lowagie.text.Font titleFont = pdfFont(16f, com.lowagie.text.Font.BOLD);
+                    com.lowagie.text.Font titleFont = pdfFont(14f, com.lowagie.text.Font.BOLD);
                     com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
-                    title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+                    title.setAlignment(com.lowagie.text.Element.ALIGN_LEFT);
                     title.setSpacingAfter(1f);
                     doc.add(title);
 
@@ -1831,16 +1824,10 @@ public class SoDoThiDauPanel extends JPanel {
     }
 
     private static final class ReportPageEvent extends com.lowagie.text.pdf.PdfPageEventHelper {
-        private final com.lowagie.text.Image leftLogo;
-        private final com.lowagie.text.Image rightLogo;
         private final com.lowagie.text.pdf.BaseFont baseFont;
         private final String tournamentName;
-        // Footer removed: no date/time or page number are used anymore
 
-        ReportPageEvent(com.lowagie.text.Image leftLogo, com.lowagie.text.Image rightLogo,
-                com.lowagie.text.pdf.BaseFont baseFont, String tournamentName) {
-            this.leftLogo = leftLogo;
-            this.rightLogo = rightLogo;
+        ReportPageEvent(BaseFont baseFont, String tournamentName) {
             this.baseFont = baseFont;
             this.tournamentName = tournamentName;
         }
@@ -1849,49 +1836,24 @@ public class SoDoThiDauPanel extends JPanel {
         public void onEndPage(com.lowagie.text.pdf.PdfWriter writer, com.lowagie.text.Document document) {
             com.lowagie.text.pdf.PdfContentByte cb = writer.getDirectContent();
             float left = document.left();
-            float right = document.right();
             float top = document.top();
 
-            // Header left logo at top-left, drawn above the content area to avoid overlap
-            if (leftLogo != null) {
-                try {
-                    float x = left;
-                    float y = top + 4f; // place image fully in header area (reduced)
-                    leftLogo.setAbsolutePosition(x, y);
-                    cb.addImage(leftLogo);
-                } catch (com.lowagie.text.DocumentException e) {
-                    System.err.println("addImage DocumentException: " + e.getMessage());
-                }
-            }
-
-            // Header right logo at top-right
-            if (rightLogo != null) {
-                try {
-                    float x = right - rightLogo.getScaledWidth();
-                    float y = top + 4f; // align with left logo (reduced)
-                    rightLogo.setAbsolutePosition(x, y);
-                    cb.addImage(rightLogo);
-                } catch (com.lowagie.text.DocumentException e) {
-                    System.err.println("addImage sponsor DocumentException: " + e.getMessage());
-                }
-            }
-
-            // Header: tournament name centered on top (reduced Y-offset to tighten gap)
+            // Header: tournament name left-aligned on top
             if (tournamentName != null && !tournamentName.isBlank()) {
                 cb.beginText();
                 try {
                     com.lowagie.text.pdf.BaseFont bf = (baseFont != null)
                             ? baseFont
                             : com.lowagie.text.pdf.BaseFont.createFont();
-                    cb.setFontAndSize(bf, 14f);
+                    cb.setFontAndSize(bf, 10f);
                 } catch (com.lowagie.text.DocumentException e) {
                     System.err.println("header BaseFont DocumentException: " + e.getMessage());
                 } catch (java.io.IOException e) {
                     System.err.println("header BaseFont IOException: " + e.getMessage());
                 }
-                // Place centered within the enlarged header area
-                cb.showTextAligned(com.lowagie.text.Element.ALIGN_CENTER, tournamentName, (left + right) / 2f,
-                        top + 8f, 0);
+                // Place left-aligned in header area
+                cb.showTextAligned(com.lowagie.text.Element.ALIGN_LEFT, tournamentName, left,
+                        top, 0);
                 cb.endText();
             }
 
@@ -2066,10 +2028,6 @@ public class SoDoThiDauPanel extends JPanel {
             JOptionPane.showMessageDialog(this, "Lỗi lưu sơ đồ: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
     }
-
-    // xuất ra file đã loại bỏ; hiện tại nút Lưu sẽ lưu trực tiếp vào CSDL
-
-    // Removed: resetDefaultTeams and shuffleTeams — no longer used after UI change
 
     /* ===================== DB wiring ===================== */
     private void loadNoiDungOptions() {
