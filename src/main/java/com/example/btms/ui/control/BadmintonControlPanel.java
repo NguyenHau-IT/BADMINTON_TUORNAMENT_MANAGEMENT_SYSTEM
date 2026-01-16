@@ -107,6 +107,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private NetworkInterface selectedIf;
     private Court court; // Court object để lấy thông tin sân
     private String courtId = ""; // ID của sân để hiển thị trên monitor
+    private int courtNumber = 1; // Số sân, mặc định là 1 nếu không lấy được từ courtId
     private NoiDungService noiDungService;
     private VanDongVienService vdvService;
     private SoDoCaNhanService soDoCaNhanService;
@@ -371,12 +372,53 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         this.court = court;
         if (court != null) {
             this.courtId = court.getName();
-            logger.logTs("Đặt Court - ID='%s', Số sân=%d", courtId, court.getCourtNumber());
+            this.courtNumber = court.getCourtNumber();
+            logger.logTs("Đặt Court - ID='%s', Số sân=%d", courtId, courtNumber);
         }
     }
 
     public Court getCourt() {
         return this.court;
+    }
+
+    /** Set courtId và parse số sân từ chuỗi courtId (ví dụ: "Sàn 1" -> 1) */
+    public void setCourtId(String courtId) {
+        this.courtId = courtId != null ? courtId : "";
+        // Parse số sân từ courtId
+        // Ví dụ: "Sàn 1" -> 1, "Sàn 2" -> 2, etc.
+        this.courtNumber = parseCourtNumber(this.courtId);
+        if (this.courtNumber <= 0) {
+            this.courtNumber = 1; // Mặc định nếu không parse được
+        }
+        logger.logTs("Đặt courtId='%s', Số sân được parse=%d", this.courtId, this.courtNumber);
+    }
+
+    /** Parse số sân từ courtId string (ví dụ: "Sàn 1" -> 1) */
+    private int parseCourtNumber(String courtId) {
+        if (courtId == null || courtId.isEmpty()) {
+            return 1;
+        }
+
+        // Tìm tất cả các chữ số trong chuỗi
+        StringBuilder numbers = new StringBuilder();
+        for (char c : courtId.toCharArray()) {
+            if (Character.isDigit(c)) {
+                numbers.append(c);
+            } else if (!numbers.isEmpty()) {
+                // Dừng ở ký tự đầu tiên không phải số
+                break;
+            }
+        }
+
+        try {
+            if (numbers.length() > 0) {
+                return Integer.parseInt(numbers.toString());
+            }
+        } catch (NumberFormatException e) {
+            logger.logTs("⚠️ Không thể parse số sân từ '%s': %s", courtId, e.getMessage());
+        }
+
+        return 1; // Mặc định nếu không parse được
     }
 
     public void setClientName(String clientName) {
@@ -1391,7 +1433,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             try {
                 if (conn != null) {
                     int theThuc = (bo == 1 ? 1 : 3); // map BO -> theThuc
-                    int san = (court != null) ? court.getCourtNumber() : 1; // lấy số sân từ Court object
+                    int san = courtNumber; // lấy số sân từ courtNumber
                     int idGiai = prefs.getInt("selectedGiaiDauId", -1);
                     // Lấy ID_NOIDUNG từ map dropdown thay vì tìm lại từ DB
                     Integer idNoiDungObj = headerKnrDoubles.get(header);
@@ -1461,7 +1503,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             try {
                 if (conn != null) {
                     int theThuc = (bo == 1 ? 1 : 3);
-                    int san = (court != null) ? court.getCourtNumber() : 1; // lấy số sân từ Court object
+                    int san = courtNumber; // lấy số sân từ courtNumber
                     Integer idAVal = singlesNameToId.getOrDefault(nameA, -1);
                     Integer idBVal = singlesNameToId.getOrDefault(nameB, -1);
                     int idGiai = prefs.getInt("selectedGiaiDauId", -1);

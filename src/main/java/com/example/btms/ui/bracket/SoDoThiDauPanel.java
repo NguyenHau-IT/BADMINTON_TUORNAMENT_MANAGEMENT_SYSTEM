@@ -17,9 +17,12 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.NetworkInterface;
 import java.sql.Connection;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.IntSupplier;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -45,6 +48,7 @@ import com.example.btms.model.result.KetQuaDoi;
 import com.example.btms.repository.bracket.SoDoCaNhanRepository;
 import com.example.btms.repository.bracket.SoDoDoiRepository;
 import com.example.btms.repository.category.NoiDungRepository;
+import com.example.btms.repository.cateoftuornament.ChiTietGiaiDauRepository;
 import com.example.btms.repository.club.CauLacBoRepository;
 import com.example.btms.repository.draw.BocThamCaNhanRepository;
 import com.example.btms.repository.draw.BocThamDoiRepository;
@@ -54,6 +58,7 @@ import com.example.btms.repository.result.KetQuaDoiRepository;
 import com.example.btms.service.bracket.SoDoCaNhanService;
 import com.example.btms.service.bracket.SoDoDoiService;
 import com.example.btms.service.category.NoiDungService;
+import com.example.btms.service.cateoftuornament.ChiTietGiaiDauService;
 import com.example.btms.service.club.CauLacBoService;
 import com.example.btms.service.draw.BocThamCaNhanService;
 import com.example.btms.service.draw.BocThamDoiService;
@@ -123,10 +128,10 @@ public class SoDoThiDauPanel extends JPanel {
     private Integer pendingSelectNoiDungId = null;
     private final JLabel lblNoiDungValue = new JLabel(); // hiển thị tên nội dung khi dùng chế độ label
     // Track bracket number (1-based): khi load sơ đồ, sẽ load bracket number này
-    private int currentBracketNumber = 1;
 
     // Services
     private final Prefs prefs = new Prefs();
+    private final ChiTietGiaiDauService chiTietGiaiDauService;
     private final NoiDungService noiDungService;
     private final BocThamDoiService bocThamService;
     private final BocThamCaNhanService bocThamCaNhanService;
@@ -158,7 +163,7 @@ public class SoDoThiDauPanel extends JPanel {
         this.soDoCaNhanService = new SoDoCaNhanService(new SoDoCaNhanRepository((Connection) conn));
         this.ketQuaCaNhanService = new KetQuaCaNhanService(new KetQuaCaNhanRepository((Connection) conn));
         this.vdvService = new VanDongVienService(new VanDongVienRepository((Connection) conn));
-
+        this.chiTietGiaiDauService = new ChiTietGiaiDauService(new ChiTietGiaiDauRepository(conn));
         setLayout(new BorderLayout());
         // Build "Sơ đồ" tab content
         bracketTab.add(buildTop(), BorderLayout.NORTH);
@@ -287,7 +292,6 @@ public class SoDoThiDauPanel extends JPanel {
                 selectedNoiDung = it;
                 updateNoiDungLabelText();
                 // Reset bracket number về 1 khi chọn content mới
-                currentBracketNumber = 1;
                 // Xóa canvas - không load sơ đồ tự động
                 clearAllSlots();
                 refreshMedalTable("", "", "", "");
@@ -307,8 +311,6 @@ public class SoDoThiDauPanel extends JPanel {
             bracketNumber = 1;
         }
         // Lưu bracket number hiện tại (không lưu vào Prefs)
-        this.currentBracketNumber = bracketNumber;
-        // Reload dữ liệu theo sơ đồ số này
         loadBestAvailable();
     }
 
@@ -386,7 +388,6 @@ public class SoDoThiDauPanel extends JPanel {
         btnSaveResults.addActionListener(e -> saveMedalResults());
         btnReloadSaved.addActionListener(e -> loadSavedSoDo());
         btnSeedFromDraw.addActionListener(e -> loadFromBocTham());
-        btnDeleteAll.addActionListener(e -> deleteBracketAndResults());
         btnRefresh.addActionListener(e -> reloadData());
         cmbMode.addActionListener(e -> {
             updateCanvasForMode();
@@ -1193,7 +1194,7 @@ public class SoDoThiDauPanel extends JPanel {
             if (noiDungList == null || noiDungList.isEmpty())
                 return false;
             // Build filtered list: only nội dung that have draw or saved bracket
-            java.util.List<NoiDung> targets = new java.util.ArrayList<>();
+            List<NoiDung> targets = new ArrayList<>();
             int idGiai = prefs.getInt("selectedGiaiDauId", -1);
             for (NoiDung nd : noiDungList) {
                 if (nd == null || nd.getId() == null)
@@ -1201,14 +1202,16 @@ public class SoDoThiDauPanel extends JPanel {
                 boolean include = false;
                 try {
                     if (Boolean.TRUE.equals(nd.getTeam())) {
-                        var ds = bocThamService.list(idGiai, nd.getId());
+                        int soDo = chiTietGiaiDauService.findSoDo(idGiai, nd.getId());
+                        var ds = bocThamService.list(idGiai, nd.getId(), soDo);
                         include = (ds != null && !ds.isEmpty());
                         if (!include) {
                             var sodo = soDoDoiService.listAll(idGiai, nd.getId());
                             include = (sodo != null && !sodo.isEmpty());
                         }
                     } else {
-                        var ds = bocThamCaNhanService.list(idGiai, nd.getId());
+                        int soDo = chiTietGiaiDauService.findSoDo(idGiai, nd.getId());
+                        var ds = bocThamCaNhanService.list(idGiai, nd.getId(), soDo);
                         include = (ds != null && !ds.isEmpty());
                         if (!include) {
                             var sodo = soDoCaNhanService.listAll(idGiai, nd.getId());
@@ -1371,14 +1374,16 @@ public class SoDoThiDauPanel extends JPanel {
             boolean include = false;
             try {
                 if (Boolean.TRUE.equals(nd.getTeam())) {
-                    var ds = bocThamService.list(idGiai, nd.getId());
+                    int soDo = chiTietGiaiDauService.findSoDo(idGiai, nd.getId());
+                    var ds = bocThamService.list(idGiai, nd.getId(), soDo);
                     include = (ds != null && !ds.isEmpty());
                     if (!include) {
                         var sodo = soDoDoiService.listAll(idGiai, nd.getId());
                         include = (sodo != null && !sodo.isEmpty());
                     }
                 } else {
-                    var ds = bocThamCaNhanService.list(idGiai, nd.getId());
+                    int soDo = chiTietGiaiDauService.findSoDo(idGiai, nd.getId());
+                    var ds = bocThamCaNhanService.list(idGiai, nd.getId(), soDo);
                     include = (ds != null && !ds.isEmpty());
                     if (!include) {
                         var sodo = soDoCaNhanService.listAll(idGiai, nd.getId());
@@ -1897,7 +1902,7 @@ public class SoDoThiDauPanel extends JPanel {
      * kết quả huy chương (nếu có) trong CSDL.
      * Không chỉ xoá UI, mà xoá dữ liệu lưu trong bảng SODO_* và KET_QUA_*.
      */
-    private void deleteBracketAndResults() {
+    private void deleteBracketAndResults(int soDo) {
         int idGiai = prefs.getInt("selectedGiaiDauId", -1);
         NoiDung nd = selectedNoiDung;
         if (idGiai <= 0 || nd == null) {
@@ -1951,7 +1956,7 @@ public class SoDoThiDauPanel extends JPanel {
             // 3) Xoá danh sách bốc thăm (draws)
             try {
                 if (isTeam) {
-                    var drawList = bocThamService.list(idGiai, idNoiDung);
+                    var drawList = bocThamService.list(idGiai, idNoiDung, soDo);
                     for (var r : drawList) {
                         try {
                             bocThamService.delete(idGiai, idNoiDung, r.getThuTu());
@@ -1959,7 +1964,7 @@ public class SoDoThiDauPanel extends JPanel {
                         }
                     }
                 } else {
-                    var drawList = bocThamCaNhanService.list(idGiai, idNoiDung);
+                    var drawList = bocThamCaNhanService.list(idGiai, idNoiDung, soDo);
                     for (var r : drawList) {
                         try {
                             bocThamCaNhanService.delete(idGiai, idNoiDung, r.getIdVdv());
@@ -2004,7 +2009,7 @@ public class SoDoThiDauPanel extends JPanel {
                     }
                 }
                 // Lưu các ô đang hiển thị (đội)
-                java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                LocalDateTime now = LocalDateTime.now();
                 for (BracketCanvas.Slot s : canvas.getSlots()) {
                     if (s.text != null && !s.text.isBlank()) {
                         // Hiển thị đang ở dạng "TEN_TEAM - TEN_CLB" => tách lấy TEN_TEAM để tra ID_CLB
@@ -2103,6 +2108,7 @@ public class SoDoThiDauPanel extends JPanel {
     private void loadFromBocTham() {
         int idGiai = prefs.getInt("selectedGiaiDauId", -1);
         NoiDung nd = selectedNoiDung;
+        int soDo = chiTietGiaiDauService.findSoDo(idGiai, nd.getId());
         if (idGiai <= 0 || nd == null) {
             return;
         }
@@ -2111,7 +2117,7 @@ public class SoDoThiDauPanel extends JPanel {
         if (isTeam) {
             List<BocThamDoi> list;
             try {
-                list = bocThamService.list(idGiai, nd.getId());
+                list = bocThamService.list(idGiai, nd.getId(), soDo);
             } catch (RuntimeException ex) {
                 JOptionPane.showMessageDialog(this, "Lỗi tải sơ đồ từ DB: " + ex.getMessage(), "Lỗi",
                         JOptionPane.ERROR_MESSAGE);
@@ -2138,55 +2144,36 @@ public class SoDoThiDauPanel extends JPanel {
                 canvas.setBracketSize(16);
             }
 
-            int startIdx = (currentBracketNumber - 1) * maxPerBracket;
-            int endIdx = Math.min(startIdx + maxPerBracket, list.size());
-
             // Chỉ lấy dữ liệu cho sơ đồ hiện tại
             List<BocThamDoi> bracketData = new ArrayList<>();
-            for (int i = startIdx; i < endIdx; i++) {
-                if (i >= 0 && i < list.size()) {
-                    bracketData.add(list.get(i));
-                }
-            }
-
-            // Nếu dữ liệu trống (sơ đồ không tồn tại), reset về sơ đồ 1
-            if (bracketData.isEmpty() && currentBracketNumber > 1) {
-                currentBracketNumber = 1;
-                startIdx = 0;
-                endIdx = Math.min(maxPerBracket, list.size());
-                for (int i = startIdx; i < endIdx; i++) {
-                    if (i >= 0 && i < list.size()) {
-                        bracketData.add(list.get(i));
-                    }
-                }
-            }
+            bracketData = list;
 
             // Decide seeding column and block size based on number of participants
             int N = bracketData.size();
-            int M; // block size in that column = bracketSize (full bracket slots)
+            int M; // block size = full bracket slots
             int seedCol; // 1..columns
 
-            // M = bracketSize (luôn full bracket, để trống nếu cần)
+            // M = bracketSize (full bracket)
             M = bracketSize;
 
             // Xác định seedCol dựa trên số lượng VĐV
             if (N >= bracketSize / 2) {
-                // Nếu VĐV >= nửa kích thước sơ đồ, hiển thị ở cột 1
                 seedCol = 1;
             } else if (N >= bracketSize / 4) {
-                // Nếu VĐV >= 1/4 kích thước, hiển thị ở cột 2
                 seedCol = 2;
             } else if (N >= bracketSize / 8) {
-                // Nếu VĐV >= 1/8 kích thước, hiển thị ở cột 3
                 seedCol = 3;
             } else {
-                // Nếu ít VĐV, hiển thị ở cột gần cuối
                 seedCol = Math.max(1, Math.min(4, canvas.getColumns() - 1));
             }
-            int useN = Math.min(N, M);
-            List<Integer> pos = computeSeedPositionsWithMode(useN, M);
+
+            // Tính kích thước column thực tế dựa trên seedCol
+            // Col 1: bracketSize, Col 2: bracketSize/2, Col 3: bracketSize/4, ...
+            int columnSize = bracketSize / (int) Math.pow(2, seedCol - 1);
+            int useN = Math.min(N, columnSize);
+            List<Integer> pos = computeSeedPositionsWithMode(useN, columnSize);
             int[] slotToEntry = new int[M];
-            java.util.Arrays.fill(slotToEntry, -1);
+            Arrays.fill(slotToEntry, -1);
             for (int i = 0; i < useN; i++) {
                 int posIdx = pos.get(i);
                 if (posIdx >= 0 && posIdx < M) {
@@ -2195,7 +2182,6 @@ public class SoDoThiDauPanel extends JPanel {
             }
             if (prefs.getBool("bracket.seed.avoidSameClub", true)) {
                 adjustAssignmentsToAvoidSameClubTeams(slotToEntry, bracketData, nd.getId(), idGiai);
-                // Ensure balance constraint is maintained after anti-CLB adjustments
                 ensureBalanceConstraint(slotToEntry);
             }
             List<String> namesByT = new ArrayList<>();
@@ -2246,9 +2232,9 @@ public class SoDoThiDauPanel extends JPanel {
             canvas.repaint();
             updateMedalsFromCanvas();
         } else {
-            List<com.example.btms.model.draw.BocThamCaNhan> list;
+            List<BocThamCaNhan> list;
             try {
-                list = bocThamCaNhanService.list(idGiai, nd.getId());
+                list = bocThamCaNhanService.list(idGiai, nd.getId(), soDo);
             } catch (RuntimeException ex) {
                 JOptionPane.showMessageDialog(this, "Lỗi tải bốc thăm cá nhân: " + ex.getMessage(), "Lỗi",
                         JOptionPane.ERROR_MESSAGE);
@@ -2274,34 +2260,18 @@ public class SoDoThiDauPanel extends JPanel {
                 maxPerBracket = 16;
                 canvas.setBracketSize(16);
             }
-
-            int startIdx = (currentBracketNumber - 1) * maxPerBracket;
-            int endIdx = Math.min(startIdx + maxPerBracket, list.size());
-
             // Chỉ lấy dữ liệu cho sơ đồ hiện tại
             List<BocThamCaNhan> bracketData = new ArrayList<>();
-            for (int i = startIdx; i < endIdx; i++) {
+            for (int i = 0; i < list.size(); i++) {
                 if (i >= 0 && i < list.size()) {
                     bracketData.add(list.get(i));
-                }
-            }
-
-            // Nếu dữ liệu trống (sơ đồ không tồn tại), reset về sơ đồ 1
-            if (bracketData.isEmpty() && currentBracketNumber > 1) {
-                currentBracketNumber = 1;
-                startIdx = 0;
-                endIdx = Math.min(maxPerBracket, list.size());
-                for (int i = startIdx; i < endIdx; i++) {
-                    if (i >= 0 && i < list.size()) {
-                        bracketData.add(list.get(i));
-                    }
                 }
             }
             int N = bracketData.size();
             int M;
             int seedCol;
 
-            // M = bracketSize (luôn full bracket, để trống nếu cần)
+            // M = bracketSize (full bracket)
             M = bracketSize;
 
             // Xác định seedCol dựa trên số lượng VĐV cá nhân
@@ -2312,11 +2282,14 @@ public class SoDoThiDauPanel extends JPanel {
             } else if (N >= bracketSize / 8) {
                 seedCol = 3;
             } else {
-                // Nếu ít VĐV, hiển thị ở cột gần cuối
                 seedCol = Math.max(1, Math.min(4, canvas.getColumns() - 1));
             }
-            int useN = Math.min(N, M);
-            List<Integer> pos = computeSeedPositionsWithMode(useN, M);
+
+            // Tính kích thước column thực tế dựa trên seedCol
+            // Col 1: bracketSize, Col 2: bracketSize/2, Col 3: bracketSize/4, ...
+            int columnSize = bracketSize / (int) Math.pow(2, seedCol - 1);
+            int useN = Math.min(N, columnSize);
+            List<Integer> pos = computeSeedPositionsWithMode(useN, columnSize);
             int[] slotToEntry = new int[M];
             java.util.Arrays.fill(slotToEntry, -1);
             for (int i = 0; i < useN; i++) {
@@ -2366,7 +2339,6 @@ public class SoDoThiDauPanel extends JPanel {
                     }
                 }
             }
-            // Clear any previous score labels when reseeding from draw
             canvas.clearScoreOverrides();
             canvas.setParticipantsForColumn(namesByT, seedCol);
             canvas.repaint();
@@ -2439,8 +2411,6 @@ public class SoDoThiDauPanel extends JPanel {
             canvas.clearScoreOverrides();
             canvas.setParticipantsForColumn(blanks, 1);
             for (SoDoDoi r : bracketData) {
-                System.err.println("DEBUG: loadSavedSoDo team - r.getViTri()=" + r.getViTri() + ", canvas.slots.size="
-                        + canvas.getSlots().size());
                 BracketCanvas.Slot slot = canvas.findByOrder(r.getViTri());
                 if (slot != null) {
                     // Create display text with club name for UI, but keep team name in DB
@@ -2458,8 +2428,6 @@ public class SoDoThiDauPanel extends JPanel {
                         } catch (RuntimeException ignore) {
                         }
                     }
-                    System.err.println("DEBUG: slot found for viTri=" + r.getViTri() + ", slot.col=" + slot.col
-                            + ", slot.thuTu=" + slot.thuTu + ", display=" + display);
                     canvas.setTextOverride(slot.col, slot.thuTu, display);
                     try {
                         Integer diem = r.getDiem();
@@ -2679,7 +2647,7 @@ public class SoDoThiDauPanel extends JPanel {
 
         // Precompute club id per entry index
         int[] clubs = new int[list.size()];
-        java.util.Arrays.fill(clubs, 0);
+        Arrays.fill(clubs, 0);
         for (int i = 0; i < list.size(); i++) {
             try {
                 BocThamDoi row = list.get(i);
@@ -2701,13 +2669,13 @@ public class SoDoThiDauPanel extends JPanel {
     }
 
     private void adjustAssignmentsToAvoidSameClubSingles(int[] slotToEntry,
-            List<com.example.btms.model.draw.BocThamCaNhan> list) {
+            List<BocThamCaNhan> list) {
         if (slotToEntry == null || list == null || list.isEmpty()) {
             return;
         }
 
         int[] clubs = new int[list.size()];
-        java.util.Arrays.fill(clubs, 0);
+        Arrays.fill(clubs, 0);
         for (int i = 0; i < list.size(); i++) {
             try {
                 var row = list.get(i);
@@ -2730,7 +2698,7 @@ public class SoDoThiDauPanel extends JPanel {
             return;
 
         // Evaluate current clashes
-        java.util.function.IntSupplier clashCount = () -> {
+        IntSupplier clashCount = () -> {
             int cnt = 0;
             for (int p = 0; p < M / 2; p++) {
                 int aSlot = 2 * p, bSlot = 2 * p + 1;

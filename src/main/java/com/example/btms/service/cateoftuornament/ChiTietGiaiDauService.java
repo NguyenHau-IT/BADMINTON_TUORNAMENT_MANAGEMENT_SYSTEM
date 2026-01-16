@@ -73,6 +73,12 @@ public class ChiTietGiaiDauService {
         return repo.getChiTietGiaiDauById(idGiaiDau, idNoiDung) != null;
     }
 
+    public int findSoDo(int idGiaiDau, int idNoiDung) {
+        ChiTietGiaiDau ct = findOne(idGiaiDau, idNoiDung);
+        Integer soDo = ct.getSoDo();
+        return soDo != null ? soDo : 1;
+    }
+
     /* ===================== Private helpers ===================== */
 
     private void validate(ChiTietGiaiDau c) {

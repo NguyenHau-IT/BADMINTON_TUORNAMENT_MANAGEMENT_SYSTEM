@@ -61,6 +61,7 @@ import com.example.btms.model.bracket.SoDoCaNhan;
 import com.example.btms.model.bracket.SoDoDoi;
 import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.db.SQLSRVConnectionManager;
+import com.example.btms.model.draw.BocThamDoi;
 import com.example.btms.model.role.Role;
 import com.example.btms.model.team.DangKiDoi;
 import com.example.btms.model.tournament.GiaiDau;
@@ -172,7 +173,7 @@ public class MainFrame extends JFrame {
     private VanDongVienManagementPanel vanDongVienPanel;
     private TrongTaiManagementPanel trongTaiPanel;
     private PhanCongTrongTaiHistoryPanel phanCongTrongTaiHistoryPanel;
-    private com.example.btms.ui.device.DeviceMonitorPanel deviceMonitorPanel;
+    private DeviceMonitorPanel deviceMonitorPanel;
     private DangKyDoiPanel dangKyDoiPanel;
     private DangKyCaNhanPanel dangKyCaNhanPanel; // đăng ký cá nhân (đơn)
     private ContentParticipantsPanel contentParticipantsPanel; // xem VDV/Đội theo nội dung
@@ -789,7 +790,6 @@ public class MainFrame extends JFrame {
      * Load tất cả dữ liệu: CLB, VĐV, Nội dung, Đăng ký, Thi đấu, etc.
      */
     private void initializeAllDataAfterTournamentSelection(Connection conn) {
-        System.out.println("DEBUG: initializeAllDataAfterTournamentSelection() started");
         try {
             // ==== Services chung ====
             // Initialize all services now that we have a valid connection
@@ -2464,32 +2464,70 @@ public class MainFrame extends JFrame {
             JOptionPane.showMessageDialog(this, "Chưa chọn giải.", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return false;
         }
+        int soDo = chiTietGiaiDauService.findSoDo(idGiai, idNoiDung);
 
         var ndOpt = noiDungService.getNoiDungById(idNoiDung);
         boolean isTeam = ndOpt.isPresent() && Boolean.TRUE.equals(ndOpt.get().getTeam());
 
         if (isTeam) {
-
-            List<DangKiDoi> teams = dangKiDoiService.listTeams(idGiai, idNoiDung);
-            Collections.shuffle(teams);
-            List<com.example.btms.model.draw.BocThamDoi> rows = new ArrayList<>();
-            for (int i = 0; i < teams.size(); i++) {
-                var t = teams.get(i);
-                Integer idClb = t.getIdClb();
-                rows.add(new com.example.btms.model.draw.BocThamDoi(idGiai, idNoiDung,
-                        idClb == null ? 0 : idClb, t.getTenTeam(), i, 1));
+            if (soDo == 1) {
+                List<DangKiDoi> teams = dangKiDoiService.listTeams(idGiai, idNoiDung);
+                Collections.shuffle(teams);
+                List<BocThamDoi> rows = new ArrayList<>();
+                for (int i = 0; i < teams.size(); i++) {
+                    var t = teams.get(i);
+                    Integer idClb = t.getIdClb();
+                    rows.add(new BocThamDoi(idGiai, idNoiDung,
+                            idClb == null ? 0 : idClb, t.getTenTeam(), i, soDo));
+                }
+                bocThamDoiService.resetWithOrder(idGiai, idNoiDung, rows, soDo);
+            } else {
+                for (int i = 1; i <= soDo; i++) {
+                    if (bocThamDoiService.soDoExist(idGiai, idNoiDung, i)) {
+                        continue;
+                    } else {
+                        List<DangKiDoi> teams = dangKiDoiService.listTeams(idGiai, idNoiDung);
+                        Collections.shuffle(teams);
+                        List<BocThamDoi> rows = new ArrayList<>();
+                        for (int j = 0; j < teams.size(); j++) {
+                            var t = teams.get(j);
+                            Integer idClb = t.getIdClb();
+                            rows.add(new BocThamDoi(idGiai, idNoiDung,
+                                    idClb == null ? 0 : idClb, t.getTenTeam(), j, i));
+                        }
+                        bocThamDoiService.resetWithOrder(idGiai, idNoiDung, rows, i);
+                    }
+                }
             }
-            bocThamDoiService.resetWithOrder(idGiai, idNoiDung, rows);
         } else {
-            var regs = dangKiCaNhanService.listByGiaiAndNoiDung(idGiai, idNoiDung, null);
-            java.util.Collections.shuffle(regs);
-            var existed = bocThamCaNhanService.list(idGiai, idNoiDung);
-            for (var r : existed) {
-                bocThamCaNhanService.delete(idGiai, idNoiDung, r.getIdVdv());
-            }
-            for (int i = 0; i < regs.size(); i++) {
-                var r = regs.get(i);
-                bocThamCaNhanService.create(idGiai, idNoiDung, r.getIdVdv(), i, 1);
+            if (soDo == 1) {
+                var regs = dangKiCaNhanService.listByGiaiAndNoiDung(idGiai, idNoiDung, null);
+                Collections.shuffle(regs);
+                var existed = bocThamCaNhanService.list(idGiai, idNoiDung, soDo);
+                for (var r : existed) {
+                    bocThamCaNhanService.delete(idGiai, idNoiDung, r.getIdVdv());
+                }
+                for (int i = 0; i < regs.size(); i++) {
+                    var r = regs.get(i);
+                    bocThamCaNhanService.create(idGiai, idNoiDung, r.getIdVdv(), i, soDo);
+                }
+            } else {
+                for (int i = 1; i <= soDo; i++) {
+                    if (bocThamCaNhanService.soDoExist(idGiai, idNoiDung, i)) {
+                        continue;
+                    } else {
+                        var regs = dangKiCaNhanService.listByGiaiAndNoiDung(idGiai, idNoiDung, null);
+                        Collections.shuffle(regs);
+                        var existed = bocThamCaNhanService.list(idGiai, idNoiDung, i);
+                        for (var r : existed) {
+                            bocThamCaNhanService.delete(idGiai, idNoiDung, r.getIdVdv());
+                        }
+                        for (int j = 0; j < regs.size(); j++) {
+                            var r = regs.get(j);
+                            bocThamCaNhanService.create(idGiai, idNoiDung, r.getIdVdv(), j, i);
+                        }
+                    }
+                }
             }
         }
         return true;
@@ -2562,19 +2600,45 @@ public class MainFrame extends JFrame {
             // 3) Xoá danh sách bốc thăm (draws)
             try {
                 if (isTeam) {
-                    var drawList = bocThamDoiService.list(idGiai, idNoiDung);
-                    for (var r : drawList) {
-                        try {
-                            bocThamDoiService.delete(idGiai, idNoiDung, r.getThuTu());
-                        } catch (Exception ignore) {
+                    int soDo = chiTietGiaiDauService.findSoDo(idGiai, idNoiDung);
+                    if (soDo == 1) {
+                        var drawList = bocThamDoiService.list(idGiai, idNoiDung, soDo);
+                        for (var r : drawList) {
+                            try {
+                                bocThamDoiService.delete(idGiai, idNoiDung, r.getThuTu());
+                            } catch (Exception ignore) {
+                            }
+                        }
+                    } else {
+                        for (int i = 1; i <= soDo; i++) {
+                            var drawList = bocThamDoiService.list(idGiai, idNoiDung, i);
+                            for (var r : drawList) {
+                                try {
+                                    bocThamDoiService.delete(idGiai, idNoiDung, r.getThuTu());
+                                } catch (Exception ignore) {
+                                }
+                            }
                         }
                     }
                 } else {
-                    var drawList = bocThamCaNhanService.list(idGiai, idNoiDung);
-                    for (var r : drawList) {
-                        try {
-                            bocThamCaNhanService.delete(idGiai, idNoiDung, r.getIdVdv());
-                        } catch (Exception ignore) {
+                    int soDo = chiTietGiaiDauService.findSoDo(idGiai, idNoiDung);
+                    if (soDo == 1) {
+                        var drawList = bocThamCaNhanService.list(idGiai, idNoiDung, soDo);
+                        for (var r : drawList) {
+                            try {
+                                bocThamCaNhanService.delete(idGiai, idNoiDung, r.getIdVdv());
+                            } catch (Exception ignore) {
+                            }
+                        }
+                    } else {
+                        for (int i = 1; i <= soDo; i++) {
+                            var drawList = bocThamCaNhanService.list(idGiai, idNoiDung, i);
+                            for (var r : drawList) {
+                                try {
+                                    bocThamCaNhanService.delete(idGiai, idNoiDung, r.getIdVdv());
+                                } catch (Exception ignore) {
+                                }
+                            }
                         }
                     }
                 }
@@ -2603,7 +2667,7 @@ public class MainFrame extends JFrame {
             windowManager.openBracketWindow(service, this,
                     (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), 1, ni);
             windowManager.ensureBracketTab(service, cn.idNoiDung, cn.label, this);
-            com.example.btms.ui.bracket.SoDoThiDauPanel p = windowManager.getBracketPanelByNoiDungId(cn.idNoiDung);
+            SoDoThiDauPanel p = windowManager.getBracketPanelByNoiDungId(cn.idNoiDung);
             if (p != null) {
                 p.selectNoiDungById(cn.idNoiDung);
                 p.autoSeedFromDrawAndSave();
@@ -2690,9 +2754,9 @@ public class MainFrame extends JFrame {
                 try {
                     if (service != null && service.current() != null) {
                         var conn2 = service.current();
-                        java.util.Map<String, Integer>[] maps = noiDungService.getAllNoiDungType();
-                        java.util.Map<String, Integer> singles = maps[0];
-                        java.util.Map<String, Integer> doubles = maps[1];
+                        Map<String, Integer>[] maps = noiDungService.getAllNoiDungType();
+                        Map<String, Integer> singles = maps[0];
+                        Map<String, Integer> doubles = maps[1];
 
                         // Chỉ hiển thị các nội dung đã có bốc thăm rồi
                         Integer _tmpId = (selectedGiaiDau != null) ? selectedGiaiDau.getId() : null;
@@ -2701,22 +2765,30 @@ public class MainFrame extends JFrame {
                         // Cá nhân
                         for (var entry : singles.entrySet()) {
                             try {
-                                var list = bocThamCaNhanService.list(idGiai, entry.getValue());
-                                if (list != null && !list.isEmpty()) {
-                                    // Lấy số sơ đồ từ ChiTietGiaiDau
+                                int soDo = chiTietGiaiDauService.findSoDo(idGiai, entry.getValue());
+                                DefaultMutableTreeNode contentNode = new DefaultMutableTreeNode(
+                                        new ContentNode(entry.getKey(), entry.getValue()));
+                                if (soDo == 1) {
                                     var chiTiet = chiTietGiaiDauService.getOne(idGiai, entry.getValue());
-                                    int numBrackets = 1;
-                                    if (chiTiet != null && chiTiet.getSoDo() > 1) {
-                                        numBrackets = chiTiet.getSoDo();
+                                    int numBrackets = (chiTiet != null && chiTiet.getSoDo() > 1) ? chiTiet.getSoDo()
+                                            : 1;
+                                    var list = bocThamCaNhanService.list(idGiai, entry.getValue(), soDo);
+                                    if (list != null && !list.isEmpty()) {
+                                        for (int i = 1; i <= numBrackets; i++) {
+                                            contentNode.add(new DefaultMutableTreeNode(
+                                                    new BracketNode("Sơ đồ " + i, entry.getValue(), i)));
+                                        }
                                     }
-
-                                    DefaultMutableTreeNode contentNode = new DefaultMutableTreeNode(
-                                            new ContentNode(entry.getKey(), entry.getValue()));
-                                    for (int i = 1; i <= numBrackets; i++) {
-                                        contentNode.add(new DefaultMutableTreeNode(
-                                                new BracketNode("Sơ đồ " + i, entry.getValue(),
-                                                        i)));
+                                } else {
+                                    for (int i = 1; i <= soDo; i++) {
+                                        var list = bocThamCaNhanService.list(idGiai, entry.getValue(), i);
+                                        if (list != null && !list.isEmpty()) {
+                                            contentNode.add(new DefaultMutableTreeNode(
+                                                    new BracketNode("Sơ đồ " + i, entry.getValue(), i)));
+                                        }
                                     }
+                                }
+                                if (contentNode.getChildCount() > 0) {
                                     soDoNode.add(contentNode);
                                 }
                             } catch (Exception ignore2) {
@@ -2725,22 +2797,30 @@ public class MainFrame extends JFrame {
                         // Đội/Đôi
                         for (var entry : doubles.entrySet()) {
                             try {
-                                var list = bocThamDoiService.list(idGiai, entry.getValue());
-                                if (list != null && !list.isEmpty()) {
-                                    // Lấy số sơ đồ từ ChiTietGiaiDau
+                                int soDo = chiTietGiaiDauService.findSoDo(idGiai, entry.getValue());
+                                DefaultMutableTreeNode contentNode = new DefaultMutableTreeNode(
+                                        new ContentNode(entry.getKey(), entry.getValue()));
+                                if (soDo == 1) {
                                     var chiTiet = chiTietGiaiDauService.getOne(idGiai, entry.getValue());
-                                    int numBrackets = 1;
-                                    if (chiTiet != null && chiTiet.getSoDo() > 1) {
-                                        numBrackets = chiTiet.getSoDo();
+                                    int numBrackets = (chiTiet != null && chiTiet.getSoDo() > 1) ? chiTiet.getSoDo()
+                                            : 1;
+                                    var list = bocThamDoiService.list(idGiai, entry.getValue(), soDo);
+                                    if (list != null && !list.isEmpty()) {
+                                        for (int i = 1; i <= numBrackets; i++) {
+                                            contentNode.add(new DefaultMutableTreeNode(
+                                                    new BracketNode("Sơ đồ " + i, entry.getValue(), i)));
+                                        }
                                     }
-
-                                    DefaultMutableTreeNode contentNode = new DefaultMutableTreeNode(
-                                            new ContentNode(entry.getKey(), entry.getValue()));
-                                    for (int i = 1; i <= numBrackets; i++) {
-                                        contentNode.add(new DefaultMutableTreeNode(
-                                                new BracketNode("Sơ đồ " + i, entry.getValue(),
-                                                        i)));
+                                } else {
+                                    for (int i = 1; i <= soDo; i++) {
+                                        var list = bocThamDoiService.list(idGiai, entry.getValue(), i);
+                                        if (list != null && !list.isEmpty()) {
+                                            contentNode.add(new DefaultMutableTreeNode(
+                                                    new BracketNode("Sơ đồ " + i, entry.getValue(), i)));
+                                        }
                                     }
+                                }
+                                if (contentNode.getChildCount() > 0) {
                                     soDoNode.add(contentNode);
                                 }
                             } catch (Exception ignore2) {
@@ -2778,29 +2858,52 @@ public class MainFrame extends JFrame {
                 DefaultMutableTreeNode soDoNode = new DefaultMutableTreeNode("Sơ đồ thi đấu");
                 try {
                     if (service != null && service.current() != null) {
-                        java.util.Map<String, Integer>[] maps = noiDungService.getAllNoiDungType();
-                        java.util.Map<String, Integer> singles = maps[0];
-                        java.util.Map<String, Integer> doubles = maps[1];
+                        Map<String, Integer>[] maps = noiDungService.getAllNoiDungType();
+                        Map<String, Integer> singles = maps[0];
+                        Map<String, Integer> doubles = maps[1];
 
                         Integer _tmpId = (selectedGiaiDau != null) ? selectedGiaiDau.getId() : null;
                         int idGiai = (_tmpId != null) ? _tmpId : -1;
 
                         for (var entry : singles.entrySet()) {
                             try {
-                                var list = bocThamCaNhanService.list(idGiai, entry.getValue());
-                                if (list != null && !list.isEmpty()) {
-                                    soDoNode.add(new DefaultMutableTreeNode(
-                                            new ContentNode(entry.getKey(), entry.getValue())));
+                                int soDo = chiTietGiaiDauService.findSoDo(idGiai, entry.getValue());
+                                if (soDo == 1) {
+
+                                    var list = bocThamCaNhanService.list(idGiai, entry.getValue(), soDo);
+                                    if (list != null && !list.isEmpty()) {
+                                        soDoNode.add(new DefaultMutableTreeNode(
+                                                new ContentNode(entry.getKey(), entry.getValue())));
+                                    }
+                                } else {
+
                                 }
                             } catch (Exception ignore2) {
                             }
                         }
                         for (var entry : doubles.entrySet()) {
                             try {
-                                var list = bocThamDoiService.list(idGiai, entry.getValue());
-                                if (list != null && !list.isEmpty()) {
-                                    soDoNode.add(new DefaultMutableTreeNode(
-                                            new ContentNode(entry.getKey(), entry.getValue())));
+                                int soDo = chiTietGiaiDauService.findSoDo(idGiai, entry.getValue());
+                                if (soDo == 1) {
+                                    var list = bocThamDoiService.list(idGiai, entry.getValue(), soDo);
+                                    if (list != null && !list.isEmpty()) {
+                                        soDoNode.add(new DefaultMutableTreeNode(
+                                                new ContentNode(entry.getKey(), entry.getValue())));
+                                    }
+                                } else {
+                                    // Nhiều sơ đồ
+                                    boolean hasDraw = false;
+                                    for (int i = 1; i <= soDo; i++) {
+                                        var list = bocThamDoiService.list(idGiai, entry.getValue(), i);
+                                        if (list != null && !list.isEmpty()) {
+                                            hasDraw = true;
+                                            break;
+                                        }
+                                    }
+                                    if (hasDraw) {
+                                        soDoNode.add(new DefaultMutableTreeNode(
+                                                new ContentNode(entry.getKey(), entry.getValue())));
+                                    }
                                 }
                             } catch (Exception ignore2) {
                             }

@@ -34,8 +34,8 @@ public class BocThamDoiService {
         return r;
     }
 
-    public List<BocThamDoi> list(int idGiai, int idNoiDung) {
-        return repo.listBy(idGiai, idNoiDung);
+    public List<BocThamDoi> list(int idGiai, int idNoiDung, int soDo) {
+        return repo.listBy(idGiai, idNoiDung, soDo);
     }
 
     public void update(int idGiai, int idNoiDung, int thuTu,
@@ -65,7 +65,7 @@ public class BocThamDoiService {
      * Ghi danh sách đội theo thứ tự bốc thăm đã cho (transaction).
      * Xoá hết cũ rồi ghi mới để đảm bảo sạch dữ liệu.
      */
-    public void resetWithOrder(int idGiai, int idNoiDung, List<BocThamDoi> rows) {
+    public void resetWithOrder(int idGiai, int idNoiDung, List<BocThamDoi> rows, int soDo) {
         Objects.requireNonNull(rows, "rows null");
         boolean oldAuto = true;
         try {
@@ -73,7 +73,7 @@ public class BocThamDoiService {
             conn.setAutoCommit(false);
 
             // xóa toàn bộ
-            for (BocThamDoi r : repo.listBy(idGiai, idNoiDung)) {
+            for (BocThamDoi r : repo.listBy(idGiai, idNoiDung, soDo)) {
                 repo.delete(idGiai, idNoiDung, r.getThuTu());
             }
             // chèn lại
@@ -107,13 +107,24 @@ public class BocThamDoiService {
      * Bốc thăm ngẫu nhiên từ danh sách đội (tên + ID_CLB tùy chọn), auto THU_TU từ
      * 1..n.
      */
-    public void shuffleAndInsert(int idGiai, int idNoiDung, List<BocThamDoi> teams) {
+    public void shuffleAndInsert(int idGiai, int idNoiDung, List<BocThamDoi> teams, int soDo) {
         Collections.shuffle(teams, new Random());
-        resetWithOrder(idGiai, idNoiDung, teams);
+        resetWithOrder(idGiai, idNoiDung, teams, soDo);
     }
 
     public int getSoDo(int idGiai, int idNoiDung, int idClb) {
         return repo.getSoDo(idGiai, idNoiDung, idClb);
+    }
+
+    public boolean soDoExist(int idGiai, int idNoiDung, int soDo) {
+        return repo.soDoExist(idGiai, idNoiDung, soDo);
+    }
+
+    /**
+     * Lấy tất cả dữ liệu bốc thăm từ tất cả sơ đồ (không filter theo soDo)
+     */
+    public List<BocThamDoi> listAll(int idGiai, int idNoiDung) {
+        return repo.listAll(idGiai, idNoiDung);
     }
 
     /* ===== helpers ===== */
