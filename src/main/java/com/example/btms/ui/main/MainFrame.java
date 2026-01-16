@@ -2369,8 +2369,8 @@ public class MainFrame extends JFrame {
                                             : new com.example.btms.config.Prefs().get("selectedGiaiDauName",
                                                     "giai-dau");
 
-                            String safe = normalizeFileNameUnderscore(tour);
-                            fc.setSelectedFile(new java.io.File(safe + "_so_do_thi_dau.pdf"));
+                            String safe = tour.replaceAll("[<>:\"/\\|?*]", "");
+                            fc.setSelectedFile(new java.io.File(safe + "_Sơ_Đồ_Thi_Đấu.pdf"));
                             int r = fc.showSaveDialog(this);
                             if (r != javax.swing.JFileChooser.APPROVE_OPTION) {
                                 return;
