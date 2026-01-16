@@ -61,7 +61,7 @@ public final class RegistrationPdfExporter {
     public static void exportAll(Connection conn, int idGiai, File out, String giaiName) throws Exception {
         Data d = loadData(conn, idGiai);
         try (FileOutputStream fos = new FileOutputStream(out)) {
-            Document doc = new Document(PageSize.A4, 36f, 36f, 90f, 36f); // giấy dọc (portrait) + top margin for header
+            Document doc = new Document(PageSize.A4, 10f, 10f, 150f, 36f); // giấy dọc (portrait) + top margin for
             PdfWriter writer = PdfWriter.getInstance(doc, fos);
             writer.setPageEvent(new HeaderEvent(giaiName, "DANH SÁCH ĐĂNG KÝ (ĐƠN + ĐÔI) - TẤT CẢ"));
             doc.open();
@@ -86,7 +86,7 @@ public final class RegistrationPdfExporter {
     public static void exportByClub(Connection conn, int idGiai, File out, String giaiName) throws Exception {
         Data d = loadData(conn, idGiai);
         try (FileOutputStream fos = new FileOutputStream(out)) {
-            Document doc = new Document(PageSize.A4, 36f, 36f, 90f, 36f); // giấy dọc (portrait) + top margin for header
+            Document doc = new Document(PageSize.A4, 10f, 10f, 150f, 36f); // giấy dọc (portrait) + top margin for
             PdfWriter writer = PdfWriter.getInstance(doc, fos);
             writer.setPageEvent(new HeaderEvent(giaiName, "DANH SÁCH ĐĂNG KÝ THEO CLB (ĐƠN + ĐÔI)"));
             doc.open();
@@ -130,15 +130,13 @@ public final class RegistrationPdfExporter {
     public static void exportByNoiDung(Connection conn, int idGiai, File out, String giaiName) throws Exception {
         Data d = loadData(conn, idGiai);
         try (FileOutputStream fos = new FileOutputStream(out)) {
-            Document doc = new Document(PageSize.A4, 36f, 36f, 90f, 36f); // giấy dọc (portrait) + top margin for header
+            Document doc = new Document(PageSize.A4, 10f, 10f, 150f, 36f); // giấy dọc (portrait) + top margin for
             PdfWriter writer = PdfWriter.getInstance(doc, fos);
             writer.setPageEvent(new HeaderEvent(giaiName, "DANH SÁCH ĐĂNG KÝ THEO NỘI DUNG (ĐƠN + ĐÔI)"));
             doc.open();
+            boolean isFirstPage = true;
             for (int idx = 0; idx < d.noiDungs.size(); idx++) {
                 NoiDung nd = d.noiDungs.get(idx);
-                if (idx > 0) {
-                    doc.newPage();
-                }
                 List<Row> rows = new ArrayList<>();
                 // ĐÔI
                 rows.addAll(d.teamsByNoiDung.getOrDefault(nd.getId(), List.of())
@@ -146,6 +144,17 @@ public final class RegistrationPdfExporter {
                 // ĐƠN
                 rows.addAll(d.singlesByNoiDung.getOrDefault(nd.getId(), List.of())
                         .stream().map(r -> toRowSingle(d, nd, r)).collect(Collectors.toList()));
+
+                // Skip nội dung không có VĐV nào
+                if (rows.isEmpty()) {
+                    continue;
+                }
+
+                if (!isFirstPage) {
+                    doc.newPage();
+                }
+                isFirstPage = false;
+
                 Paragraph sec = new Paragraph("• Nội dung: " + safe(nd.getTenNoiDung()) + " (" + rows.size() + ")",
                         d.fontSection);
                 sec.setSpacingBefore(8f);
@@ -291,8 +300,8 @@ public final class RegistrationPdfExporter {
         HeaderEvent(String giaiName, String title) {
             this.tournamentName = safe(giaiName);
             this.exportTitle = safe(title);
-            this.tournamentFont = docFont(18, Font.BOLD);
-            this.exportFont = docFont(12, Font.BOLD);
+            this.tournamentFont = docFont(15f, Font.BOLD); // Giảm từ 18pt xuống 15pt
+            this.exportFont = docFont(10f, Font.BOLD); // Giảm từ 12pt xuống 10pt
             try {
                 Prefs prefs = new Prefs();
                 String leftPath = prefs.get("report.logo.path", "");
@@ -319,22 +328,15 @@ public final class RegistrationPdfExporter {
             float pageWidth = page.getWidth();
             float leftMargin = document.leftMargin();
             float rightMargin = document.rightMargin();
-            float topY = page.getHeight() - 12f; // 12pt from top edge
+            float topY = page.getHeight() - 5f; // 12pt from top edge
+            float maxLogoWLeft = (pageWidth - leftMargin - rightMargin) * 1f; // Logo trái to hơn
+            float maxLogoWRight = (pageWidth - leftMargin - rightMargin) * 3f; // Logo phải bình thường
+            float maxLogoH = 70f;
 
-            // Tournament name centered (first line)
-            ColumnText.showTextAligned(writer.getDirectContent(), Element.ALIGN_CENTER,
-                    new Phrase(this.tournamentName, this.tournamentFont), pageWidth / 2f, topY - 16f, 0);
-            // Export title centered (second line)
-            ColumnText.showTextAligned(writer.getDirectContent(), Element.ALIGN_CENTER,
-                    new Phrase(this.exportTitle, this.exportFont), pageWidth / 2f, topY - 36f, 0);
-
-            // Optional left logo (tournament/organization)
             if (leftLogo != null) {
                 try {
                     Image img = Image.getInstance(leftLogo);
-                    float maxW = (pageWidth - leftMargin - rightMargin) * 0.15f;
-                    float maxH = 60f;
-                    img.scaleToFit(maxW, maxH);
+                    img.scaleToFit(maxLogoWLeft, maxLogoH);
                     float x = leftMargin;
                     float y = topY - img.getScaledHeight();
                     img.setAbsolutePosition(x, y);
@@ -343,13 +345,11 @@ public final class RegistrationPdfExporter {
                 }
             }
 
-            // Optional right logo (sponsor)
+            // Right logo (sponsor) - top right
             if (rightLogo != null) {
                 try {
                     Image img = Image.getInstance(rightLogo);
-                    float maxW = (pageWidth - leftMargin - rightMargin) * 0.15f;
-                    float maxH = 60f;
-                    img.scaleToFit(maxW, maxH);
+                    img.scaleToFit(maxLogoWRight, maxLogoH);
                     float x = pageWidth - rightMargin - img.getScaledWidth();
                     float y = topY - img.getScaledHeight();
                     img.setAbsolutePosition(x, y);
@@ -357,6 +357,14 @@ public final class RegistrationPdfExporter {
                 } catch (DocumentException ignore) {
                 }
             }
+
+            // Tournament name centered (middle of page, below logos)
+            float textStartY = topY - 90f; // Space after logos
+            ColumnText.showTextAligned(writer.getDirectContent(), Element.ALIGN_CENTER,
+                    new Phrase(this.tournamentName, this.tournamentFont), pageWidth / 2f, textStartY, 0);
+            // Export title centered (below tournament name)
+            ColumnText.showTextAligned(writer.getDirectContent(), Element.ALIGN_CENTER,
+                    new Phrase(this.exportTitle, this.exportFont), pageWidth / 2f, textStartY - 18f, 0);
         }
     }
 
@@ -379,14 +387,14 @@ public final class RegistrationPdfExporter {
 
     private static PdfPTable buildTable(Font fontHeader) {
         // Điều chỉnh tỉ lệ cột cho giấy dọc: tổng = 100
-        float[] widths = { 6f, 20f, 22f, 26f, 26f }; // STT, Nội dung, CLB, Tên đội, Thành viên
+        float[] widths = { 5f, 25f, 18f, 22f, 30f }; // STT, Nội dung, CLB, Tên đội, Thành viên
         PdfPTable t = new PdfPTable(widths);
         t.setWidthPercentage(100);
         t.setHeaderRows(1);
         addHeaderCell(t, "STT", fontHeader);
         addHeaderCell(t, "Nội dung", fontHeader);
         addHeaderCell(t, "CLB", fontHeader);
-        addHeaderCell(t, "Tên đội", fontHeader);
+        addHeaderCell(t, "Tên đội/ Vận động viên", fontHeader);
         addHeaderCell(t, "Thành viên", fontHeader);
         return t;
     }

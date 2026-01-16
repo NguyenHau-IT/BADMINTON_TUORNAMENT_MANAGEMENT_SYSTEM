@@ -2,8 +2,6 @@ package com.example.btms.util.report;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -33,14 +31,15 @@ public final class ClubFeesPdfExporter {
     }
 
     public static void export(File outputFile, String tournamentName,
-            Map<Integer, ClubFeeInfo> clubFees, ClubFeesService clubFeesService, Integer tournamentId)
+            Map<Integer, ClubFeeInfo> clubFees, ClubFeesService clubFeesService, Integer tournamentId,
+            long firstEventFee, long subsequentEventFee)
             throws Exception {
         try (FileOutputStream fos = new FileOutputStream(outputFile)) {
-            Document doc = new Document(PageSize.A4, 36f, 36f, 90f, 36f);
+            Document doc = new Document(PageSize.A4, 36f, 36f, 150f, 36f); // Tăng top margin lên 150f
             PdfWriter writer = PdfWriter.getInstance(doc, fos);
 
             // Set up header
-            writer.setPageEvent(new HeaderEvent(tournamentName));
+            writer.setPageEvent(new HeaderEvent(tournamentName, "BÁO CÁO LỆ PHÍ THEO CÂU LẠC BỘ"));
             doc.open();
 
             // Thêm tiêu đề
@@ -71,23 +70,8 @@ public final class ClubFeesPdfExporter {
             titleFont = new Font(baseFont, 16, Font.BOLD);
             headerFont = new Font(baseFont, 11, Font.BOLD);
             normalFont = new Font(baseFont, 10);
+
             boldFont = new Font(baseFont, 10, Font.BOLD);
-
-            Paragraph title = new Paragraph("BÁO CÁO LỆ PHÍ THEO CÂU LẠC BỘ", titleFont);
-            title.setAlignment(Element.ALIGN_CENTER);
-            doc.add(title);
-
-            Paragraph subtitle = new Paragraph("Giải: " + tournamentName, normalFont);
-            subtitle.setAlignment(Element.ALIGN_CENTER);
-            doc.add(subtitle);
-
-            Paragraph date = new Paragraph("Ngày xuất: " +
-                    LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
-                    normalFont);
-            date.setAlignment(Element.ALIGN_CENTER);
-            doc.add(date);
-
-            doc.add(new Paragraph("\n"));
 
             // Tạo bảng
             PdfPTable table = createTable(headerFont, normalFont, boldFont);
@@ -146,7 +130,8 @@ public final class ClubFeesPdfExporter {
             // Thêm chú thích
             doc.add(new Paragraph("\n"));
             Paragraph notes = new Paragraph(
-                    "Chú thích: Nội dung đầu tiên: 200 000 đ/VĐV | Nội dung thứ 2 trở đi: 100 000 đ/nội dung/VĐV",
+                    "Chú thích: Nội dung đầu tiên: " + formatMoney(firstEventFee) + " đ/VĐV | Nội dung thứ 2 trở đi: "
+                            + formatMoney(subsequentEventFee) + " đ/nội dung/VĐV",
                     normalFont);
             notes.setAlignment(Element.ALIGN_LEFT);
             doc.add(notes);
@@ -154,7 +139,7 @@ public final class ClubFeesPdfExporter {
             // Thêm chi tiết từng câu lạc bộ (trang 2 trở đi)
             if (clubFeesService != null && tournamentId != null) {
                 addClubDetails(doc, clubFees, clubFeesService, tournamentId, titleFont, headerFont, normalFont,
-                        boldFont);
+                        boldFont, firstEventFee, subsequentEventFee);
             }
 
             doc.close();
@@ -199,7 +184,8 @@ public final class ClubFeesPdfExporter {
      */
     private static void addClubDetails(Document doc, Map<Integer, ClubFeeInfo> clubFees,
             ClubFeesService clubFeesService, Integer tournamentId,
-            Font titleFont, Font headerFont, Font normalFont, Font boldFont) throws Exception {
+            Font titleFont, Font headerFont, Font normalFont, Font boldFont,
+            long firstEventFee, long subsequentEventFee) throws Exception {
 
         for (Map.Entry<Integer, ClubFeeInfo> entry : clubFees.entrySet()) {
             Integer clubId = entry.getKey();
@@ -245,77 +231,71 @@ public final class ClubFeesPdfExporter {
                     }
 
                     // Tính phí cho mỗi VĐV (200k cho nội dung đầu, 100k cho nội dung tiếp theo)
-                    Map<String, Integer> playerEventCount = new java.util.LinkedHashMap<>();
-                    Map<String, Long> playerFees = new java.util.LinkedHashMap<>();
-                    java.util.List<String> playerOrder = new java.util.ArrayList<>();
+                    Map<String, java.util.List<String>> playerContents = new java.util.LinkedHashMap<>();
+                    Map<String, String> playerOrder = new java.util.LinkedHashMap<>();
 
                     for (Map<String, Object> item : clubDetails) {
                         String playerName = (String) item.get("playerName");
                         if (playerName == null)
                             playerName = "Unknown";
-
-                        if (!playerEventCount.containsKey(playerName)) {
-                            playerEventCount.put(playerName, 0);
-                            playerFees.put(playerName, 0L);
-                            playerOrder.add(playerName);
-                        }
-
-                        int eventCount = playerEventCount.get(playerName);
-                        long currentFee = playerFees.get(playerName);
-
-                        // Tính phí: 200k cho nội dung đầu, 100k cho nội dung tiếp theo
-                        long eventFee = eventCount == 0 ? 200000L : 100000L;
-                        playerFees.put(playerName, currentFee + eventFee);
-                        playerEventCount.put(playerName, eventCount + 1);
-                    }
-
-                    // Chi tiết - hiển thị từng nội dung cho từng VĐV
-                    int rowNum = 1;
-                    String lastPlayerName = null;
-                    int playerRowStart = 0;
-                    int playerRowCount = 0;
-
-                    for (int i = 0; i < clubDetails.size(); i++) {
-                        Map<String, Object> item = clubDetails.get(i);
-                        String playerName = (String) item.get("playerName");
-                        if (playerName == null)
-                            playerName = "Unknown";
-
                         String contentName = (String) item.get("contentName");
                         if (contentName == null)
                             contentName = "Unknown";
 
-                        // Thêm số thứ tự
-                        PdfPCell numCell = new PdfPCell(new Phrase(String.valueOf(rowNum), normalFont));
-                        numCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                        numCell.setPadding(8);
-                        numCell.setMinimumHeight(20);
-                        detailTable.addCell(numCell);
+                        playerOrder.put(playerName, playerName);
+                        playerContents.computeIfAbsent(playerName, k -> new java.util.ArrayList<>()).add(contentName);
+                    }
 
-                        // Thêm tên VĐV
-                        PdfPCell nameCell = new PdfPCell(new Phrase(playerName, normalFont));
-                        nameCell.setHorizontalAlignment(Element.ALIGN_LEFT);
-                        nameCell.setPadding(8);
-                        nameCell.setMinimumHeight(20);
-                        detailTable.addCell(nameCell);
+                    // Chi tiết - hiển thị từng nội dung cho từng VĐV
+                    int rowNum = 1;
+                    long clubTotal = 0;
 
-                        // Thêm nội dung
-                        PdfPCell contentCell = new PdfPCell(new Phrase(contentName, normalFont));
-                        contentCell.setHorizontalAlignment(Element.ALIGN_LEFT);
-                        contentCell.setPadding(8);
-                        contentCell.setMinimumHeight(20);
-                        detailTable.addCell(contentCell);
+                    for (String playerName : playerOrder.keySet()) {
+                        java.util.List<String> contents = playerContents.get(playerName);
+                        int eventCount = contents.size();
 
-                        // Thêm phí (sẽ merge sau cho VĐV có nhiều nội dung)
-                        PdfPCell feeCell = new PdfPCell(
-                                new Phrase(formatMoney(playerFees.get(playerName)), normalFont));
-                        feeCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                        feeCell.setRowspan(playerEventCount.get(playerName));
-                        feeCell.setPadding(8);
-                        feeCell.setMinimumHeight(20);
-                        detailTable.addCell(feeCell);
+                        // Tính phí cho VĐV này
+                        long playerTotalFee = com.example.btms.util.fees.FeesCalculator.calculateFeeForPlayer(
+                                eventCount,
+                                firstEventFee, subsequentEventFee);
 
-                        rowNum++;
+                        // Hiển thị từng nội dung
+                        for (int i = 0; i < contents.size(); i++) {
+                            String contentName = contents.get(i);
+                            long contentFee = i == 0 ? firstEventFee : subsequentEventFee;
+
+                            // STT
+                            PdfPCell numCell = new PdfPCell(new Phrase(String.valueOf(rowNum), normalFont));
+                            numCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                            numCell.setPadding(8);
+                            numCell.setMinimumHeight(20);
+                            detailTable.addCell(numCell);
+
+                            // Tên VĐV
+                            PdfPCell nameCell = new PdfPCell(new Phrase(playerName, normalFont));
+                            nameCell.setHorizontalAlignment(Element.ALIGN_LEFT);
+                            nameCell.setPadding(8);
+                            nameCell.setMinimumHeight(20);
+                            detailTable.addCell(nameCell);
+
+                            // Nội dung
+                            PdfPCell contentCell = new PdfPCell(new Phrase(contentName, normalFont));
+                            contentCell.setHorizontalAlignment(Element.ALIGN_LEFT);
+                            contentCell.setPadding(8);
+                            contentCell.setMinimumHeight(20);
+                            detailTable.addCell(contentCell);
+
+                            // Phí từng nội dung
+                            PdfPCell feeCell = new PdfPCell(new Phrase(formatMoney(contentFee), normalFont));
+                            feeCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                            feeCell.setPadding(8);
+                            feeCell.setMinimumHeight(20);
+                            detailTable.addCell(feeCell);
+
+                            rowNum++;
+                        }
+
+                        clubTotal += playerTotalFee;
                     }
 
                     // Hàng tổng cộng
@@ -350,131 +330,110 @@ public final class ClubFeesPdfExporter {
      */
     private static class HeaderEvent extends PdfPageEventHelper {
         private String title;
+        private String subtitle;
+        private Image leftLogo;
+        private Image rightLogo;
+        private Font titleFont;
+        private Font subtitleFont;
 
-        public HeaderEvent(String title) {
+        public HeaderEvent(String title, String subtitle) {
             this.title = title;
-        }
+            this.subtitle = subtitle;
 
-        @Override
-        public void onStartPage(PdfWriter writer, Document document) {
+            // Load logos từ preferences
             try {
-                // Tạo bảng header với logo và tiêu đề
-                PdfPTable headerTable = new PdfPTable(3);
-                headerTable.setTotalWidth(document.getPageSize().getWidth() - 72); // 36pt margin mỗi bên
-                headerTable.setLockedWidth(true);
-                headerTable.setWidths(new float[] { 1, 2, 1 });
-
-                // Logo ứng dụng bên trái
-                try {
-                    String appLogoPath = getLogoPath("report.logo.path");
-                    if (appLogoPath != null && !appLogoPath.isBlank()) {
-                        File logoFile = new File(appLogoPath);
-                        if (logoFile.exists()) {
-                            Image appLogo = Image.getInstance(logoFile.getAbsolutePath());
-                            appLogo.scaleToFit(110, 110);
-                            PdfPCell logoCell = new PdfPCell(appLogo);
-                            logoCell.setBorder(0);
-                            logoCell.setHorizontalAlignment(Element.ALIGN_LEFT);
-                            logoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-                            headerTable.addCell(logoCell);
-                        } else {
-                            PdfPCell emptyCell = new PdfPCell();
-                            emptyCell.setBorder(0);
-                            headerTable.addCell(emptyCell);
-                        }
-                    } else {
-                        PdfPCell emptyCell = new PdfPCell();
-                        emptyCell.setBorder(0);
-                        headerTable.addCell(emptyCell);
-                    }
-                } catch (Exception e) {
-                    PdfPCell emptyCell = new PdfPCell();
-                    emptyCell.setBorder(0);
-                    headerTable.addCell(emptyCell);
+                Prefs prefs = new Prefs();
+                String leftPath = prefs.get("report.logo.path", "");
+                if (leftPath != null && !leftPath.isBlank()) {
+                    this.leftLogo = Image.getInstance(leftPath);
                 }
-
-                // Tiêu đề ở giữa
-                Phrase titlePhrase = new Phrase(title, new Font(Font.HELVETICA, 12, Font.BOLD));
-                PdfPCell titleCell = new PdfPCell(titlePhrase);
-                titleCell.setBorder(0);
-                titleCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                titleCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-                headerTable.addCell(titleCell);
-
-                // Logo nhà tài trợ bên phải
-                try {
-                    String sponsorLogoPath = getLogoPath("report.sponsor.logo.path");
-                    if (sponsorLogoPath != null && !sponsorLogoPath.isBlank()) {
-                        File sponsorFile = new File(sponsorLogoPath);
-                        if (sponsorFile.exists()) {
-                            Image sponsorLogo = Image.getInstance(sponsorFile.getAbsolutePath());
-                            sponsorLogo.scaleToFit(80, 80);
-                            PdfPCell sponsorCell = new PdfPCell(sponsorLogo);
-                            sponsorCell.setBorder(0);
-                            sponsorCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                            sponsorCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-                            headerTable.addCell(sponsorCell);
-                        } else {
-                            PdfPCell emptyCell = new PdfPCell();
-                            emptyCell.setBorder(0);
-                            headerTable.addCell(emptyCell);
-                        }
-                    } else {
-                        PdfPCell emptyCell = new PdfPCell();
-                        emptyCell.setBorder(0);
-                        headerTable.addCell(emptyCell);
-                    }
-                } catch (Exception e) {
-                    PdfPCell emptyCell = new PdfPCell();
-                    emptyCell.setBorder(0);
-                    headerTable.addCell(emptyCell);
-                }
-
-                // Vẽ header
-                headerTable.writeSelectedRows(0, -1, 36, document.getPageSize().getHeight() - 30,
-                        writer.getDirectContent());
-
-            } catch (Exception e) {
-                e.printStackTrace();
+            } catch (Exception ignore) {
+                this.leftLogo = null;
             }
+
+            try {
+                Prefs prefs = new Prefs();
+                String rightPath = prefs.get("report.sponsor.logo.path", "");
+                if (rightPath != null && !rightPath.isBlank()) {
+                    this.rightLogo = Image.getInstance(rightPath);
+                }
+            } catch (Exception ignore) {
+                this.rightLogo = null;
+            }
+
+            // Setup fonts
+            this.titleFont = docFont(15f, Font.BOLD); // Giảm từ 16pt xuống 15pt
+            this.subtitleFont = docFont(10f, Font.BOLD); // Giảm từ 12pt xuống 10pt
         }
 
         @Override
         public void onEndPage(PdfWriter writer, Document document) {
             try {
-                // Thêm số trang ở footer
-                int pageNumber = writer.getPageNumber();
-                String text = "Trang " + pageNumber;
+                com.lowagie.text.Rectangle page = document.getPageSize();
+                float pageWidth = page.getWidth();
+                float leftMargin = document.leftMargin();
+                float rightMargin = document.rightMargin();
+                float topY = page.getHeight() - 5f; // 12pt from top edge
+                float maxLogoWLeft = (pageWidth - leftMargin - rightMargin) * 1f; // Logo trái to hơn
+                float maxLogoWRight = (pageWidth - leftMargin - rightMargin) * 3f; // Logo phải bình thường
+                float maxLogoH = 70f;
 
-                // Tạo font cho số trang
-                BaseFont baseFont = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, false);
-                Font pageFont = new Font(baseFont, 9);
+                // Left logo (tournament/organization) - top left, larger
+                if (leftLogo != null) {
+                    try {
+                        Image img = Image.getInstance(leftLogo);
+                        img.scaleToFit(maxLogoWLeft, maxLogoH);
+                        float x = leftMargin;
+                        float y = topY - img.getScaledHeight();
+                        img.setAbsolutePosition(x, y);
+                        writer.getDirectContent().addImage(img);
+                    } catch (Exception ignore) {
+                    }
+                }
 
-                Phrase pagePhrase = new Phrase(text, pageFont);
+                // Right logo (sponsor) - top right
+                if (rightLogo != null) {
+                    try {
+                        Image img = Image.getInstance(rightLogo);
+                        img.scaleToFit(maxLogoWRight, maxLogoH);
+                        float x = pageWidth - rightMargin - img.getScaledWidth();
+                        float y = topY - img.getScaledHeight();
+                        img.setAbsolutePosition(x, y);
+                        writer.getDirectContent().addImage(img);
+                    } catch (Exception ignore) {
+                    }
+                }
 
-                // Vị trí footer: giữa trang, cách đáy 20pt
-                float x = (document.getPageSize().getLeft() + document.getPageSize().getRight()) / 2;
-                float y = document.getPageSize().getBottom() + 20;
-
-                com.lowagie.text.pdf.ColumnText.showTextAligned(
-                        writer.getDirectContent(),
+                // Title centered (middle of page, below logos)
+                float textStartY = topY - 90f; // Space after logos
+                com.lowagie.text.pdf.ColumnText.showTextAligned(writer.getDirectContent(),
                         Element.ALIGN_CENTER,
-                        pagePhrase,
-                        x, y, 0);
+                        new Phrase(this.title, this.titleFont), pageWidth / 2f, textStartY, 0);
+
+                // Subtitle centered (below title)
+                com.lowagie.text.pdf.ColumnText.showTextAligned(writer.getDirectContent(),
+                        Element.ALIGN_CENTER,
+                        new Phrase(this.subtitle, this.subtitleFont), pageWidth / 2f, textStartY - 18f, 0);
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
 
-        /**
-         * Lấy đường dẫn logo từ preferences
-         * Sử dụng 2 prefs:
-         * - report.logo.path: Logo giải/báo cáo (bên trái header)
-         * - report.sponsor.logo.path: Logo nhà tài trợ (bên phải header)
-         * Trả về null nếu pref không được set
-         */
-        private String getLogoPath(String prefKey) {
-            return new Prefs().get(prefKey, null);
+        private static Font docFont(float size, int style) {
+            try {
+                com.lowagie.text.FontFactory.registerDirectories();
+                Font f = com.lowagie.text.FontFactory.getFont("Times New Roman", BaseFont.IDENTITY_H,
+                        BaseFont.EMBEDDED, size, style);
+                if (f != null && f.getBaseFont() != null)
+                    return f;
+            } catch (Exception ignore) {
+            }
+            try {
+                BaseFont bf = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, BaseFont.NOT_EMBEDDED);
+                return new Font(bf, size, style);
+            } catch (Exception e) {
+                return new Font(Font.HELVETICA, size, style);
+            }
         }
     }
 }

@@ -1502,8 +1502,10 @@ public class SoDoThiDauPanel extends JPanel {
         String ten = new Prefs().get("selectedGiaiDauName", "giai-dau");
         String ndLabel = lblNoiDungValue.getText();
         if (ndLabel == null || ndLabel.isBlank())
-            ndLabel = "noi-dung";
-        String base = normalizeFileName(ten) + "_so-do-thi-dau_" + normalizeFileName(ndLabel) + ".pdf";
+            ndLabel = "nội dung";
+        // Giữ dấu, chỉ xóa ký tự không hợp lệ trong tên file
+        String base = ten + "_" + ndLabel + ".pdf";
+        base = base.replaceAll("[<>:\"/\\|?*]", "_");
         return base;
     }
 

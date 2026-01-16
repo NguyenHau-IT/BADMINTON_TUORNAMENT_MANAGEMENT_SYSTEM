@@ -53,6 +53,19 @@ public class ChiTietDoiRepository {
         return out;
     }
 
+    public List<ChiTietDoi> findAll() {
+        final String sql = "SELECT ID_TEAM, ID_VDV FROM CHI_TIET_DOI ORDER BY ID_TEAM";
+        List<ChiTietDoi> out = new ArrayList<>();
+        try (Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next())
+                out.add(new ChiTietDoi(rs.getInt(1), rs.getInt(2)));
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi lấy tất cả chi tiết đội", e);
+        }
+        return out;
+    }
+
     public void removeMember(int idTeam, int idVdv) {
         final String sql = "DELETE FROM CHI_TIET_DOI WHERE ID_TEAM=? AND ID_VDV=?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {

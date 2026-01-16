@@ -139,11 +139,15 @@ public class BaoCaoPdfPanel extends JPanel {
 
             JFileChooser fc = new JFileChooser();
             fc.setFileFilter(new FileNameExtensionFilter("PDF", "pdf"));
+
             String base = switch (mode) {
-                case ALL -> "dangky_all";
-                case BY_CLUB -> "dangky_theo-clb";
-                case BY_CONTENT -> "dangky_theo-noidung";
+                case ALL -> "DangKi_" + giaiName;
+                case BY_CLUB -> "DangKi_Theo_CLB";
+                case BY_CONTENT -> "DangKi_Theo_NoiDung";
             };
+
+            // Chuẩn hóa tên file (xóa ký tự không hợp lệ)
+            base = base.replaceAll("[<>:\"/\\|?*]", "_");
             fc.setSelectedFile(new File(base + ".pdf"));
             int r = fc.showSaveDialog(this);
             if (r != JFileChooser.APPROVE_OPTION)
@@ -175,8 +179,10 @@ public class BaoCaoPdfPanel extends JPanel {
             fc.setDialogTitle("Xuất PDF sơ đồ (tất cả nội dung)");
             fc.setFileFilter(new FileNameExtensionFilter("PDF", "pdf"));
             String tour = new Prefs().get("selectedGiaiDauName", "giai-dau");
-            String safe = normalizeFileNameUnderscore(tour);
-            fc.setSelectedFile(new File(safe + "_so_do_thi_dau.pdf"));
+            // Giữ dấu, chỉ xóa ký tự không hợp lệ trong tên file
+            String fileName = tour + "_Sơ_đồ_thi_đấu";
+            fileName = fileName.replaceAll("[<>:\"/\\|?*]", "_");
+            fc.setSelectedFile(new File(fileName + ".pdf"));
             int r = fc.showSaveDialog(this);
             if (r != JFileChooser.APPROVE_OPTION)
                 return;

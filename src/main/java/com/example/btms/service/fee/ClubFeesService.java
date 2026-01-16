@@ -2,18 +2,26 @@ package com.example.btms.service.fee;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
+import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.club.CauLacBo;
 import com.example.btms.model.player.DangKiCaNhan;
 import com.example.btms.model.player.VanDongVien;
+import com.example.btms.model.team.ChiTietDoi;
+import com.example.btms.model.team.DangKiDoi;
 import com.example.btms.model.tournament.GiaiDau;
+import com.example.btms.repository.category.NoiDungRepository;
 import com.example.btms.repository.club.CauLacBoRepository;
 import com.example.btms.repository.player.DangKiCaNhanRepository;
 import com.example.btms.repository.player.VanDongVienRepository;
+import com.example.btms.repository.team.ChiTietDoiRepository;
+import com.example.btms.repository.team.DangKiDoiRepository;
 import com.example.btms.repository.tuornament.GiaiDauRepository;
 import com.example.btms.service.db.DatabaseService;
 import com.example.btms.util.fees.FeesCalculator;
@@ -71,19 +79,32 @@ public class ClubFeesService {
 
     /**
      * Tính lệ phí theo câu lạc bộ cho 1 giải đấu
+     * 
+     * @param tournamentId       ID giải đấu
+     * @param firstEventFee      lệ phí nội dung đầu tiên
+     * @param subsequentEventFee lệ phí nội dung từ 2 trở đi
      */
-    public Map<Integer, ClubFeeInfo> calculateClubFees(int tournamentId) throws SQLException {
+    public Map<Integer, ClubFeeInfo> calculateClubFees(int tournamentId, long firstEventFee, long subsequentEventFee)
+            throws SQLException {
         var conn = getConnection();
 
         // Load data
         DangKiCaNhanRepository regRepo = new DangKiCaNhanRepository(conn);
+        DangKiDoiRepository teamRegRepo = new DangKiDoiRepository(conn);
+        ChiTietDoiRepository teamDetailRepo = new ChiTietDoiRepository(conn);
         VanDongVienRepository playerRepo = new VanDongVienRepository(conn);
         CauLacBoRepository clubRepo = new CauLacBoRepository(conn);
 
         log.logTs("Tải dữ liệu cho giải ID: %d", tournamentId);
 
         List<DangKiCaNhan> registrations = regRepo.getByGiaiDau(tournamentId);
-        log.logTs("Số lượng đăng ký: %d", registrations.size());
+        log.logTs("Số lượng đăng ký đơn: %d", registrations.size());
+
+        List<DangKiDoi> teamRegistrations = teamRegRepo.getByGiaiDau(tournamentId);
+        log.logTs("Số lượng đăng ký đội: %d", teamRegistrations.size());
+
+        List<ChiTietDoi> teamDetails = teamDetailRepo.findAll();
+        log.logTs("Số lượng chi tiết đội: %d", teamDetails.size());
 
         List<VanDongVien> players = playerRepo.findAll();
         log.logTs("Số lượng VĐV: %d", players.size());
@@ -91,8 +112,11 @@ public class ClubFeesService {
         List<CauLacBo> clubs = clubRepo.findAll();
         log.logTs("Số lượng CLB: %d", clubs.size());
 
-        // Calculate fees
-        Map<Integer, ClubFeeInfo> result = FeesCalculator.calculateClubFees(registrations, players, clubs);
+        log.logTs("Lệ phí: nội dung đầu=%d, nội dung sau=%d", firstEventFee, subsequentEventFee);
+
+        // Calculate fees (tính lệ phí dựa trên tổng nội dung = đơn + đội của mỗi VĐV)
+        Map<Integer, ClubFeeInfo> result = FeesCalculator.calculateClubFees(registrations, teamRegistrations,
+                teamDetails, players, clubs, firstEventFee, subsequentEventFee);
         log.logTs("Tính lệ phí xong, số CLB có phí: %d", result.size());
 
         return result;
@@ -107,39 +131,62 @@ public class ClubFeesService {
 
         DangKiCaNhanRepository regRepo = new DangKiCaNhanRepository(conn);
         VanDongVienRepository playerRepo = new VanDongVienRepository(conn);
-        com.example.btms.repository.category.NoiDungRepository contentRepo = new com.example.btms.repository.category.NoiDungRepository(
+        NoiDungRepository contentRepo = new NoiDungRepository(
                 conn);
+
+        DangKiDoiRepository teamRegRepo = new DangKiDoiRepository(conn);
+        ChiTietDoiRepository teamDetailRepo = new ChiTietDoiRepository(conn);
 
         // Lấy tất cả đăng ký của giải
         List<DangKiCaNhan> registrations = regRepo.getByGiaiDau(tournamentId);
+        List<DangKiDoi> teamRegistrations = teamRegRepo.getByGiaiDau(tournamentId);
 
         // Lấy tất cả VĐV
         List<VanDongVien> players = playerRepo.findAll();
-        Map<Integer, VanDongVien> playerMap = new java.util.LinkedHashMap<>();
+        Map<Integer, VanDongVien> playerMap = new LinkedHashMap<>();
         for (VanDongVien p : players) {
             playerMap.put(p.getId(), p);
         }
 
         // Lấy tất cả nội dung
-        List<com.example.btms.model.category.NoiDung> contents = contentRepo.findAll();
-        Map<Integer, com.example.btms.model.category.NoiDung> contentMap = new java.util.LinkedHashMap<>();
-        for (com.example.btms.model.category.NoiDung c : contents) {
+        List<NoiDung> contents = contentRepo.findAll();
+        Map<Integer, NoiDung> contentMap = new LinkedHashMap<>();
+        for (NoiDung c : contents) {
             contentMap.put(c.getId(), c);
         }
 
         // Lọc đăng ký của CLB này
-        java.util.List<java.util.Map<String, Object>> details = new java.util.ArrayList<>();
+        List<Map<String, Object>> details = new ArrayList<>();
         for (DangKiCaNhan reg : registrations) {
             VanDongVien player = playerMap.get(reg.getIdVdv());
             if (player != null && player.getIdClb() == clubId) {
-                com.example.btms.model.category.NoiDung content = contentMap.get(reg.getIdNoiDung());
+                NoiDung content = contentMap.get(reg.getIdNoiDung());
 
-                java.util.Map<String, Object> item = new java.util.LinkedHashMap<>();
+                Map<String, Object> item = new LinkedHashMap<>();
                 item.put("playerId", reg.getIdVdv());
                 item.put("playerName", player.getHoTen());
                 item.put("contentId", reg.getIdNoiDung());
                 item.put("contentName", content != null ? content.getTenNoiDung() : "Unknown");
                 details.add(item);
+            }
+        }
+
+        // Lọc đăng ký đội của CLB này
+        for (DangKiDoi teamReg : teamRegistrations) {
+            NoiDung content = contentMap.get(teamReg.getIdNoiDung());
+
+            // Lấy chi tiết đội
+            List<ChiTietDoi> teamMembers = teamDetailRepo.findByTeam(teamReg.getIdTeam());
+            for (ChiTietDoi member : teamMembers) {
+                VanDongVien player = playerMap.get(member.getIdVdv());
+                if (player != null && player.getIdClb() == clubId) {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("playerId", member.getIdVdv());
+                    item.put("playerName", player.getHoTen());
+                    item.put("contentId", teamReg.getIdNoiDung());
+                    item.put("contentName", content != null ? content.getTenNoiDung() : "Unknown");
+                    details.add(item);
+                }
             }
         }
 

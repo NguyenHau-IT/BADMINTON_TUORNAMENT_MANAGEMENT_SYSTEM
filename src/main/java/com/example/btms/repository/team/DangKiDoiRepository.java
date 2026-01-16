@@ -84,6 +84,28 @@ public class DangKiDoiRepository {
         return out;
     }
 
+    public List<DangKiDoi> getByGiaiDau(int idGiai) {
+        final String sql = "SELECT ID_TEAM, ID_GIAI, ID_NOI_DUNG, ID_CLB, TEN_TEAM " +
+                "FROM DANG_KI_DOI WHERE ID_GIAI=? ORDER BY ID_NOI_DUNG, TEN_TEAM";
+        List<DangKiDoi> out = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idGiai);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(new DangKiDoi(
+                            rs.getInt("ID_TEAM"),
+                            rs.getInt("ID_GIAI"),
+                            rs.getInt("ID_NOI_DUNG"),
+                            rs.getObject("ID_CLB") != null ? rs.getInt("ID_CLB") : null,
+                            rs.getString("TEN_TEAM")));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi tải danh sách đội theo giải", e);
+        }
+        return out;
+    }
+
     public void update(DangKiDoi t) {
         final String sql = "UPDATE DANG_KI_DOI SET ID_GIAI=?, ID_NOI_DUNG=?, ID_CLB=?, TEN_TEAM=? " +
                 "WHERE ID_TEAM=?";

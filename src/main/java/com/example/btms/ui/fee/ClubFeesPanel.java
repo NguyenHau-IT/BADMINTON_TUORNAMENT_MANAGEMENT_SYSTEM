@@ -42,6 +42,8 @@ public class ClubFeesPanel extends JPanel {
     private JButton calculateBtn;
     private JButton exportPdfBtn;
     private JLabel totalLabel;
+    private javax.swing.JTextField firstEventFeeField;
+    private javax.swing.JTextField subsequentEventFeeField;
     private Log log = new Log();
     private Map<Integer, ClubFeeInfo> currentClubFees;
     private GiaiDau currentTournament; // giải đấu hiện tại
@@ -53,23 +55,40 @@ public class ClubFeesPanel extends JPanel {
     private void initComponents() {
         setLayout(new BorderLayout(10, 10));
 
-        // Panel trên - hiển thị giải đấu
-        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
-        topPanel.add(new JLabel("Giải đấu:"));
+        // Panel trên - hiển thị giải đấu + buttons + nhập lệ phí
+        JPanel topPanel = new JPanel(new java.awt.GridLayout(2, 1, 5, 5));
+
+        // Dòng 1: Giải đấu + buttons
+        JPanel row1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        row1.add(new JLabel("Giải đấu:"));
 
         tournamentLabel = new JLabel("Chưa chọn giải");
         java.awt.Font font = tournamentLabel.getFont();
         tournamentLabel.setFont(new java.awt.Font(font.getName(), java.awt.Font.BOLD, font.getSize() + 2));
-        topPanel.add(tournamentLabel);
+        row1.add(tournamentLabel);
 
         calculateBtn = new JButton("Tính lệ phí");
         calculateBtn.addActionListener(e -> calculateFees());
-        topPanel.add(calculateBtn);
+        row1.add(calculateBtn);
 
         exportPdfBtn = new JButton("Xuất PDF");
         exportPdfBtn.setEnabled(false);
         exportPdfBtn.addActionListener(e -> exportPdf());
-        topPanel.add(exportPdfBtn);
+        row1.add(exportPdfBtn);
+
+        topPanel.add(row1);
+
+        // Dòng 2: Nhập lệ phí
+        JPanel row2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        row2.add(new JLabel("Lệ phí nội dung đầu (đ):"));
+        firstEventFeeField = new javax.swing.JTextField("200000", 10);
+        row2.add(firstEventFeeField);
+
+        row2.add(new JLabel("Lệ phí nội dung từ 2 (đ):"));
+        subsequentEventFeeField = new javax.swing.JTextField("100000", 10);
+        row2.add(subsequentEventFeeField);
+
+        topPanel.add(row2);
 
         add(topPanel, BorderLayout.NORTH);
 
@@ -104,7 +123,7 @@ public class ClubFeesPanel extends JPanel {
         columnModel.getColumn(1).setPreferredWidth(300); // Tên CLB
         columnModel.getColumn(2).setPreferredWidth(80); // Số VĐV
         columnModel.getColumn(3).setPreferredWidth(120); // Tổng lệ phí
-        
+
         // Thêm double-click listener để xem chi tiết CLB
         feesTable.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
@@ -149,7 +168,8 @@ public class ClubFeesPanel extends JPanel {
     private void calculateFees() {
         if (currentTournament == null) {
             log.logTs("Vui lòng chọn giải đấu");
-            javax.swing.JOptionPane.showMessageDialog(this, "Vui lòng chọn giải đấu", "Thông báo", javax.swing.JOptionPane.WARNING_MESSAGE);
+            javax.swing.JOptionPane.showMessageDialog(this, "Vui lòng chọn giải đấu", "Thông báo",
+                    javax.swing.JOptionPane.WARNING_MESSAGE);
             return;
         }
 
@@ -167,24 +187,37 @@ public class ClubFeesPanel extends JPanel {
                 String startMsg = String.format("Bắt đầu tính lệ phí cho giải ID: %d", tournamentId);
                 log.logTs(startMsg);
                 System.out.println("[ClubFeesPanel] " + startMsg);
-                
-                currentClubFees = clubFeesService.calculateClubFees(tournamentId);
-                String resultMsg = String.format("Tính lệ phí xong, số CLB: %d", currentClubFees == null ? 0 : currentClubFees.size());
+
+                // Lấy lệ phí từ text fields
+                long firstEventFee = 200000L;
+                long subsequentEventFee = 100000L;
+                try {
+                    firstEventFee = Long.parseLong(firstEventFeeField.getText().trim());
+                    subsequentEventFee = Long.parseLong(subsequentEventFeeField.getText().trim());
+                } catch (NumberFormatException e) {
+                    log.logTs("Giá tiền không hợp lệ, sử dụng mặc định");
+                }
+
+                currentClubFees = clubFeesService.calculateClubFees(tournamentId, firstEventFee, subsequentEventFee);
+                String resultMsg = String.format("Tính lệ phí xong, số CLB: %d",
+                        currentClubFees == null ? 0 : currentClubFees.size());
                 log.logTs(resultMsg);
                 System.out.println("[ClubFeesPanel] " + resultMsg);
-                
+
                 SwingUtilities.invokeLater(() -> {
                     displayClubFees();
                     exportPdfBtn.setEnabled(true);
                     calculateBtn.setEnabled(true);
-                    javax.swing.JOptionPane.showMessageDialog(this, resultMsg, "Thành công", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                    javax.swing.JOptionPane.showMessageDialog(this, resultMsg, "Thành công",
+                            javax.swing.JOptionPane.INFORMATION_MESSAGE);
                 });
             } catch (SQLException e) {
                 String errMsg = String.format("Lỗi tính lệ phí (SQL): %s", e.getMessage());
                 log.logTs(errMsg);
                 System.out.println("[ClubFeesPanel] " + errMsg);
                 e.printStackTrace();
-                javax.swing.JOptionPane.showMessageDialog(null, errMsg, "Lỗi SQL", javax.swing.JOptionPane.ERROR_MESSAGE);
+                javax.swing.JOptionPane.showMessageDialog(null, errMsg, "Lỗi SQL",
+                        javax.swing.JOptionPane.ERROR_MESSAGE);
                 SwingUtilities.invokeLater(() -> calculateBtn.setEnabled(true));
             } catch (Exception e) {
                 String errMsg = String.format("Lỗi tính lệ phí: %s", e.getMessage());
@@ -226,7 +259,7 @@ public class ClubFeesPanel extends JPanel {
     /**
      * Format tiền với dấu cách (200 000 thay vì 200,000)
      */
-    private String formatMoney(int amount) {
+    private String formatMoney(long amount) {
         return String.format("%,d", amount).replace(",", " ");
     }
 
@@ -237,10 +270,10 @@ public class ClubFeesPanel extends JPanel {
         if (currentClubFees == null || rowIndex < 0 || rowIndex >= tableModel.getRowCount()) {
             return;
         }
-        
+
         // Lấy tên CLB từ hàng
         String clubName = (String) tableModel.getValueAt(rowIndex, 1);
-        
+
         // Tìm ClubFeeInfo tương ứng
         com.example.btms.util.fees.FeesCalculator.ClubFeeInfo clubInfo = null;
         Integer clubId = null;
@@ -251,74 +284,131 @@ public class ClubFeesPanel extends JPanel {
                 break;
             }
         }
-        
+
         if (clubInfo == null || clubId == null || currentTournament == null) {
             return;
         }
-        
+
         // Tạo dialog
-        javax.swing.JDialog dialog = new javax.swing.JDialog((java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(this),
+        javax.swing.JDialog dialog = new javax.swing.JDialog(
+                (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(this),
                 "Chi tiết lệ phí - " + clubName, true);
         dialog.setDefaultCloseOperation(javax.swing.JDialog.DISPOSE_ON_CLOSE);
-        dialog.setSize(600, 400);
+        dialog.setSize(850, 600);
         dialog.setLocationRelativeTo(this);
-        
+
         // Panel chứa bảng chi tiết
         javax.swing.JPanel panel = new javax.swing.JPanel(new java.awt.BorderLayout(10, 10));
         panel.setBorder(new javax.swing.border.EmptyBorder(10, 10, 10, 10));
-        
+
         // Load chi tiết từ DB
-        String[] columns = {"STT", "Tên VĐV", "Nội dung đăng ký", "Lệ phí"};
+        String[] columns = { "STT", "Tên VĐV", "Nội dung đăng ký", "Phí (đ)" };
         javax.swing.table.DefaultTableModel detailModel = new javax.swing.table.DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         };
-        
+
         try {
-            // Lấy chi tiết từ service
+            // Lấy chi tiết từ service (mỗi row là 1 đăng ký)
             var details = clubFeesService.getClubDetails(clubId, currentTournament.getId());
-            
-            // Map VĐV -> tổng lệ phí
-            java.util.Map<Integer, Integer> playerTotalFees = new java.util.LinkedHashMap<>();
+
+            // Lấy lệ phí từ text fields
+            long firstEventFee = 200000L;
+            long subsequentEventFee = 100000L;
+            try {
+                firstEventFee = Long.parseLong(firstEventFeeField.getText().trim());
+                subsequentEventFee = Long.parseLong(subsequentEventFeeField.getText().trim());
+            } catch (NumberFormatException e) {
+                log.logTs("Giá tiền không hợp lệ, sử dụng mặc định");
+            }
+
+            // Nhóm đăng ký theo VĐV để tính lệ phí từng nội dung
+            java.util.Map<Integer, java.util.List<String>> playerContents = new java.util.LinkedHashMap<>();
             java.util.Map<Integer, String> playerNames = new java.util.LinkedHashMap<>();
-            
+
             for (var detail : details) {
                 Integer playerId = (Integer) detail.get("playerId");
                 String playerName = (String) detail.get("playerName");
                 String contentName = (String) detail.get("contentName");
-                
+
                 playerNames.put(playerId, playerName);
-                playerTotalFees.merge(playerId, 1, Integer::sum); // Count events
+                playerContents.computeIfAbsent(playerId, k -> new java.util.ArrayList<>()).add(contentName);
             }
-            
-            // Tính lệ phí cho từng VĐV dựa trên số nội dung
+
+            // Hiển thị tất cả đăng ký với lệ phí theo thứ tự
             int stt = 1;
-            int totalFee = 0;
-            for (var entry : playerTotalFees.entrySet()) {
-                int playerId = entry.getKey();
-                int eventCount = entry.getValue();
+            long totalFee = 0;
+
+            for (var entry : playerContents.entrySet()) {
+                Integer playerId = entry.getKey();
+                java.util.List<String> contents = entry.getValue();
                 String playerName = playerNames.get(playerId);
-                
-                int playerFee = com.example.btms.util.fees.FeesCalculator.calculateFeeForPlayer(eventCount);
-                
-                Object[] row = {
-                        stt,
-                        playerName,
-                        eventCount + " nội dung",
-                        formatMoney(playerFee)
-                };
-                detailModel.addRow(row);
-                totalFee += playerFee;
-                stt++;
+                int eventCount = contents.size();
+
+                // Tính lệ phí cho VĐV này
+                long playerTotalFee = com.example.btms.util.fees.FeesCalculator.calculateFeeForPlayer(eventCount,
+                        firstEventFee, subsequentEventFee);
+
+                // Hiển thị từng nội dung của VĐV
+                for (int i = 0; i < contents.size(); i++) {
+                    String contentName = contents.get(i);
+                    long contentFee;
+                    if (i == 0) {
+                        contentFee = firstEventFee;
+                    } else {
+                        contentFee = subsequentEventFee;
+                    }
+
+                    Object[] row = {
+                            stt,
+                            playerName,
+                            contentName,
+                            Long.valueOf(contentFee)
+                    };
+                    detailModel.addRow(row);
+                    stt++;
+                }
+
+                totalFee += playerTotalFee;
             }
-            
+
             javax.swing.JTable detailTable = new javax.swing.JTable(detailModel);
-            detailTable.setAutoResizeMode(javax.swing.JTable.AUTO_RESIZE_ALL_COLUMNS);
+            detailTable.setRowHeight(25);
+            detailTable.setFont(new java.awt.Font("Arial", java.awt.Font.PLAIN, 12));
+            detailTable.getTableHeader().setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 12));
+
+            // Thiết lập độ rộng cột
+            detailTable.getColumnModel().getColumn(0).setPreferredWidth(40); // STT
+            detailTable.getColumnModel().getColumn(1).setPreferredWidth(120); // Tên VĐV
+            detailTable.getColumnModel().getColumn(2).setPreferredWidth(250); // Nội dung
+            detailTable.getColumnModel().getColumn(3).setPreferredWidth(100); // Phí
+
+            // Căn lề phải cho cột Phí
+            javax.swing.table.DefaultTableCellRenderer rightRenderer = new javax.swing.table.DefaultTableCellRenderer();
+            rightRenderer.setHorizontalAlignment(javax.swing.JLabel.RIGHT);
+            detailTable.getColumnModel().getColumn(3).setCellRenderer(rightRenderer);
+
+            // Định dạng cột Phí hiển thị số tiền
+            javax.swing.table.TableCellRenderer numberRenderer = new javax.swing.table.DefaultTableCellRenderer() {
+                @Override
+                public java.awt.Component getTableCellRendererComponent(javax.swing.JTable table, Object value,
+                        boolean isSelected, boolean hasFocus, int row, int column) {
+                    if (value instanceof Long) {
+                        value = formatMoney((Long) value) + " đ";
+                    }
+                    return super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                }
+            };
+            ((javax.swing.table.DefaultTableCellRenderer) numberRenderer)
+                    .setHorizontalAlignment(javax.swing.JLabel.RIGHT);
+            detailTable.getColumnModel().getColumn(3).setCellRenderer(numberRenderer);
+
+            detailTable.setAutoResizeMode(javax.swing.JTable.AUTO_RESIZE_OFF);
             javax.swing.JScrollPane scrollPane = new javax.swing.JScrollPane(detailTable);
             panel.add(scrollPane, java.awt.BorderLayout.CENTER);
-            
+
             // Panel dưới - tổng cộng
             javax.swing.JPanel bottomPanel = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT));
             javax.swing.JLabel totalLabel = new javax.swing.JLabel(
@@ -327,15 +417,15 @@ public class ClubFeesPanel extends JPanel {
             totalLabel.setFont(new java.awt.Font(font.getName(), java.awt.Font.BOLD, font.getSize() + 2));
             bottomPanel.add(totalLabel);
             panel.add(bottomPanel, java.awt.BorderLayout.SOUTH);
-            
+
         } catch (Exception e) {
             log.logTs("Lỗi load chi tiết CLB: %s", e.getMessage());
             e.printStackTrace();
-            javax.swing.JOptionPane.showMessageDialog(dialog, 
-                    "Lỗi load chi tiết: " + e.getMessage(), 
+            javax.swing.JOptionPane.showMessageDialog(dialog,
+                    "Lỗi load chi tiết: " + e.getMessage(),
                     "Lỗi", javax.swing.JOptionPane.ERROR_MESSAGE);
         }
-        
+
         dialog.setContentPane(panel);
         dialog.setVisible(true);
     }
@@ -351,11 +441,20 @@ public class ClubFeesPanel extends JPanel {
             return;
         }
 
+        long firstEventFee = 200000L;
+        long subsequentEventFee = 100000L;
+
+        try {
+            firstEventFee = Long.parseLong(firstEventFeeField.getText().trim());
+            subsequentEventFee = Long.parseLong(subsequentEventFeeField.getText().trim());
+        } catch (NumberFormatException e) {
+            log.logTs("Giá tiền không hợp lệ, sử dụng mặc định");
+        }
+
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Lưu báo cáo lệ phí");
         fileChooser.setFileFilter(new FileNameExtensionFilter("PDF Files (*.pdf)", "pdf"));
-        String defaultFileName = "BaoCao_LePhi_" + currentTournament.getTenGiai()
-                + "_" + System.currentTimeMillis() + ".pdf";
+        String defaultFileName = "BaoCao_LePhi_" + currentTournament.getTenGiai() + ".pdf";
         fileChooser.setSelectedFile(new File(defaultFileName));
 
         if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
@@ -365,7 +464,8 @@ public class ClubFeesPanel extends JPanel {
             }
 
             try {
-                ClubFeesPdfExporter.export(outputFile, currentTournament.getTenGiai(), currentClubFees, clubFeesService, currentTournament.getId());
+                ClubFeesPdfExporter.export(outputFile, currentTournament.getTenGiai(), currentClubFees, clubFeesService,
+                        currentTournament.getId(), firstEventFee, subsequentEventFee);
                 log.logTs("Xuất PDF thành công: %s", outputFile.getAbsolutePath());
             } catch (Exception e) {
                 e.printStackTrace();
