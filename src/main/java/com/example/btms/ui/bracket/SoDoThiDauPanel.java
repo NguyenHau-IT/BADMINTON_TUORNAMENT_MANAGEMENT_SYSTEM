@@ -2172,11 +2172,11 @@ public class SoDoThiDauPanel extends JPanel {
             int columnSize = bracketSize / (int) Math.pow(2, seedCol - 1);
             int useN = Math.min(N, columnSize);
             List<Integer> pos = computeSeedPositionsWithMode(useN, columnSize);
-            int[] slotToEntry = new int[M];
+            int[] slotToEntry = new int[columnSize];
             Arrays.fill(slotToEntry, -1);
             for (int i = 0; i < useN; i++) {
                 int posIdx = pos.get(i);
-                if (posIdx >= 0 && posIdx < M) {
+                if (posIdx >= 0 && posIdx < columnSize) {
                     slotToEntry[posIdx] = i;
                 }
             }
@@ -2187,7 +2187,7 @@ public class SoDoThiDauPanel extends JPanel {
             List<String> namesByT = new ArrayList<>();
             for (int t = 0; t < M; t++)
                 namesByT.add(null);
-            for (int t = 0; t < M; t++) {
+            for (int t = 0; t < columnSize; t++) {
                 int i = slotToEntry[t];
                 if (i < 0 || i >= N)
                     continue;
@@ -2290,11 +2290,11 @@ public class SoDoThiDauPanel extends JPanel {
             int columnSize = bracketSize / (int) Math.pow(2, seedCol - 1);
             int useN = Math.min(N, columnSize);
             List<Integer> pos = computeSeedPositionsWithMode(useN, columnSize);
-            int[] slotToEntry = new int[M];
+            int[] slotToEntry = new int[columnSize];
             java.util.Arrays.fill(slotToEntry, -1);
             for (int i = 0; i < useN; i++) {
                 int posIdx = pos.get(i);
-                if (posIdx >= 0 && posIdx < M) {
+                if (posIdx >= 0 && posIdx < columnSize) {
                     slotToEntry[posIdx] = i;
                 }
             }
@@ -2306,7 +2306,7 @@ public class SoDoThiDauPanel extends JPanel {
             List<String> namesByT = new ArrayList<>();
             for (int t = 0; t < M; t++)
                 namesByT.add(null);
-            for (int t = 0; t < M; t++) {
+            for (int t = 0; t < columnSize; t++) {
                 int i = slotToEntry[t];
                 if (i < 0 || i >= N)
                     continue;
