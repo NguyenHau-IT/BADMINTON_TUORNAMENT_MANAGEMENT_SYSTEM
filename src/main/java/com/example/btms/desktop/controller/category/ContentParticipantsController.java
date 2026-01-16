@@ -21,7 +21,6 @@ import com.example.btms.config.Prefs;
 import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.team.ChiTietDoi;
 import com.example.btms.model.team.DangKiDoi;
-import com.example.btms.repository.category.NoiDungRepository;
 import com.example.btms.service.category.NoiDungService;
 import com.example.btms.service.club.CauLacBoService;
 import com.example.btms.service.player.DangKiCaNhanService;
@@ -115,8 +114,7 @@ public class ContentParticipantsController {
         new SwingWorker<List<NoiDung>, Void>() {
             @Override
             protected List<NoiDung> doInBackground() throws Exception {
-                var repo = new NoiDungRepository(conn);
-                Map<String, Integer>[] maps = repo.loadCategories(); // [0]=singles, [1]=doubles
+                Map<String, Integer>[] maps = noiDungService.getAllNoiDungType(); // [0]=singles, [1]=doubles
                 Set<Integer> allowedIds = new LinkedHashSet<>();
                 allowedIds.addAll(maps[0].values());
                 allowedIds.addAll(maps[1].values());
@@ -412,8 +410,7 @@ public class ContentParticipantsController {
 
     // ---------- Helpers: loadRegisteredSingles/Doubles (giống panel cũ) ----------
     private List<NoiDung> loadRegisteredDoubles() throws java.sql.SQLException {
-        var repo = new NoiDungRepository(conn);
-        Map<String, Integer>[] maps = repo.loadCategories(); // [1]=doubles
+        Map<String, Integer>[] maps = noiDungService.getAllNoiDungType(); // [1]=doubles
         Set<Integer> ids = new LinkedHashSet<>(maps[1].values());
         List<NoiDung> all = noiDungService.getAllNoiDung();
         List<NoiDung> doubles = new ArrayList<>();
@@ -426,8 +423,7 @@ public class ContentParticipantsController {
     }
 
     private List<NoiDung> loadRegisteredSingles() throws java.sql.SQLException {
-        var repo = new NoiDungRepository(conn);
-        Map<String, Integer>[] maps = repo.loadCategories(); // [0]=singles
+        Map<String, Integer>[] maps = noiDungService.getAllNoiDungType(); // [0]=singles
         Set<Integer> ids = new LinkedHashSet<>(maps[0].values());
         List<NoiDung> all = noiDungService.getAllNoiDung();
         List<NoiDung> singles = new ArrayList<>();

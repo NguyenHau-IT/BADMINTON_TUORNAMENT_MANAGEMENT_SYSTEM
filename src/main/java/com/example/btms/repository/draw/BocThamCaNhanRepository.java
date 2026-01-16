@@ -44,14 +44,16 @@ public class BocThamCaNhanRepository {
     }
 
     // LIST
-    public List<BocThamCaNhan> list(int idGiai, int idNoiDung) {
-        String sql = "SELECT * FROM BOC_THAM_CA_NHAN WHERE ID_GIAI=? AND ID_NOI_DUNG=? ORDER BY THU_TU";
+    public List<BocThamCaNhan> list(int idGiai, int idNoiDung, int soDo) {
+        String sql = "SELECT * FROM BOC_THAM_CA_NHAN WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND SO_DO=? ORDER BY THU_TU";
         List<BocThamCaNhan> out = new ArrayList<>();
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, idGiai);
             ps.setInt(2, idNoiDung);
+            ps.setInt(3, soDo);
             try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) out.add(map(rs));
+                while (rs.next())
+                    out.add(map(rs));
             }
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi list BOC_THAM_CA_NHAN", e);
@@ -87,13 +89,43 @@ public class BocThamCaNhanRepository {
         }
     }
 
+    public boolean soDoExist(int idGiai, int idNoiDung, int soDo) {
+        String sql = "SELECT 1 FROM BOC_THAM_CA_NHAN WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND SO_DO=? LIMIT 1";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idGiai);
+            ps.setInt(2, idNoiDung);
+            ps.setInt(3, soDo);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi kiểm tra SO_DO BOC_THAM_CA_NHAN", e);
+        }
+    }
+
+    /** Lấy tất cả dữ liệu bốc thăm từ tất cả sơ đồ (không filter SO_DO) */
+    public List<BocThamCaNhan> listAll(int idGiai, int idNoiDung) {
+        String sql = "SELECT * FROM BOC_THAM_CA_NHAN WHERE ID_GIAI=? AND ID_NOI_DUNG=? ORDER BY THU_TU, SO_DO";
+        List<BocThamCaNhan> out = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idGiai);
+            ps.setInt(2, idNoiDung);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next())
+                    out.add(map(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi list tất cả BOC_THAM_CA_NHAN", e);
+        }
+        return out;
+    }
+
     private BocThamCaNhan map(ResultSet rs) throws SQLException {
         return new BocThamCaNhan(
                 rs.getInt("ID_GIAI"),
                 rs.getInt("ID_NOI_DUNG"),
                 rs.getInt("ID_VDV"),
                 rs.getInt("THU_TU"),
-                rs.getInt("SO_DO")
-        );
+                rs.getInt("SO_DO"));
     }
 }

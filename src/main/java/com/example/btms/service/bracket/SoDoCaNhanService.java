@@ -98,6 +98,12 @@ public class SoDoCaNhanService {
         return 0;
     }
 
+    public int linkTranDauByVdvIds(int idGiai, int idNoiDung, int idVdvA, int idVdvB, int soDo, String matchId) {
+        int updatedA = linkTranDauByVdv(idGiai, idNoiDung, idVdvA, soDo, matchId);
+        int updatedB = linkTranDauByVdv(idGiai, idNoiDung, idVdvB, soDo, matchId);
+        return updatedA + updatedB;
+    }
+
     // Helpers
     public boolean exists(int idGiai, int idNoiDung, int viTri) {
         return repo.findOne(idGiai, idNoiDung, viTri) != null;
@@ -112,5 +118,13 @@ public class SoDoCaNhanService {
 
     public int findSoDoByMatchId(int idGiai, int idNoiDung, String matchId) {
         return repo.findSoDoByMatchId(idGiai, idNoiDung, matchId);
+    }
+
+    public int findSoDoByPlayerId(int idGiai, int idNoiDung, int idVdv) {
+        return repo.findSoDoByPlayerId(idGiai, idNoiDung, idVdv);
+    }
+
+    public int findSoDoByPlayerIds(int idGiai, int idNoiDung, int idVdvA, int idVdvB) {
+        return repo.findSoDoByPlayerIds(idGiai, idNoiDung, idVdvA, idVdvB);
     }
 }

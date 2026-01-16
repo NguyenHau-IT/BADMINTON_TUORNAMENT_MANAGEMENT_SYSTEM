@@ -5,6 +5,7 @@ import com.example.btms.repository.category.NoiDungRepository;
 
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public class NoiDungService {
@@ -20,6 +21,10 @@ public class NoiDungService {
 
     public List<NoiDung> getAllNoiDung() throws SQLException {
         return repository.findAll();
+    }
+
+    public Map<String, Integer>[] getAllNoiDungType() throws SQLException {
+        return repository.loadCategories();
     }
 
     public Optional<NoiDung> getNoiDungById(Integer id) throws SQLException {

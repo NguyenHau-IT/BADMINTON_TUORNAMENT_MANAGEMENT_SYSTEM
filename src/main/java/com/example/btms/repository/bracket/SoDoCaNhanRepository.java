@@ -208,4 +208,41 @@ public class SoDoCaNhanRepository {
             throw new RuntimeException("Lỗi tìm SO_DO_CA_NHAN bằng ID_TRAN_DAU", e);
         }
     }
+
+    public int findSoDoByPlayerId(int idGiai, int idNoiDung, int idVdv) {
+        final String sql = "SELECT SO_DO FROM SO_DO_CA_NHAN WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND ID_VDV=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idGiai);
+            ps.setInt(2, idNoiDung);
+            ps.setInt(3, idVdv);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("SO_DO");
+                } else {
+                    throw new RuntimeException("Không tìm thấy SO_DO_CA_NHAN với ID_VDV đã cho");
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi tìm SO_DO_CA_NHAN bằng ID_VDV", e);
+        }
+    }
+
+    public int findSoDoByPlayerIds(int idGiai, int idNoiDung, int idVdvA, int idVdvB) {
+        final String sql = "SELECT SO_DO FROM SO_DO_CA_NHAN WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND (ID_VDV=? OR ID_VDV=?) GROUP BY SO_DO HAVING COUNT(DISTINCT ID_VDV) = 2";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idGiai);
+            ps.setInt(2, idNoiDung);
+            ps.setInt(3, idVdvA);
+            ps.setInt(4, idVdvB);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("SO_DO");
+                } else {
+                    throw new RuntimeException("Không tìm thấy SO_DO_CA_NHAN với ID_VDV đã cho");
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi tìm SO_DO_CA_NHAN bằng ID_VDV", e);
+        }
+    }
 }

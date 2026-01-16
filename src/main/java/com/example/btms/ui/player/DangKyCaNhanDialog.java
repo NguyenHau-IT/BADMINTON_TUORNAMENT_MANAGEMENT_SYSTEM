@@ -27,7 +27,6 @@ import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.club.CauLacBo;
 import com.example.btms.model.player.DangKiCaNhan;
 import com.example.btms.model.player.VanDongVien;
-import com.example.btms.repository.category.NoiDungRepository;
 import com.example.btms.service.category.NoiDungService;
 import com.example.btms.service.club.CauLacBoService;
 import com.example.btms.service.player.DangKiCaNhanService;
@@ -159,10 +158,8 @@ public class DangKyCaNhanDialog extends JDialog {
 
     private void loadData() throws java.sql.SQLException {
         DefaultComboBoxModel<NoiDung> ndModel = new DefaultComboBoxModel<>();
-        // Chỉ lấy nội dung đã đăng ký cho giải (sử dụng loadCategories của repository)
         if (conn != null) {
-            NoiDungRepository repo = new NoiDungRepository(conn);
-            java.util.Map<String, Integer>[] maps = repo.loadCategories(); // maps[0]=singles
+            java.util.Map<String, Integer>[] maps = noiDungService.getAllNoiDungType();
             Set<Integer> singlesIds = new HashSet<>(maps[0].values());
             for (NoiDung nd : noiDungService.getAllNoiDung()) {
                 if (singlesIds.contains(nd.getId()) && !Boolean.TRUE.equals(nd.getTeam())) {

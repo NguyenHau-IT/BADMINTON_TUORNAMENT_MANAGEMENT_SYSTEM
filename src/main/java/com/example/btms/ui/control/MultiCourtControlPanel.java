@@ -14,6 +14,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.NetworkInterface;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,6 +33,7 @@ import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 
+import com.example.btms.config.Prefs;
 import com.example.btms.model.match.CourtSession;
 import com.example.btms.service.match.CourtManagerService;
 import com.example.btms.service.match.CourtManagerService.CourtStatus;
@@ -74,11 +76,8 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
 
     public MultiCourtControlPanel() {
         setupUI();
-        // Đăng ký listener sau khi đối tượng đã khởi tạo hoàn chỉnh để tránh "leaking
-        // this" trong constructor
         SwingUtilities.invokeLater(() -> courtManager.addPropertyChangeListener(MultiCourtControlPanel.this));
         refreshOverview();
-        // Đảm bảo khi mở cửa sổ, các sân hiện có sẽ có tab điều khiển ngay
         SwingUtilities.invokeLater(this::ensureTabsForExistingCourts);
     }
 
@@ -152,7 +151,13 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         panel.add(txtNewCourtHeader);
 
         JButton btnAddCourt = new JButton("Thêm sân");
-        btnAddCourt.addActionListener(e -> addNewCourtFromCombo(courtCombo));
+        btnAddCourt.addActionListener(e -> {
+            try {
+                addNewCourtFromCombo(courtCombo);
+            } catch (SQLException e1) {
+                e1.printStackTrace();
+            }
+        });
         panel.add(btnAddCourt);
 
         JButton btnCloseAll = new JButton("Đóng tất cả sân");
@@ -161,7 +166,13 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
 
         // Nút mở bảng điều khiển (chỉ hiện/đưa tab điều khiển sân ra trước)
         JButton btnShowControl = new JButton("Hiện bảng điều khiển");
-        btnShowControl.addActionListener(e -> showControlPanelFromCombo(courtCombo));
+        btnShowControl.addActionListener(e -> {
+            try {
+                showControlPanelFromCombo(courtCombo);
+            } catch (SQLException e1) {
+                e1.printStackTrace();
+            }
+        });
         panel.add(btnShowControl);
 
         return panel;
@@ -187,7 +198,7 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         return panel;
     }
 
-    private void createCourtControlTab(CourtSession session) {
+    private void createCourtControlTab(CourtSession session) throws SQLException {
         String tabTitle = formatCourtIdForDisplay(session.courtId);
 
         // Nếu đã có control panel trong session thì tái sử dụng (hydrate an toàn)
@@ -514,7 +525,6 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         }
         addInfoRow(infoPanel, gc, "Trạng thái sân:", courtState);
 
-        // Trạng thái trận đấu: Chưa thi đấu, Đang thi đấu, Tạm dừng, Kết thúc
         String matchState;
         if (status.isFinished)
             matchState = "Kết thúc";
@@ -561,23 +571,24 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
             btnTogglePin.setText(next ? "Ẩn PIN" : "Hiện PIN");
         });
         buttonPanel.add(btnTogglePin);
-        // Nút hiện bảng điều khiển cho sân này
         JButton btnShowCtl = new JButton("Hiện điều khiển");
         btnShowCtl.setMargin(new Insets(4, 12, 4, 12));
-        btnShowCtl.addActionListener(e -> showControlPanelForCourtId(status.courtId));
+        btnShowCtl.addActionListener(e -> {
+            try {
+                showControlPanelForCourtId(status.courtId);
+            } catch (SQLException e1) {
+                e1.printStackTrace();
+            }
+        });
         buttonPanel.add(btnShowCtl);
 
-        // Nút Đóng sân đã chuyển lên header
         card.add(buttonPanel, BorderLayout.SOUTH);
 
-        // Chặn card bị kéo cao khi nằm trong BoxLayout Y_AXIS
         SwingUtilities.invokeLater(
                 () -> card.setMaximumSize(new Dimension(Integer.MAX_VALUE, card.getPreferredSize().height)));
-
         return card;
     }
 
-    /** Thêm một hàng (key, value) cho infoPanel */
     private void addInfoRow(JPanel panel, GridBagConstraints gc, String key, String val) {
         JLabel lk = new JLabel(key);
         lk.setFont(lk.getFont().deriveFont(Font.PLAIN, 12f));
@@ -620,9 +631,11 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
                     "Đang thi đấu", JOptionPane.WARNING_MESSAGE);
             return;
         }
+        // Lấy tên sân từ ID
+        String courtName = formatCourtIdForDisplay(courtId);
 
         int result = JOptionPane.showConfirmDialog(this,
-                "Bạn có chắc muốn đóng sân " + courtId + "?",
+                "Bạn có chắc muốn đóng " + courtName + "?",
                 "Xác nhận", JOptionPane.YES_NO_OPTION);
 
         if (result == JOptionPane.YES_OPTION) {
@@ -847,8 +860,12 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         };
     }
 
-    /** Thêm sân mới từ combo box chọn sân */
-    private void addNewCourtFromCombo(JComboBox<String> courtCombo) {
+    /**
+     * Thêm sân mới từ combo box chọn sân
+     * 
+     * @throws SQLException
+     */
+    private void addNewCourtFromCombo(JComboBox<String> courtCombo) throws SQLException {
         String displayName = (String) courtCombo.getSelectedItem();
         String courtId = getCourtUuidFromDisplayName(displayName);
         String header = txtNewCourtHeader.getText().trim();
@@ -876,18 +893,13 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         refreshOverview();
     }
 
-    /**
-     * Hiện (mở/đưa ra trước) tab bảng điều khiển cho sân được chọn trong combo box.
-     * Không tạo sân mới; nếu sân chưa được tạo, yêu cầu người dùng thêm sân trước.
-     */
-    private void showControlPanelFromCombo(JComboBox<String> courtCombo) {
+    private void showControlPanelFromCombo(JComboBox<String> courtCombo) throws SQLException {
         String displayName = (String) courtCombo.getSelectedItem();
         String courtId = getCourtUuidFromDisplayName(displayName);
         showControlPanelForCourtId(courtId);
     }
 
-    /** Hiện (mở/đưa ra trước) tab bảng điều khiển cho sân theo courtId. */
-    private void showControlPanelForCourtId(String courtId) {
+    private void showControlPanelForCourtId(String courtId) throws SQLException {
         if (courtId == null || courtId.isBlank()) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn sân", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
@@ -921,14 +933,20 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         }
     }
 
-    /**
-     * Khởi tạo mapping giữa tên hiển thị sân và UUID v7
-     */
     private void initializeCourtMapping(JComboBox<String> courtCombo) {
+        Prefs prefs = new Prefs();
+
         for (int i = 1; i <= 10; i++) {
             String displayName = "Sân " + i;
-            String uuid = UuidV7.generate();
-            courtDisplayToUuidMap.put(displayName, uuid);
+            String prefKey = "court.mapping." + i;
+            String courtId = prefs.get(prefKey, null);
+
+            if (courtId == null || courtId.isBlank()) {
+                courtId = UuidV7.generate().toString();
+                prefs.put(prefKey, courtId);
+            }
+
+            courtDisplayToUuidMap.put(displayName, courtId);
             courtCombo.addItem(displayName);
         }
     }

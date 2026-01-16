@@ -52,13 +52,14 @@ public class BocThamDoiRepository {
     }
 
     /** READ: danh sách theo (giải, nội dung) sắp theo THU_TU */
-    public List<BocThamDoi> listBy(int idGiai, int idNoiDung) {
+    public List<BocThamDoi> listBy(int idGiai, int idNoiDung, int soDo) {
         final String sql = "SELECT ID_GIAI, ID_NOI_DUNG, ID_CLB, TEN_TEAM, THU_TU, SO_DO " +
-                "FROM BOC_THAM_DOI WHERE ID_GIAI=? AND ID_NOI_DUNG=? ORDER BY THU_TU";
+                "FROM BOC_THAM_DOI WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND SO_DO=? ORDER BY THU_TU";
         List<BocThamDoi> out = new ArrayList<>();
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, idGiai);
             ps.setInt(2, idNoiDung);
+            ps.setInt(3, soDo);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next())
                     out.add(map(rs));
@@ -146,4 +147,37 @@ public class BocThamDoiRepository {
         return 0; // giá trị mặc định nếu không có dữ liệu
     }
 
+    public boolean soDoExist(int idGiai, int idNoiDung, int soDo) {
+        final String sql = "SELECT 1 FROM BOC_THAM_DOI " +
+                "WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND SO_DO=? LIMIT 1";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idGiai);
+            ps.setInt(2, idNoiDung);
+            ps.setInt(3, soDo);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi kiểm tra tồn tại SO_DO trong BOC_THAM_DOI", e);
+        }
+    }
+
+    /** Lấy tất cả dữ liệu bốc thăm từ tất cả sơ đồ (không filter SO_DO) */
+    public List<BocThamDoi> listAll(int idGiai, int idNoiDung) {
+        final String sql = "SELECT ID_GIAI, ID_NOI_DUNG, ID_CLB, TEN_TEAM, THU_TU, SO_DO " +
+                "FROM BOC_THAM_DOI WHERE ID_GIAI=? AND ID_NOI_DUNG=? ORDER BY THU_TU, SO_DO";
+        List<BocThamDoi> out = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idGiai);
+            ps.setInt(2, idNoiDung);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next())
+                    out.add(map(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi liệt kê toàn bộ BOC_THAM_DOI", e);
+        }
+        return out;
+    }
 }

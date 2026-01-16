@@ -379,7 +379,7 @@ public class DangKyDoiPanel extends JPanel {
         if (idGiai <= 0 || conn == null)
             return result;
         // maps[1] = doubles map (ten->id)
-        Map<String, Integer>[] maps = new NoiDungRepository(conn).loadCategories();
+        Map<String, Integer>[] maps = noiDungService.getAllNoiDungType();
         Map<String, Integer> doublesMap = maps[1];
         if (doublesMap == null || doublesMap.isEmpty())
             return result;

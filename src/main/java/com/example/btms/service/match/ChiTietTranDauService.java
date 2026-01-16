@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.UUID;
 
 import com.example.btms.model.match.ChiTietTranDau;
 import com.example.btms.repository.match.ChiTietTranDauRepository;
@@ -21,7 +20,7 @@ public class ChiTietTranDauService {
     public String create(String id, int theThuc, int idVdvThang,
             LocalDateTime batDau, LocalDateTime ketThuc, int san) {
         if (id == null || id.isBlank())
-            id = UUID.randomUUID().toString();
+            id = UuidV7.generate();
         validateTimes(batDau, ketThuc);
         repo.add(new ChiTietTranDau(id, theThuc, idVdvThang, batDau, ketThuc, san));
         return id;
@@ -33,7 +32,7 @@ public class ChiTietTranDauService {
         // ID_VDV_THANG chưa biết khi bắt đầu (0 nghĩa là chưa có)
         int idVdvThang = 0;
         LocalDateTime ketThuc = batDau; // placeholder, sẽ update khi kết thúc
-        repo.add(new ChiTietTranDau(id, theThuc, idVdvThang, batDau, ketThuc, san));
+        create(id, theThuc, idVdvThang, batDau, ketThuc, san);
         return id;
     }
 

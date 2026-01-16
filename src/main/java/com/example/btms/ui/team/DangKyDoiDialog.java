@@ -35,6 +35,7 @@ import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.club.CauLacBo;
 import com.example.btms.model.player.VanDongVien;
 import com.example.btms.repository.category.NoiDungRepository;
+import com.example.btms.service.category.NoiDungService;
 import com.example.btms.service.club.CauLacBoService;
 import com.example.btms.service.player.VanDongVienService;
 import com.example.btms.service.team.ChiTietDoiService;
@@ -46,6 +47,9 @@ import com.example.btms.ui.player.VanDongVienDialog;
  */
 public class DangKyDoiDialog extends JDialog {
 
+    private Connection conn;
+
+    private final NoiDungService noiDungService = new NoiDungService(new NoiDungRepository(conn));
     private final DangKiDoiService teamService;
     private final ChiTietDoiService detailService;
     private final VanDongVienService vdvService;
@@ -222,7 +226,7 @@ public class DangKyDoiDialog extends JDialog {
         java.util.Set<Integer> allowedDoubleIds = new java.util.LinkedHashSet<>();
         if (conn != null) {
             try {
-                java.util.Map<String, Integer>[] maps = new NoiDungRepository(conn).loadCategories(); // [1]=doubles
+                java.util.Map<String, Integer>[] maps = noiDungService.getAllNoiDungType(); // [1]=doubles
                 allowedDoubleIds.addAll(maps[1].values());
             } catch (Exception ex) {
                 System.err.println("Không thể load danh sách nội dung đã đăng ký: " + ex.getMessage());

@@ -25,12 +25,13 @@ public class BocThamCaNhanService {
     // READ
     public BocThamCaNhan getOne(int idGiai, int idNoiDung, int idVdv) {
         BocThamCaNhan r = repo.findOne(idGiai, idNoiDung, idVdv);
-        if (r == null) throw new NoSuchElementException("Không tìm thấy bốc thăm cá nhân");
+        if (r == null)
+            throw new NoSuchElementException("Không tìm thấy bốc thăm cá nhân");
         return r;
     }
 
-    public List<BocThamCaNhan> list(int idGiai, int idNoiDung) {
-        return repo.list(idGiai, idNoiDung);
+    public List<BocThamCaNhan> list(int idGiai, int idNoiDung, int soDo) {
+        return repo.list(idGiai, idNoiDung, soDo);
     }
 
     // UPDATE
@@ -46,13 +47,26 @@ public class BocThamCaNhanService {
         repo.delete(idGiai, idNoiDung, idVdv);
     }
 
+    public boolean soDoExist(int idGiai, int idNoiDung, int soDo) {
+        return repo.soDoExist(idGiai, idNoiDung, soDo);
+    }
+
+    /**
+     * Lấy tất cả dữ liệu bốc thăm từ tất cả sơ đồ (không filter theo soDo)
+     */
+    public List<BocThamCaNhan> listAll(int idGiai, int idNoiDung) {
+        return repo.listAll(idGiai, idNoiDung);
+    }
+
     // Helpers
     public boolean exists(int idGiai, int idNoiDung, int idVdv) {
         return repo.findOne(idGiai, idNoiDung, idVdv) != null;
     }
 
     private void validate(int thuTu, int soDo) {
-        if (thuTu < 0) throw new IllegalArgumentException("THU_TU phải > 0");
-        if (soDo <= 0) throw new IllegalArgumentException("SO_DO phải > 0");
+        if (thuTu < 0)
+            throw new IllegalArgumentException("THU_TU phải > 0");
+        if (soDo <= 0)
+            throw new IllegalArgumentException("SO_DO phải > 0");
     }
 }
