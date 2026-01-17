@@ -1183,7 +1183,7 @@ public class BienBanTranPanel extends JPanel {
             fc.setDialogTitle("Lưu biên bản thành PDF");
             fc.setSelectedFile(
                     new File(
-                            "bien-ban-" + (currentMatchId != null ? currentMatchId : "match") + ".pdf"));
+                            "Biên_Bản_Trận_Đấu_" + (currentMatchId != null ? currentMatchId : "match") + ".pdf"));
             int ans = fc.showSaveDialog(this);
             if (ans != JFileChooser.APPROVE_OPTION)
                 return;
@@ -1457,7 +1457,7 @@ public class BienBanTranPanel extends JPanel {
         java.awt.FontMetrics fm = g.getFontMetrics(titleFont);
         int tx = (width - fm.stringWidth(title)) / 2;
         g.drawString(title, tx, y + fm.getAscent());
-        y += fm.getHeight() + 6;
+        y += fm.getHeight() + 3;
 
         // Subtitle line (larger) - Tăng font size từ 20 lên 24 để dễ đọc hơn
         java.awt.Font sub = new java.awt.Font("Serif", java.awt.Font.PLAIN, 26);
@@ -1466,7 +1466,7 @@ public class BienBanTranPanel extends JPanel {
         fm = g.getFontMetrics(sub);
         tx = (width - fm.stringWidth(subText)) / 2;
         g.drawString(subText, tx, y + fm.getAscent());
-        y += fm.getHeight() + 10;
+        y += fm.getHeight() + 5;
 
         // Layout sizes
         int boxH = 84;
@@ -1815,9 +1815,6 @@ public class BienBanTranPanel extends JPanel {
                 }
             }
         } catch (Exception ex) {
-            // ignore
         }
-
-        // done
     }
 }
