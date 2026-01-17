@@ -17,6 +17,7 @@ import com.lowagie.text.PageSize;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.Phrase;
 import com.lowagie.text.pdf.BaseFont;
+import com.lowagie.text.pdf.ColumnText;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfPageEventHelper;
@@ -83,26 +84,26 @@ public final class ClubFeesPdfExporter {
                 // Hàng thông tin CLB
                 PdfPCell numCell = new PdfPCell(new Phrase(String.valueOf(rowNum), boldFont));
                 numCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                numCell.setPadding(10);
-                numCell.setMinimumHeight(25);
+                numCell.setPadding(4);
+                numCell.setMinimumHeight(20);
                 table.addCell(numCell);
 
                 PdfPCell clubCell = new PdfPCell(new Phrase(clubInfo.getClubName(), boldFont));
                 clubCell.setHorizontalAlignment(Element.ALIGN_LEFT);
-                clubCell.setPadding(10);
-                clubCell.setMinimumHeight(25);
+                clubCell.setPadding(4);
+                clubCell.setMinimumHeight(20);
                 table.addCell(clubCell);
 
                 PdfPCell countCell = new PdfPCell(new Phrase(String.valueOf(clubInfo.getPlayerCount()), boldFont));
                 countCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                countCell.setPadding(10);
-                countCell.setMinimumHeight(25);
+                countCell.setPadding(4);
+                countCell.setMinimumHeight(20);
                 table.addCell(countCell);
 
                 PdfPCell feeCell = new PdfPCell(new Phrase(formatMoney(clubInfo.getTotalFee()), boldFont));
                 feeCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                feeCell.setPadding(10);
-                feeCell.setMinimumHeight(25);
+                feeCell.setPadding(4);
+                feeCell.setMinimumHeight(20);
                 table.addCell(feeCell);
 
                 grandTotal += clubInfo.getTotalFee();
@@ -114,25 +115,33 @@ public final class ClubFeesPdfExporter {
             totalLabelCell.setColspan(3);
             totalLabelCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
             totalLabelCell.setBackgroundColor(new java.awt.Color(220, 220, 220));
-            totalLabelCell.setPadding(10);
-            totalLabelCell.setMinimumHeight(25);
+            totalLabelCell.setPadding(4);
+            totalLabelCell.setMinimumHeight(20);
             table.addCell(totalLabelCell);
 
             PdfPCell totalFeeCell = new PdfPCell(new Phrase(formatMoney(grandTotal), boldFont));
             totalFeeCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
             totalFeeCell.setBackgroundColor(new java.awt.Color(220, 220, 220));
-            totalFeeCell.setPadding(10);
-            totalFeeCell.setMinimumHeight(25);
+            totalFeeCell.setPadding(4);
+            totalFeeCell.setMinimumHeight(20);
             table.addCell(totalFeeCell);
 
             doc.add(table);
 
             // Thêm chú thích
             doc.add(new Paragraph("\n"));
-            Paragraph notes = new Paragraph(
-                    "Chú thích: Nội dung đầu tiên: " + formatMoney(firstEventFee) + " đ/VĐV | Nội dung thứ 2 trở đi: "
-                            + formatMoney(subsequentEventFee) + " đ/nội dung/VĐV",
-                    normalFont);
+            Paragraph notes;
+            if ((firstEventFee > 0 || subsequentEventFee > 0) && firstEventFee != subsequentEventFee) {
+                notes = new Paragraph(
+                        "Chú thích: Nội dung đầu tiên: " + formatMoney(firstEventFee)
+                                + " VND/VĐV | Nội dung thứ 2 trở đi: "
+                                + formatMoney(subsequentEventFee) + " VND/VĐV/nội dung",
+                        normalFont);
+            } else {
+                notes = new Paragraph(
+                        "Chú thích: Lệ phí:" + formatMoney(firstEventFee) + " VND/VĐV/nội dung",
+                        normalFont);
+            }
             notes.setAlignment(Element.ALIGN_LEFT);
             doc.add(notes);
 
@@ -163,8 +172,8 @@ public final class ClubFeesPdfExporter {
             PdfPCell cell = new PdfPCell(new Phrase(header, headerFont));
             cell.setBackgroundColor(new java.awt.Color(100, 149, 237)); // Cornflower blue
             cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-            cell.setPadding(12);
-            cell.setMinimumHeight(30);
+            cell.setPadding(4);
+            cell.setMinimumHeight(20);
             table.addCell(cell);
         }
 
@@ -195,13 +204,47 @@ public final class ClubFeesPdfExporter {
             doc.newPage();
 
             // Tiêu đề câu lạc bộ
-            Paragraph clubTitle = new Paragraph("Chi tiết: " + clubInfo.getClubName(), titleFont);
+            Paragraph clubTitle = new Paragraph(clubInfo.getClubName(), titleFont);
             clubTitle.setAlignment(Element.ALIGN_CENTER);
             doc.add(clubTitle);
 
+            // Đếm số VĐV nam và nữ (không trùng lặp)
+            int maleCount = 0;
+            int femaleCount = 0;
+            java.util.Set<Integer> countedPlayerIds = new java.util.HashSet<>();
+            try {
+                List<Map<String, Object>> clubDetails = clubFeesService.getClubDetails(clubId, tournamentId);
+                if (clubDetails != null) {
+                    for (Map<String, Object> item : clubDetails) {
+                        Object idObj = item.get("playerId");
+                        if (idObj == null)
+                            continue;
+                        Integer playerId;
+                        try {
+                            playerId = Integer.valueOf(idObj.toString());
+                        } catch (Exception e) {
+                            continue;
+                        }
+                        if (countedPlayerIds.contains(playerId))
+                            continue;
+                        countedPlayerIds.add(playerId);
+                        Object genderObj = item.get("gender");
+                        String gender = genderObj != null ? genderObj.toString().trim().toLowerCase() : "";
+                        if (gender.equals("m")) {
+                            maleCount++;
+                        } else if (gender.equals("f")) {
+                            femaleCount++;
+                        }
+                    }
+                }
+            } catch (Exception ignore) {
+            }
+
             Paragraph clubInfo2 = new Paragraph(
-                    "Số VĐV: " + clubInfo.getPlayerCount() + " | Tổng lệ phí: " + formatMoney(clubInfo.getTotalFee())
-                            + " đ",
+                    "Số VĐV: " + clubInfo.getPlayerCount() +
+                            " (Nam: " + maleCount + ", Nữ: " + femaleCount + ") | Tổng lệ phí: "
+                            + formatMoney(clubInfo.getTotalFee())
+                            + " VND",
                     normalFont);
             clubInfo2.setAlignment(Element.ALIGN_CENTER);
             doc.add(clubInfo2);
@@ -216,11 +259,11 @@ public final class ClubFeesPdfExporter {
                     // Tạo bảng chi tiết - 5 cột
                     PdfPTable detailTable = new PdfPTable(5);
                     detailTable.setWidthPercentage(100);
-                    detailTable.setWidths(new float[] { 1f, 2f, 1.5f, 2f, 1.5f });
+                    detailTable.setWidths(new float[] { 0.75f, 2f, 1.5f, 2.75f, 1f });
                     detailTable.setSpacingAfter(0);
 
                     // Headers
-                    String[] headers = { "STT", "Tên VĐV", "Ngày sinh", "Nội dung", "Phí (đ)" };
+                    String[] headers = { "STT", "Tên VĐV", "Ngày sinh", "Nội dung", "Phí (VND)" };
                     for (String header : headers) {
                         PdfPCell cell = new PdfPCell(new Phrase(header, headerFont));
                         cell.setBackgroundColor(new java.awt.Color(100, 149, 237));
@@ -230,7 +273,6 @@ public final class ClubFeesPdfExporter {
                         detailTable.addCell(cell);
                     }
 
-                    // Tính phí cho mỗi VĐV (200k cho nội dung đầu, 100k cho nội dung tiếp theo)
                     Map<String, java.util.List<String>> playerContents = new java.util.LinkedHashMap<>();
                     Map<String, java.util.Date> playerBirthDate = new java.util.HashMap<>();
                     Map<String, String> playerOrder = new java.util.LinkedHashMap<>();
@@ -295,15 +337,15 @@ public final class ClubFeesPdfExporter {
                             // STT
                             PdfPCell numCell = new PdfPCell(new Phrase(String.valueOf(rowNum), normalFont));
                             numCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                            numCell.setPadding(8);
-                            numCell.setMinimumHeight(20);
+                            numCell.setPadding(3);
+                            numCell.setMinimumHeight(10);
                             detailTable.addCell(numCell);
 
                             // Tên VĐV
                             PdfPCell nameCell = new PdfPCell(new Phrase(playerName, normalFont));
                             nameCell.setHorizontalAlignment(Element.ALIGN_LEFT);
-                            nameCell.setPadding(8);
-                            nameCell.setMinimumHeight(20);
+                            nameCell.setPadding(3);
+                            nameCell.setMinimumHeight(10);
                             detailTable.addCell(nameCell);
 
                             // Ngày sinh (chỉ hiển thị ở nội dung đầu tiên)
@@ -316,29 +358,29 @@ public final class ClubFeesPdfExporter {
                                 }
                                 PdfPCell birthCell = new PdfPCell(new Phrase(birthDateStr, normalFont));
                                 birthCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                                birthCell.setPadding(8);
-                                birthCell.setMinimumHeight(20);
+                                birthCell.setPadding(3);
+                                birthCell.setMinimumHeight(10);
                                 detailTable.addCell(birthCell);
                             } else {
                                 PdfPCell emptyCell = new PdfPCell(new Phrase("", normalFont));
                                 emptyCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                                emptyCell.setPadding(8);
-                                emptyCell.setMinimumHeight(20);
+                                emptyCell.setPadding(3);
+                                emptyCell.setMinimumHeight(10);
                                 detailTable.addCell(emptyCell);
                             }
 
                             // Nội dung
                             PdfPCell contentCell = new PdfPCell(new Phrase(contentName, normalFont));
                             contentCell.setHorizontalAlignment(Element.ALIGN_LEFT);
-                            contentCell.setPadding(8);
-                            contentCell.setMinimumHeight(20);
+                            contentCell.setPadding(3);
+                            contentCell.setMinimumHeight(10);
                             detailTable.addCell(contentCell);
 
                             // Phí từng nội dung
                             PdfPCell feeCell = new PdfPCell(new Phrase(formatMoney(contentFee), normalFont));
                             feeCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                            feeCell.setPadding(8);
-                            feeCell.setMinimumHeight(20);
+                            feeCell.setPadding(3);
+                            feeCell.setMinimumHeight(10);
                             detailTable.addCell(feeCell);
 
                             rowNum++;
@@ -352,16 +394,16 @@ public final class ClubFeesPdfExporter {
                     totalLabelCell.setColspan(4);
                     totalLabelCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
                     totalLabelCell.setBackgroundColor(new java.awt.Color(220, 220, 220));
-                    totalLabelCell.setPadding(8);
-                    totalLabelCell.setMinimumHeight(20);
+                    totalLabelCell.setPadding(3);
+                    totalLabelCell.setMinimumHeight(10);
                     detailTable.addCell(totalLabelCell);
 
                     PdfPCell totalFeeCell = new PdfPCell(
                             new Phrase(formatMoney(clubInfo.getTotalFee()), boldFont));
                     totalFeeCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
                     totalFeeCell.setBackgroundColor(new java.awt.Color(220, 220, 220));
-                    totalFeeCell.setPadding(8);
-                    totalFeeCell.setMinimumHeight(20);
+                    totalFeeCell.setPadding(3);
+                    totalFeeCell.setMinimumHeight(10);
                     detailTable.addCell(totalFeeCell);
 
                     doc.add(detailTable);
@@ -463,6 +505,12 @@ public final class ClubFeesPdfExporter {
                 com.lowagie.text.pdf.ColumnText.showTextAligned(writer.getDirectContent(),
                         Element.ALIGN_CENTER,
                         new Phrase(this.subtitle, this.subtitleFont), pageWidth / 2f, textStartY - 18f, 0);
+
+                int pageNum = writer.getPageNumber();
+                String pageText = "Trang " + pageNum;
+                Font pageFont = docFont(10f, Font.NORMAL);
+                ColumnText.showTextAligned(writer.getDirectContent(), Element.ALIGN_RIGHT,
+                        new Phrase(pageText, pageFont), pageWidth - rightMargin, document.bottomMargin() - 10f, 0);
             } catch (Exception e) {
                 e.printStackTrace();
             }

@@ -173,6 +173,7 @@ public class ClubFeesService {
                 item.put("NGAY_SINH", birthDate);
                 item.put("contentId", reg.getIdNoiDung());
                 item.put("contentName", content != null ? content.getTenNoiDung() : "Unknown");
+                item.put("gender", player.getGioiTinh());
                 details.add(item);
             }
         }
@@ -197,6 +198,7 @@ public class ClubFeesService {
                     item.put("NGAY_SINH", birthDate);
                     item.put("contentId", teamReg.getIdNoiDung());
                     item.put("contentName", content != null ? content.getTenNoiDung() : "Unknown");
+                    item.put("gender", player.getGioiTinh());
                     details.add(item);
                 }
             }

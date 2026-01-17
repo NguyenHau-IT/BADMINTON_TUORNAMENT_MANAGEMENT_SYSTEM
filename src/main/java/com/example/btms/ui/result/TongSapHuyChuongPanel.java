@@ -44,6 +44,10 @@ import com.example.btms.service.result.KetQuaCaNhanService;
 import com.example.btms.service.result.KetQuaDoiService;
 import com.example.btms.service.team.ChiTietDoiService;
 import com.example.btms.service.team.DangKiDoiService;
+import com.lowagie.text.Element;
+import com.lowagie.text.Font;
+import com.lowagie.text.Phrase;
+import com.lowagie.text.pdf.ColumnText;
 
 /**
  * Trang xem tổng sắp huy chương và danh sách VĐV đạt huy chương (theo giải hiện
@@ -483,7 +487,7 @@ public class TongSapHuyChuongPanel extends JPanel {
                     : file.getAbsolutePath() + ".pdf";
 
             // Build PDF using OpenPDF with synchronized header
-            com.lowagie.text.Document doc = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4, 10f, 10f,
+            com.lowagie.text.Document doc = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4, 36f, 36f,
                     120f, 36f);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
@@ -535,7 +539,7 @@ public class TongSapHuyChuongPanel extends JPanel {
             String path = file.getAbsolutePath().toLowerCase().endsWith(".pdf") ? file.getAbsolutePath()
                     : file.getAbsolutePath() + ".pdf";
 
-            com.lowagie.text.Document doc = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4, 10f, 10f,
+            com.lowagie.text.Document doc = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4, 36f, 36f,
                     100f, 36f);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
@@ -576,7 +580,7 @@ public class TongSapHuyChuongPanel extends JPanel {
             String path = file.getAbsolutePath().toLowerCase().endsWith(".pdf") ? file.getAbsolutePath()
                     : file.getAbsolutePath() + ".pdf";
 
-            com.lowagie.text.Document doc = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4, 10f, 10f,
+            com.lowagie.text.Document doc = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4, 36f, 36f,
                     100f, 36f);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
@@ -1028,6 +1032,12 @@ public class TongSapHuyChuongPanel extends JPanel {
                     com.lowagie.text.Element.ALIGN_CENTER,
                     new com.lowagie.text.Phrase(this.exportTitle, this.exportFont), pageWidth / 2f, textStartY - 18f,
                     0);
+
+            int pageNum = writer.getPageNumber();
+            String pageText = "Trang " + pageNum;
+            Font pageFont = docFont(10f, Font.NORMAL);
+            ColumnText.showTextAligned(writer.getDirectContent(), Element.ALIGN_RIGHT,
+                    new Phrase(pageText, pageFont), pageWidth - rightMargin, document.bottomMargin() - 10f, 0);
         }
     }
 

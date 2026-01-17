@@ -1,9 +1,11 @@
 package com.example.btms.util.report;
 
+import java.awt.Color;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.sql.Connection;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -61,23 +63,58 @@ public final class RegistrationPdfExporter {
     public static void exportAll(Connection conn, int idGiai, File out, String giaiName) throws Exception {
         Data d = loadData(conn, idGiai);
         try (FileOutputStream fos = new FileOutputStream(out)) {
-            Document doc = new Document(PageSize.A4, 10f, 10f, 150f, 36f); // giấy dọc (portrait) + top margin for
+            Document doc = new Document(PageSize.A4, 36f, 36f, 120f, 36f);
             PdfWriter writer = PdfWriter.getInstance(doc, fos);
-            writer.setPageEvent(new HeaderEvent(giaiName, "DANH SÁCH ĐĂNG KÝ (ĐƠN + ĐÔI) - TẤT CẢ"));
+            writer.setPageEvent(new HeaderEvent(giaiName, "DANH SÁCH ĐĂNG KÝ"));
             doc.open();
-            PdfPTable table = buildTable(d.fontHeader);
+            PdfPTable table = buildTable(d.fontHeader, true);
             List<Row> rows = new ArrayList<>();
             for (NoiDung nd : d.noiDungs) {
-                // ĐÔI
-                List<DangKiDoi> teams = d.teamsByNoiDung.getOrDefault(nd.getId(), List.of());
-                for (DangKiDoi t : teams)
-                    rows.add(toRow(d, nd, t));
-                // ĐƠN
-                List<DangKiCaNhan> singles = d.singlesByNoiDung.getOrDefault(nd.getId(), List.of());
-                for (DangKiCaNhan r : singles)
-                    rows.add(toRowSingle(d, nd, r));
+                // ĐÔI: mỗi thành viên 1 hàng
+                for (DangKiDoi t : d.teamsByNoiDung.getOrDefault(nd.getId(), List.of())) {
+                    List<ChiTietDoi> members = d.chiTietSvc.listMembers(t.getIdTeam());
+                    members.sort(java.util.Comparator.comparing(ChiTietDoi::getIdVdv));
+                    for (ChiTietDoi m : members) {
+                        VanDongVien v = d.vdvById.get(m.getIdVdv());
+                        if (v != null) {
+                            Row r = new Row();
+                            r.noiDung = safe(nd.getTenNoiDung());
+                            r.tenvdv = safe(v.getHoTen());
+                            r.ngaySinh = v.getNgaySinh();
+                            r.clbId = v.getIdClb();
+                            r.clbName = Optional.ofNullable(d.clbById.get(r.clbId))
+                                    .map(CauLacBo::getTenClb).orElse("");
+                            r.tenTeam = safe(t.getTenTeam());
+                            rows.add(r);
+                        }
+                    }
+                }
+                // ĐƠN: mỗi đăng ký là 1 hàng
+                for (DangKiCaNhan r1 : d.singlesByNoiDung.getOrDefault(nd.getId(), List.of())) {
+                    VanDongVien v = d.vdvById.get(r1.getIdVdv());
+                    if (v != null) {
+                        Row r = new Row();
+                        r.noiDung = safe(nd.getTenNoiDung());
+                        r.tenvdv = safe(v.getHoTen());
+                        r.ngaySinh = v.getNgaySinh();
+                        r.clbId = v.getIdClb();
+                        r.clbName = Optional.ofNullable(d.clbById.get(r.clbId))
+                                .map(CauLacBo::getTenClb).orElse("");
+                        rows.add(r);
+                    }
+                }
             }
-            fillRows(table, rows, d.fontNormal);
+            // Sắp xếp theo ngày sinh từ mới tới cũ
+            rows.sort((a, b) -> {
+                if (a.ngaySinh == null && b.ngaySinh == null)
+                    return 0;
+                if (a.ngaySinh == null)
+                    return 1;
+                if (b.ngaySinh == null)
+                    return -1;
+                return b.ngaySinh.compareTo(a.ngaySinh);
+            });
+            fillRows(table, rows, d.fontNormal, true);
             doc.add(table);
             doc.close();
         }
@@ -86,24 +123,49 @@ public final class RegistrationPdfExporter {
     public static void exportByClub(Connection conn, int idGiai, File out, String giaiName) throws Exception {
         Data d = loadData(conn, idGiai);
         try (FileOutputStream fos = new FileOutputStream(out)) {
-            Document doc = new Document(PageSize.A4, 10f, 10f, 150f, 36f); // giấy dọc (portrait) + top margin for
+            Document doc = new Document(PageSize.A4, 36f, 36f, 120f, 36f); // giấy dọc (portrait) + top margin for
             PdfWriter writer = PdfWriter.getInstance(doc, fos);
-            writer.setPageEvent(new HeaderEvent(giaiName, "DANH SÁCH ĐĂNG KÝ THEO CLB (ĐƠN + ĐÔI)"));
+            writer.setPageEvent(new HeaderEvent(giaiName, "DANH SÁCH ĐĂNG KÝ THEO CLB"));
             doc.open();
-            // Group by CLB
+            // Group by CLB, each row is a VĐV in an event (even if same VĐV in 2 events, 2
+            // rows)
             Map<Integer, List<Row>> byClub = new LinkedHashMap<>();
             for (NoiDung nd : d.noiDungs) {
-                // ĐÔI
+                // ĐÔI: mỗi thành viên 1 hàng
                 for (DangKiDoi t : d.teamsByNoiDung.getOrDefault(nd.getId(), List.of())) {
-                    Row r = toRow(d, nd, t);
-                    final Integer key = Objects.requireNonNullElse(r.clbId, NO_CLUB);
-                    byClub.computeIfAbsent(key, k -> new ArrayList<>()).add(r);
+                    List<ChiTietDoi> members = d.chiTietSvc.listMembers(t.getIdTeam());
+                    members.sort(java.util.Comparator.comparing(ChiTietDoi::getIdVdv));
+                    for (ChiTietDoi m : members) {
+                        VanDongVien v = d.vdvById.get(m.getIdVdv());
+                        if (v != null) {
+                            Row r = new Row();
+                            r.noiDung = safe(nd.getTenNoiDung());
+                            r.tenvdv = safe(v.getHoTen());
+                            r.ngaySinh = v.getNgaySinh();
+                            r.clbId = v.getIdClb();
+                            r.clbName = Optional.ofNullable(d.clbById.get(r.clbId))
+                                    .map(CauLacBo::getTenClb).orElse("");
+                            r.tenTeam = safe(t.getTenTeam());
+                            final Integer key = Objects.requireNonNullElse(r.clbId, NO_CLUB);
+                            byClub.computeIfAbsent(key, k -> new ArrayList<>()).add(r);
+                        }
+                    }
                 }
-                // ĐƠN
+                // ĐƠN: mỗi đăng ký là 1 hàng
                 for (DangKiCaNhan r1 : d.singlesByNoiDung.getOrDefault(nd.getId(), List.of())) {
-                    Row r = toRowSingle(d, nd, r1);
-                    final Integer key = Objects.requireNonNullElse(r.clbId, NO_CLUB);
-                    byClub.computeIfAbsent(key, k -> new ArrayList<>()).add(r);
+                    VanDongVien v = d.vdvById.get(r1.getIdVdv());
+                    if (v != null) {
+                        Row r = new Row();
+                        r.noiDung = safe(nd.getTenNoiDung());
+                        r.tenvdv = safe(v.getHoTen());
+                        r.ngaySinh = v.getNgaySinh();
+                        r.clbId = v.getIdClb();
+                        r.clbName = Optional.ofNullable(d.clbById.get(r.clbId))
+                                .map(CauLacBo::getTenClb).orElse("");
+                        r.tenTeam = ""; // Đơn: không có danh sách thành viên
+                        final Integer key = Objects.requireNonNullElse(r.clbId, NO_CLUB);
+                        byClub.computeIfAbsent(key, k -> new ArrayList<>()).add(r);
+                    }
                 }
             }
             List<Map.Entry<Integer, List<Row>>> clubEntries = new ArrayList<>(byClub.entrySet());
@@ -115,12 +177,15 @@ public final class RegistrationPdfExporter {
                 boolean noClub = NO_CLUB.equals(e.getKey());
                 String clbName = noClub ? "(Không có CLB)"
                         : Optional.ofNullable(d.clbById.get(e.getKey())).map(CauLacBo::getTenClb).orElse("(N/A)");
-                Paragraph sec = new Paragraph("• CLB: " + clbName + " (" + e.getValue().size() + ")", d.fontSection);
-                sec.setSpacingBefore(8f);
+                Font sectionFont = new Font(d.fontSection);
+                sectionFont.setSize(16f);
+                Paragraph sec = new Paragraph(clbName, sectionFont);
+                // cho sec nằm giữa
+                sec.setAlignment(Element.ALIGN_CENTER);
                 sec.setSpacingAfter(3f);
                 doc.add(sec);
-                PdfPTable table = buildTable(d.fontHeader);
-                fillRows(table, e.getValue(), d.fontNormal);
+                PdfPTable table = buildTable(d.fontHeader, false);
+                fillRows(table, e.getValue(), d.fontNormal, false);
                 doc.add(table);
             }
             doc.close();
@@ -130,38 +195,73 @@ public final class RegistrationPdfExporter {
     public static void exportByNoiDung(Connection conn, int idGiai, File out, String giaiName) throws Exception {
         Data d = loadData(conn, idGiai);
         try (FileOutputStream fos = new FileOutputStream(out)) {
-            Document doc = new Document(PageSize.A4, 10f, 10f, 150f, 36f); // giấy dọc (portrait) + top margin for
+            Document doc = new Document(PageSize.A4, 36f, 36f, 120f, 36f);
             PdfWriter writer = PdfWriter.getInstance(doc, fos);
-            writer.setPageEvent(new HeaderEvent(giaiName, "DANH SÁCH ĐĂNG KÝ THEO NỘI DUNG (ĐƠN + ĐÔI)"));
+            writer.setPageEvent(new HeaderEvent(giaiName, "DANH SÁCH ĐĂNG KÝ THEO NỘI DUNG"));
             doc.open();
             boolean isFirstPage = true;
             for (int idx = 0; idx < d.noiDungs.size(); idx++) {
                 NoiDung nd = d.noiDungs.get(idx);
                 List<Row> rows = new ArrayList<>();
-                // ĐÔI
-                rows.addAll(d.teamsByNoiDung.getOrDefault(nd.getId(), List.of())
-                        .stream().map(t -> toRow(d, nd, t)).collect(Collectors.toList()));
-                // ĐƠN
-                rows.addAll(d.singlesByNoiDung.getOrDefault(nd.getId(), List.of())
-                        .stream().map(r -> toRowSingle(d, nd, r)).collect(Collectors.toList()));
-
+                // ĐÔI: mỗi thành viên 1 hàng
+                for (DangKiDoi t : d.teamsByNoiDung.getOrDefault(nd.getId(), List.of())) {
+                    List<ChiTietDoi> members = d.chiTietSvc.listMembers(t.getIdTeam());
+                    members.sort(java.util.Comparator.comparing(ChiTietDoi::getIdVdv));
+                    for (ChiTietDoi m : members) {
+                        VanDongVien v = d.vdvById.get(m.getIdVdv());
+                        if (v != null) {
+                            Row r = new Row();
+                            r.noiDung = safe(nd.getTenNoiDung());
+                            r.tenvdv = safe(v.getHoTen());
+                            r.ngaySinh = v.getNgaySinh();
+                            r.clbId = v.getIdClb();
+                            r.clbName = Optional.ofNullable(d.clbById.get(r.clbId))
+                                    .map(CauLacBo::getTenClb).orElse("");
+                            r.tenTeam = safe(t.getTenTeam());
+                            rows.add(r);
+                        }
+                    }
+                }
+                // ĐƠN: mỗi đăng ký là 1 hàng
+                for (DangKiCaNhan r1 : d.singlesByNoiDung.getOrDefault(nd.getId(), List.of())) {
+                    VanDongVien v = d.vdvById.get(r1.getIdVdv());
+                    if (v != null) {
+                        Row r = new Row();
+                        r.noiDung = safe(nd.getTenNoiDung());
+                        r.tenvdv = safe(v.getHoTen());
+                        r.ngaySinh = v.getNgaySinh();
+                        r.clbId = v.getIdClb();
+                        r.clbName = Optional.ofNullable(d.clbById.get(r.clbId))
+                                .map(CauLacBo::getTenClb).orElse("");
+                        r.tenTeam = "";
+                        rows.add(r);
+                    }
+                }
+                // Sắp xếp theo ngày sinh từ mới tới cũ
+                rows.sort((a, b) -> {
+                    if (a.ngaySinh == null && b.ngaySinh == null)
+                        return 0;
+                    if (a.ngaySinh == null)
+                        return 1;
+                    if (b.ngaySinh == null)
+                        return -1;
+                    return b.ngaySinh.compareTo(a.ngaySinh);
+                });
                 // Skip nội dung không có VĐV nào
                 if (rows.isEmpty()) {
                     continue;
                 }
-
                 if (!isFirstPage) {
                     doc.newPage();
                 }
                 isFirstPage = false;
-
-                Paragraph sec = new Paragraph("• Nội dung: " + safe(nd.getTenNoiDung()) + " (" + rows.size() + ")",
+                Paragraph sec = new Paragraph("• " + safe(nd.getTenNoiDung()) + " (" + rows.size() + ")",
                         d.fontSection);
                 sec.setSpacingBefore(8f);
                 sec.setSpacingAfter(3f);
                 doc.add(sec);
-                PdfPTable table = buildTable(d.fontHeader);
-                fillRows(table, rows, d.fontNormal);
+                PdfPTable table = buildTable(d.fontHeader, true);
+                fillRows(table, rows, d.fontNormal, true);
                 doc.add(table);
             }
             doc.close();
@@ -199,10 +299,11 @@ public final class RegistrationPdfExporter {
 
     private static class Row {
         Integer clbId;
-        String clb;
+        String clbName;
+        LocalDate ngaySinh;
         String noiDung;
-        String tenDoi;
-        String thanhVien; // "A & B"
+        String tenvdv;
+        String tenTeam; // "A & B"
     }
 
     private static Data loadData(Connection conn, int idGiai) throws Exception {
@@ -365,6 +466,13 @@ public final class RegistrationPdfExporter {
             // Export title centered (below tournament name)
             ColumnText.showTextAligned(writer.getDirectContent(), Element.ALIGN_CENTER,
                     new Phrase(this.exportTitle, this.exportFont), pageWidth / 2f, textStartY - 18f, 0);
+
+            // Page number at footer (bottom center)
+            int pageNum = writer.getPageNumber();
+            String pageText = "Trang " + pageNum;
+            Font pageFont = docFont(10f, Font.NORMAL);
+            ColumnText.showTextAligned(writer.getDirectContent(), Element.ALIGN_RIGHT,
+                    new Phrase(pageText, pageFont), pageWidth - rightMargin, document.bottomMargin() - 10f, 0);
         }
     }
 
@@ -385,35 +493,61 @@ public final class RegistrationPdfExporter {
         }
     }
 
-    private static PdfPTable buildTable(Font fontHeader) {
+    private static PdfPTable buildTable(Font fontHeader, boolean clbNameColumn) {
         // Điều chỉnh tỉ lệ cột cho giấy dọc: tổng = 100
-        float[] widths = { 5f, 25f, 18f, 22f, 30f }; // STT, Nội dung, CLB, Tên đội, Thành viên
-        PdfPTable t = new PdfPTable(widths);
-        t.setWidthPercentage(100);
-        t.setHeaderRows(1);
-        addHeaderCell(t, "STT", fontHeader);
-        addHeaderCell(t, "Nội dung", fontHeader);
-        addHeaderCell(t, "CLB", fontHeader);
-        addHeaderCell(t, "Tên đội/ Vận động viên", fontHeader);
-        addHeaderCell(t, "Thành viên", fontHeader);
-        return t;
+        if (clbNameColumn) {
+            float[] widths = { 5f, 25f, 20f, 15f, 20f, 15f }; // STT, Nội dung, CLB, Tên đội, Thành viên
+            PdfPTable t = new PdfPTable(widths);
+            t.setWidthPercentage(100);
+            t.setHeaderRows(1);
+            addHeaderCell(t, "STT", fontHeader);
+            addHeaderCell(t, "Nội dung", fontHeader);
+            addHeaderCell(t, "Câu lạc bộ", fontHeader);
+            addHeaderCell(t, "Ngày sinh", fontHeader);
+            addHeaderCell(t, "Vận động viên", fontHeader);
+            addHeaderCell(t, "Tên đội", fontHeader);
+            return t;
+        } else {
+            float[] widths = { 5f, 35f, 18f, 22f, 20f }; // STT, Nội dung, CLB, Tên đội, Thành viên
+            PdfPTable t = new PdfPTable(widths);
+            t.setWidthPercentage(100);
+            t.setHeaderRows(1);
+            addHeaderCell(t, "STT", fontHeader);
+            addHeaderCell(t, "Nội dung", fontHeader);
+            addHeaderCell(t, "Ngày sinh", fontHeader);
+            addHeaderCell(t, "Vận động viên", fontHeader);
+            addHeaderCell(t, "Tên đội", fontHeader);
+            return t;
+        }
     }
 
     private static void addHeaderCell(PdfPTable t, String txt, Font fontHeader) {
         PdfPCell c = new PdfPCell(new Phrase(safe(txt), fontHeader));
         c.setHorizontalAlignment(Element.ALIGN_CENTER);
-        c.setBackgroundColor(new java.awt.Color(235, 235, 235));
+        c.setBackgroundColor(new Color(33, 150, 243)); // Blue 500
         t.addCell(c);
     }
 
-    private static void fillRows(PdfPTable t, List<Row> rows, Font fontNormal) {
-        int i = 1;
-        for (Row r : rows) {
-            addCell(t, String.valueOf(i++), fontNormal, Element.ALIGN_CENTER);
-            addCell(t, r.noiDung, fontNormal, Element.ALIGN_LEFT);
-            addCell(t, r.clb, fontNormal, Element.ALIGN_LEFT);
-            addCell(t, r.tenDoi, fontNormal, Element.ALIGN_LEFT);
-            addCell(t, r.thanhVien, fontNormal, Element.ALIGN_LEFT);
+    private static void fillRows(PdfPTable t, List<Row> rows, Font fontNormal, boolean clbNameColumn) {
+        if (clbNameColumn) {
+            int i = 1;
+            for (Row r : rows) {
+                addCell(t, String.valueOf(i++), fontNormal, Element.ALIGN_CENTER);
+                addCell(t, r.noiDung, fontNormal, Element.ALIGN_LEFT);
+                addCell(t, r.clbName, fontNormal, Element.ALIGN_LEFT);
+                addCell(t, r.ngaySinh.toString(), fontNormal, Element.ALIGN_CENTER);
+                addCell(t, r.tenvdv, fontNormal, Element.ALIGN_LEFT);
+                addCell(t, r.tenTeam, fontNormal, Element.ALIGN_LEFT);
+            }
+        } else {
+            int i = 1;
+            for (Row r : rows) {
+                addCell(t, String.valueOf(i++), fontNormal, Element.ALIGN_CENTER);
+                addCell(t, r.noiDung, fontNormal, Element.ALIGN_LEFT);
+                addCell(t, r.ngaySinh.toString(), fontNormal, Element.ALIGN_CENTER);
+                addCell(t, r.tenvdv, fontNormal, Element.ALIGN_LEFT);
+                addCell(t, r.tenTeam, fontNormal, Element.ALIGN_LEFT);
+            }
         }
     }
 
@@ -426,11 +560,7 @@ public final class RegistrationPdfExporter {
     private static Row toRow(Data d, NoiDung nd, DangKiDoi t) {
         Row r = new Row();
         r.noiDung = safe(nd.getTenNoiDung());
-        r.tenDoi = safe(t.getTenTeam());
-        r.clbId = t.getIdClb();
-        r.clb = (t.getIdClb() == null) ? ""
-                : safe(Objects.toString(
-                        Optional.ofNullable(d.clbById.get(t.getIdClb())).map(CauLacBo::getTenClb).orElse("")));
+        r.tenTeam = safe(t.getTenTeam());
         try {
             List<ChiTietDoi> members = d.chiTietSvc.listMembers(t.getIdTeam());
             members.sort(java.util.Comparator.comparing(ChiTietDoi::getIdVdv));
@@ -440,9 +570,11 @@ public final class RegistrationPdfExporter {
                 if (v != null)
                     names.add(safe(v.getHoTen()));
             }
-            r.thanhVien = names.isEmpty() ? "" : String.join(" & ", names);
+            r.tenvdv = names.isEmpty() ? "" : String.join(" & ", names);
+            r.ngaySinh = members.isEmpty() ? null : d.vdvById.get(members.get(0).getIdVdv()).getNgaySinh();
         } catch (RuntimeException ex) {
-            r.thanhVien = "";
+            r.tenTeam = "";
+            r.ngaySinh = null;
         }
         return r;
     }
@@ -453,19 +585,14 @@ public final class RegistrationPdfExporter {
         r.noiDung = safe(nd.getTenNoiDung());
         VanDongVien v = d.vdvById.get(reg.getIdVdv());
         if (v != null) {
-            r.tenDoi = safe(v.getHoTen());
             r.clbId = v.getIdClb();
-            if (v.getIdClb() != null) {
-                r.clb = safe(Optional.ofNullable(d.clbById.get(v.getIdClb())).map(CauLacBo::getTenClb).orElse(""));
-            } else {
-                r.clb = "";
-            }
+            r.tenvdv = safe(v.getHoTen());
+            r.ngaySinh = v.getNgaySinh();
         } else {
-            r.tenDoi = "";
-            r.clbId = null;
-            r.clb = "";
+            r.tenvdv = "";
+            r.ngaySinh = null;
         }
-        r.thanhVien = ""; // Đơn: không có danh sách thành viên
+        r.tenTeam = ""; // Đơn: không có danh sách thành viên
         return r;
     }
 

@@ -139,9 +139,9 @@ public class BaoCaoPdfPanel extends JPanel {
             fc.setFileFilter(new FileNameExtensionFilter("PDF", "pdf"));
 
             String base = switch (mode) {
-                case ALL -> "DangKi_" + giaiName;
-                case BY_CLUB -> "DangKi_Theo_CLB";
-                case BY_CONTENT -> "DangKi_Theo_NoiDung";
+                case ALL -> giaiName + "_Tổng_Hợp_Đăng_Ký";
+                case BY_CLUB -> giaiName + "_Đăng_Ký_Theo_CLB";
+                case BY_CONTENT -> giaiName + "_Đăng_Ký_Theo_Nội_Dung";
             };
 
             // Chuẩn hóa tên file (xóa ký tự không hợp lệ)
