@@ -165,6 +165,12 @@ public class ClubFeesService {
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("playerId", reg.getIdVdv());
                 item.put("playerName", player.getHoTen());
+                // Chuyển LocalDate sang java.util.Date
+                java.util.Date birthDate = null;
+                if (player.getNgaySinh() != null) {
+                    birthDate = java.sql.Date.valueOf(player.getNgaySinh());
+                }
+                item.put("NGAY_SINH", birthDate);
                 item.put("contentId", reg.getIdNoiDung());
                 item.put("contentName", content != null ? content.getTenNoiDung() : "Unknown");
                 details.add(item);
@@ -183,6 +189,12 @@ public class ClubFeesService {
                     Map<String, Object> item = new LinkedHashMap<>();
                     item.put("playerId", member.getIdVdv());
                     item.put("playerName", player.getHoTen());
+                    // Chuyển LocalDate sang java.util.Date
+                    java.util.Date birthDate = null;
+                    if (player.getNgaySinh() != null) {
+                        birthDate = java.sql.Date.valueOf(player.getNgaySinh());
+                    }
+                    item.put("NGAY_SINH", birthDate);
                     item.put("contentId", teamReg.getIdNoiDung());
                     item.put("contentName", content != null ? content.getTenNoiDung() : "Unknown");
                     details.add(item);

@@ -454,7 +454,7 @@ public class ClubFeesPanel extends JPanel {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Lưu báo cáo lệ phí");
         fileChooser.setFileFilter(new FileNameExtensionFilter("PDF Files (*.pdf)", "pdf"));
-        String defaultFileName = "BaoCao_LePhi_" + currentTournament.getTenGiai() + ".pdf";
+        String defaultFileName = currentTournament.getTenGiai() + "_Báo_Cáo_Lệ_Phí.pdf";
         fileChooser.setSelectedFile(new File(defaultFileName));
 
         if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {

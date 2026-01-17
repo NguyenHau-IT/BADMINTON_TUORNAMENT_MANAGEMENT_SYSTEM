@@ -35,7 +35,7 @@ public final class ClubFeesPdfExporter {
             long firstEventFee, long subsequentEventFee)
             throws Exception {
         try (FileOutputStream fos = new FileOutputStream(outputFile)) {
-            Document doc = new Document(PageSize.A4, 36f, 36f, 150f, 36f); // Tăng top margin lên 150f
+            Document doc = new Document(PageSize.A4, 36f, 36f, 120f, 36f); // Tăng top margin lên 150f
             PdfWriter writer = PdfWriter.getInstance(doc, fos);
 
             // Set up header
@@ -213,14 +213,14 @@ public final class ClubFeesPdfExporter {
                 List<Map<String, Object>> clubDetails = clubFeesService.getClubDetails(clubId, tournamentId);
 
                 if (clubDetails != null && !clubDetails.isEmpty()) {
-                    // Tạo bảng chi tiết - 4 cột
-                    PdfPTable detailTable = new PdfPTable(4);
+                    // Tạo bảng chi tiết - 5 cột
+                    PdfPTable detailTable = new PdfPTable(5);
                     detailTable.setWidthPercentage(100);
-                    detailTable.setWidths(new float[] { 1f, 2.5f, 2.5f, 1.5f });
+                    detailTable.setWidths(new float[] { 1f, 2f, 1.5f, 2f, 1.5f });
                     detailTable.setSpacingAfter(0);
 
                     // Headers
-                    String[] headers = { "STT", "Tên VĐV", "Nội dung", "Phí (đ)" };
+                    String[] headers = { "STT", "Tên VĐV", "Ngày sinh", "Nội dung", "Phí (đ)" };
                     for (String header : headers) {
                         PdfPCell cell = new PdfPCell(new Phrase(header, headerFont));
                         cell.setBackgroundColor(new java.awt.Color(100, 149, 237));
@@ -232,6 +232,7 @@ public final class ClubFeesPdfExporter {
 
                     // Tính phí cho mỗi VĐV (200k cho nội dung đầu, 100k cho nội dung tiếp theo)
                     Map<String, java.util.List<String>> playerContents = new java.util.LinkedHashMap<>();
+                    Map<String, java.util.Date> playerBirthDate = new java.util.HashMap<>();
                     Map<String, String> playerOrder = new java.util.LinkedHashMap<>();
 
                     for (Map<String, Object> item : clubDetails) {
@@ -244,13 +245,40 @@ public final class ClubFeesPdfExporter {
 
                         playerOrder.put(playerName, playerName);
                         playerContents.computeIfAbsent(playerName, k -> new java.util.ArrayList<>()).add(contentName);
+
+                        // Lấy ngày sinh nếu chưa lưu
+                        if (!playerBirthDate.containsKey(playerName)) {
+                            Object birthObj = item.get("NGAY_SINH");
+                            if (birthObj instanceof java.util.Date) {
+                                playerBirthDate.put(playerName, (java.util.Date) birthObj);
+                            } else if (birthObj instanceof java.sql.Date) {
+                                playerBirthDate.put(playerName,
+                                        new java.util.Date(((java.sql.Date) birthObj).getTime()));
+                            } else {
+                                playerBirthDate.put(playerName, null);
+                            }
+                        }
                     }
+
+                    // Sắp xếp VĐV theo ngày sinh (từ mới đến cũ)
+                    java.util.List<String> sortedPlayers = new java.util.ArrayList<>(playerOrder.keySet());
+                    sortedPlayers.sort((p1, p2) -> {
+                        java.util.Date d1 = playerBirthDate.get(p1);
+                        java.util.Date d2 = playerBirthDate.get(p2);
+                        if (d1 == null && d2 == null)
+                            return 0;
+                        if (d1 == null)
+                            return -1;
+                        if (d2 == null)
+                            return 1;
+                        return d2.compareTo(d1);
+                    });
 
                     // Chi tiết - hiển thị từng nội dung cho từng VĐV
                     int rowNum = 1;
                     long clubTotal = 0;
 
-                    for (String playerName : playerOrder.keySet()) {
+                    for (String playerName : sortedPlayers) {
                         java.util.List<String> contents = playerContents.get(playerName);
                         int eventCount = contents.size();
 
@@ -278,6 +306,27 @@ public final class ClubFeesPdfExporter {
                             nameCell.setMinimumHeight(20);
                             detailTable.addCell(nameCell);
 
+                            // Ngày sinh (chỉ hiển thị ở nội dung đầu tiên)
+                            if (i == 0) {
+                                String birthDateStr = "";
+                                java.util.Date birthDate = playerBirthDate.get(playerName);
+                                if (birthDate != null) {
+                                    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy");
+                                    birthDateStr = sdf.format(birthDate);
+                                }
+                                PdfPCell birthCell = new PdfPCell(new Phrase(birthDateStr, normalFont));
+                                birthCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                                birthCell.setPadding(8);
+                                birthCell.setMinimumHeight(20);
+                                detailTable.addCell(birthCell);
+                            } else {
+                                PdfPCell emptyCell = new PdfPCell(new Phrase("", normalFont));
+                                emptyCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                                emptyCell.setPadding(8);
+                                emptyCell.setMinimumHeight(20);
+                                detailTable.addCell(emptyCell);
+                            }
+
                             // Nội dung
                             PdfPCell contentCell = new PdfPCell(new Phrase(contentName, normalFont));
                             contentCell.setHorizontalAlignment(Element.ALIGN_LEFT);
@@ -300,7 +349,7 @@ public final class ClubFeesPdfExporter {
 
                     // Hàng tổng cộng
                     PdfPCell totalLabelCell = new PdfPCell(new Phrase("TỔNG CỘNG", boldFont));
-                    totalLabelCell.setColspan(3);
+                    totalLabelCell.setColspan(4);
                     totalLabelCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
                     totalLabelCell.setBackgroundColor(new java.awt.Color(220, 220, 220));
                     totalLabelCell.setPadding(8);
