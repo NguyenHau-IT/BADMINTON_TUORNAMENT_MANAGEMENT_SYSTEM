@@ -689,15 +689,33 @@ public class BienBanTranPanel extends JPanel {
         addSwap.setEnabled(v.getSetNo() != null && v.getSetNo() == 2); // SWAP chỉ áp dụng ý nghĩa ở set 2
 
         addA.addActionListener(e -> {
-            model.addElement("P1@" + System.currentTimeMillis());
+            int idx = list.getSelectedIndex();
+            String token = "P1@" + System.currentTimeMillis();
+            if (idx >= 0) {
+                model.add(idx + 1, token);
+            } else {
+                model.addElement(token);
+            }
             saveTokensForSet(v.getIdTranDau(), v.getSetNo(), listModelToTokens(model));
         });
         addB.addActionListener(e -> {
-            model.addElement("P2@" + System.currentTimeMillis());
+            int idx = list.getSelectedIndex();
+            String token = "P2@" + System.currentTimeMillis();
+            if (idx >= 0) {
+                model.add(idx + 1, token);
+            } else {
+                model.addElement(token);
+            }
             saveTokensForSet(v.getIdTranDau(), v.getSetNo(), listModelToTokens(model));
         });
         addSwap.addActionListener(e -> {
-            model.addElement("SWAP@" + System.currentTimeMillis());
+            int idx = list.getSelectedIndex();
+            String token = "SWAP@" + System.currentTimeMillis();
+            if (idx >= 0) {
+                model.add(idx + 1, token);
+            } else {
+                model.addElement(token);
+            }
             saveTokensForSet(v.getIdTranDau(), v.getSetNo(), listModelToTokens(model));
         });
         del.addActionListener(e -> {
