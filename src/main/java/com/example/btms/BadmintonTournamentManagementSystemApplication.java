@@ -79,7 +79,6 @@ public class BadmintonTournamentManagementSystemApplication {
 			NetworkConfig cfg = dlg.getSelected();
 			if (cfg == null) {
 				// Người dùng hủy: thoát ứng dụng
-				log.logTs("🚪 Người dùng hủy chọn network interface - thoát ứng dụng");
 				System.exit(0);
 				return;
 			}
@@ -95,20 +94,15 @@ public class BadmintonTournamentManagementSystemApplication {
 				// Khởi động H2 TCP Server với IP đã chọn
 				try {
 					h2TcpServerConfig.startTcpServer(cfg);
-					log.logTs("✅ H2 TCP Server đã khởi động với IP: %s", cfg.ipv4Address());
 					h2TcpServerConfig.showConnectionInfo();
 				} catch (SQLException e) {
-					log.logTs("❌ Không thể khởi động H2 TCP Server: %s", e.getMessage());
 					e.printStackTrace(); // In chi tiết lỗi để debug
 				}
 
 			} catch (Throwable e) {
-				log.logTs("❌ Lỗi khi cấu hình network: %s", e.getMessage());
 				e.printStackTrace(); // In chi tiết lỗi
 			}
 
-			// Tạo MainFrame nhưng KHÔNG hiển thị; MainFrame sẽ tự hiển thị sau khi
-			// hoàn tất kết nối DB + đăng nhập + chọn giải.
 			MainFrame mf = new MainFrame(cfg, dbCfg, applicationContext);
 			IconUtil.applyTo(mf);
 		});

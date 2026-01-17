@@ -95,29 +95,19 @@ public class ClubFeesService {
         VanDongVienRepository playerRepo = new VanDongVienRepository(conn);
         CauLacBoRepository clubRepo = new CauLacBoRepository(conn);
 
-        log.logTs("Tải dữ liệu cho giải ID: %d", tournamentId);
 
         List<DangKiCaNhan> registrations = regRepo.getByGiaiDau(tournamentId);
-        log.logTs("Số lượng đăng ký đơn: %d", registrations.size());
 
         List<DangKiDoi> teamRegistrations = teamRegRepo.getByGiaiDau(tournamentId);
-        log.logTs("Số lượng đăng ký đội: %d", teamRegistrations.size());
 
         List<ChiTietDoi> teamDetails = teamDetailRepo.findAll();
-        log.logTs("Số lượng chi tiết đội: %d", teamDetails.size());
 
         List<VanDongVien> players = playerRepo.findAll();
-        log.logTs("Số lượng VĐV: %d", players.size());
 
         List<CauLacBo> clubs = clubRepo.findAll();
-        log.logTs("Số lượng CLB: %d", clubs.size());
 
-        log.logTs("Lệ phí: nội dung đầu=%d, nội dung sau=%d", firstEventFee, subsequentEventFee);
-
-        // Calculate fees (tính lệ phí dựa trên tổng nội dung = đơn + đội của mỗi VĐV)
         Map<Integer, ClubFeeInfo> result = FeesCalculator.calculateClubFees(registrations, teamRegistrations,
                 teamDetails, players, clubs, firstEventFee, subsequentEventFee);
-        log.logTs("Tính lệ phí xong, số CLB có phí: %d", result.size());
 
         return result;
     }

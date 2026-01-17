@@ -242,10 +242,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 .getMatchByPin(courtPinCode);
         if (pinMatch != null) {
             this.match = pinMatch;
-            logger.logTs("Switched to PIN match for PIN: %s", courtPinCode);
         } else {
             this.match = ScoreboardRemote.get().match();
-            logger.logTs("Fallback to shared match for PIN: %s", courtPinCode);
         }
 
         match.addPropertyChangeListener(this);
@@ -282,8 +280,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 // Refresh container
                 miniContainer.revalidate();
                 miniContainer.repaint();
-
-                logger.logTs("Recreated mini panel with new match for PIN: %s", courtPinCode);
             });
         }
     }
@@ -363,7 +359,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         if (court != null) {
             this.courtId = court.getName();
             this.courtNumber = court.getCourtNumber();
-            logger.logTs("Đặt Court - ID='%s', Số sân=%d", courtId, courtNumber);
         }
     }
 
@@ -380,7 +375,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         if (this.courtNumber <= 0) {
             this.courtNumber = 1; // Mặc định nếu không parse được
         }
-        logger.logTs("Đặt courtId='%s', Số sân được parse=%d", this.courtId, this.courtNumber);
     }
 
     /** Parse số sân từ courtId string (ví dụ: "Sàn 1" -> 1) */
@@ -405,7 +399,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 return Integer.parseInt(numbers.toString());
             }
         } catch (NumberFormatException e) {
-            logger.logTs("⚠️ Không thể parse số sân từ '%s': %s", courtId, e.getMessage());
         }
 
         return 1; // Mặc định nếu không parse được
@@ -540,7 +533,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         // Nút chụp ảnh bảng điểm
         JButton btnCapture = ButtonFactory.outlined("📸 Chụp ảnh", COL_NEUTRAL, BTN_CTRL, FONT_BTN);
         btnCapture.setToolTipText("Chụp ảnh bảng điểm mini hiện tại");
-        btnCapture.addActionListener(e -> captureMiniScoreboard());
+        btnCapture.addActionListener(e -> {
+            captureMiniScoreboard(currentMatchId);
+        });
 
         // Nút reload danh sách
         btnReloadLists = ButtonFactory.outlined("🔄 Làm mới", COL_PRIMARY, BTN_CTRL, FONT_BTN);
@@ -627,7 +622,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             updatePauseButtonText();
             updateControlsEnabledAccordingToState();
         } catch (HeadlessException ex) {
-            logger.logTs("Lỗi toggle pause: %s", ex.getMessage());
         }
     }
 
@@ -721,11 +715,12 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     return;
                 }
 
+                // 2. Ghi DB NGAY SAU KHI cộng điểm
+                updateChiTietVanOnPoint(0);
+
                 // 1. Cộng điểm
                 match.pointTo(0);
 
-                // 2. Ghi DB NGAY SAU KHI cộng điểm
-                updateChiTietVanOnPoint(0);
             }
 
             // 3. Log & UI (ngoài lock)
@@ -740,12 +735,11 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 if (match.snapshot().matchFinished) {
                     return;
                 }
+                // 2. Ghi DB NGAY SAU KHI cộng điểm
+                updateChiTietVanOnPoint(1);
 
                 // 1. Cộng điểm
                 match.pointTo(1);
-
-                // 2. Ghi DB NGAY SAU KHI cộng điểm
-                updateChiTietVanOnPoint(1);
             }
 
             // 3. Log & UI (ngoài lock)
@@ -1597,7 +1591,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                                 restartSetPending = true;
                             }
                         } catch (Exception exPrompt) {
-                            logger.logTs("Lỗi khi xác nhận đặt lại trận có sẵn: %s", exPrompt.getMessage());
                         }
                         ensureAndAlignMatchRecord(currentMatchId, theThuc, san);
                     } else {
@@ -1691,7 +1684,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                         }
                     }
                 }
-                logger.logTs("Đã xóa %d bản ghi CHI_TIET_VAN cho matchId=%s", deleted, matchId);
                 try {
                     JOptionPane.showMessageDialog(this,
                             "Đã đặt lại trận. Chi tiết ván đã được xóa (" + deleted + ").\nBạn có thể ghi lại từ đầu.",
@@ -1703,7 +1695,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 try {
                     restoreMatchStateFromDatabase(matchId);
                 } catch (Exception exRestore) {
-                    logger.logTs("❌ Lỗi restore match state: %s", exRestore.getMessage());
                 }
                 return false;
             }
@@ -1751,12 +1742,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 for (var entry : existingMatches.entrySet()) {
                     boolean hasA = entry.getValue().contains(idVdvA);
                     boolean hasB = entry.getValue().contains(idVdvB);
-                    logger.logTs("Trận hiện có %s: VĐVs %s (có A=%s, có B=%s)",
-                            entry.getKey(), entry.getValue(), hasA, hasB);
                 }
             }
         } catch (Exception ex) {
-            logger.logTs("Lỗi khi làm sạch ID trận trùng lặp: %s", ex.getMessage());
         }
     }
 
@@ -1796,8 +1784,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 }
                 // Nếu chỉ 1 VĐV được gán ID trận mới, cảnh báo rõ ràng
                 if ((updateA == 0 && updateB > 0) || (updateA > 0 && updateB == 0)) {
-                    logger.logTs(
-                            "CẢNH BÁO QUAN TRỌNG: Chỉ 1 VĐV được gán ID trận mới! Hãy kiểm tra lại bracket (sơ đồ) để đảm bảo cả 2 VĐV đều có slot trống ở vòng này. Nếu thiếu, cần bổ sung slot cho VĐV còn lại.");
                 }
             } else {
                 int soDo = soDoDoiService.findSoDoByMatchId(idGiai, idNoiDung, matchId);
@@ -1835,12 +1821,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                         updated += u2;
                     }
                 }
-                logger.logTs("SO_DO_DOI: đã liên kết ID_TRAN_DAU=%s cho %d vị trí (giai=%d, nd=%d, teamA=%s, teamB=%s)",
-                        matchId, updated,
-                        idGiai, idNoiDung, keyA, keyB);
             }
         } catch (Exception ex) {
-            logger.logTs("Lỗi liên kết ID_TRAN_DAU vào sơ đồ: %s", ex.getMessage());
         }
     }
 
@@ -1882,8 +1864,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
                         if (hasA && hasB && (maxPos - minPos) <= 4) { // Threshold: cùng vòng
                             commonMatchId = entry.getKey();
-                            logger.logTs("Tìm thấy trận chung của VĐV %d và %d: %s (vị trí %d-%d)",
-                                    idVdvA, idVdvB, commonMatchId, minPos, maxPos);
                             break;
                         }
                     }
@@ -1954,8 +1934,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 if (idA.equals(idB)) {
                     return idA;
                 } else {
-                    logger.logTs("CẢNH BÁO: Hai bên có ID_TRẬN khác nhau (A=%s, B=%s). Bỏ qua để tạo ID mới.", idA,
-                            idB);
                     return null;
                 }
             }
@@ -1964,7 +1942,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             if (idB != null)
                 return idB;
         } catch (Exception ex) {
-            logger.logTs("Lỗi kiểm tra ID_TRẬN sẵn có: %s", ex.getMessage());
         }
         return null;
     }
@@ -2100,11 +2077,13 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 try {
                     updateBracketScoresOnFinish(currentMatchId);
                 } catch (Exception ex2) {
-                    logger.logTs("Lỗi cập nhật DIEM cho sơ đồ khi kết thúc: %s", ex2.getMessage());
                 }
             }
+            if (!screenshotTaken) {
+                screenshotTaken = true;
+                captureMiniScoreboard(currentMatchId);
+            }
         } catch (Exception ex) {
-            logger.logTs("Lỗi cập nhật kết thúc trận: %s", ex.getMessage());
         } finally {
             currentMatchId = null;
         }
@@ -2220,8 +2199,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     }
                 }
             }
-            logger.logTs("Cập nhật DIEM (đơn): A=%d (%d vị trí), B=%d (%d vị trí) [giai=%d, nd=%d]",
-                    diemA, updatedA, diemB, updatedB, idGiai, idNoiDung);
         } else {
             // ĐÔI: xác định theo TEN_TEAM A/B + ID_TRAN_DAU (linh hoạt theo tên lưu trong
             // sơ đồ)
@@ -2261,8 +2238,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     }
                 }
             }
-            logger.logTs("Cập nhật DIEM (đôi): A=%d (%d vị trí), B=%d (%d vị trí) [giai=%d, nd=%d]",
-                    diemA, updatedA, diemB, updatedB, idGiai, idNoiDung);
         }
     }
 
@@ -2325,8 +2300,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             scoreboardSvc.startBroadcast(
                     match, selectedIf, clientName, hostShown, displayKind,
                     header, true, fullNameA, fullNameB, courtId);
-            logger.logTs("ĐẶT LẠI ĐÔI: TEAM A=%s (TEAMID=%d) vs TEAM B=%s (TEAMID=%d)",
-                    ta.getTenTeam(), ta.getIdTeam(), tb.getTenTeam(), tb.getIdTeam());
             updateRemoteLinkUi();
         } else {
             String nameA = sel(cboNameA);
@@ -2356,9 +2329,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     header, false, nameA, nameB, courtId);
 
             // idA/idB đã được khai báo ở trên để set CLB, tái sử dụng cho log
-            logger.logTs("ĐẶT LẠI ĐƠN: A=%s (NNR=%d) vs B=%s (NNR=%d)", nameA,
-                    singlesNameToId.getOrDefault(nameA, -1), nameB,
-                    singlesNameToId.getOrDefault(nameB, -1));
             updateRemoteLinkUi();
         }
     }
@@ -2407,8 +2377,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                         (selectedIf != null ? selectedIf.getDisplayName() : "null") +
                         "' không có IPv4 address. Vui lòng chọn interface khác.</b></html>");
                 lblRemoteQr.setIcon(null);
-                logger.logTs("LỖI: Không thể lấy IP từ interface '%s'. Cần chọn interface khác.",
-                        selectedIf != null ? selectedIf.getDisplayName() : "null");
                 return;
             }
 
@@ -2419,8 +2387,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             String pinCode = getCourtPinCode();
             String url = "http://" + ip + ":" + port + "/scoreboard/" + pinCode;
 
-            logger.logTs("Điều khiển trên điện thoại: %s (port %d, IP: %s)", url, port, ip);
-            // Lưu URL và cập nhật hiển thị theo trạng thái ẩn/hiện
             currentRemoteUrl = url;
             updateRemoteUrlDisplay();
 
@@ -2443,14 +2409,12 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                         }
                     }
                 } catch (Exception ex) {
-                    logger.logTs("Lỗi khi cập nhật link PIN: %s", ex.getMessage());
                 }
             });
         } catch (WriterException ex) {
             lblRemoteUrl.setText("<html><b style='color:red;'>LỖI: " + ex.getMessage() + "</b></html>");
             lblRemoteQr.setIcon(null);
             lblRemoteQr.setText("");
-            logger.logTs("Lỗi khi cập nhật remote link UI: %s", ex.getMessage());
         }
     }
 
@@ -2476,7 +2440,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             StringSelection stringSelection = new StringSelection(url);
             Clipboard clipboard = java.awt.Toolkit.getDefaultToolkit().getSystemClipboard();
             clipboard.setContents(stringSelection, null);
-            logger.logTs("Đã copy link vào clipboard: %s", url);
 
             // Hiển thị thông báo ngắn
             JOptionPane.showMessageDialog(this,
@@ -2484,7 +2447,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     "Copy thành công",
                     JOptionPane.INFORMATION_MESSAGE);
         } catch (HeadlessException ex) {
-            logger.logTs("Lỗi khi copy link: %s", ex.getMessage());
             JOptionPane.showMessageDialog(this,
                     "Lỗi khi copy link: " + ex.getMessage(),
                     "Lỗi copy",
@@ -2531,20 +2493,19 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
     /**
      * Chụp ảnh bảng điểm mini và lưu vào folder
+     *
      */
-    private void captureMiniScoreboard() {
+    private void captureMiniScoreboard(String matchId) {
         try {
-            // Sử dụng thư mục screenshots trong project
             File projectDir = new File(System.getProperty("user.dir"));
             File screenshotDir = new File(projectDir, "screenshots");
             if (!screenshotDir.exists()) {
                 screenshotDir.mkdirs();
             }
 
-            // Tạo tên file theo ID_TRẬN + thời gian
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
             String timestamp = sdf.format(new Date());
-            String idForName = (currentMatchId != null && !currentMatchId.isBlank()) ? currentMatchId : "no_match_id";
+            String idForName = (matchId != null && !matchId.isBlank()) ? matchId : "no_match_id";
             String fileName = String.format("%s_%s.png", idForName, timestamp);
             File outputFile = new File(screenshotDir, fileName);
 
@@ -2555,11 +2516,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             mini.paint(g2d);
             g2d.dispose();
 
-            // Lưu ảnh
             ImageIO.write(image, "PNG", outputFile);
 
         } catch (HeadlessException | IOException ex) {
-            logger.logTs("Lỗi khi chụp ảnh bảng điểm: %s", ex.getMessage());
             JOptionPane.showMessageDialog(this,
                     "Lỗi khi chụp ảnh: " + ex.getMessage(),
                     "Lỗi chụp ảnh",
@@ -2588,11 +2547,11 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         BadmintonMatch.Snapshot s = match.snapshot();
 
         // === 1. Update UI cơ bản ===
-        lblGame.setText("Ván " + s.gameNumber + " / BO" + s.bestOf);
-        lblGamesWon.setText("Ván: " + s.games[0] + " - " + s.games[1]);
+        lblGame.setText(s.gameNumber + " / BO" + s.bestOf);
+        lblGamesWon.setText(s.games[0] + " - " + s.games[1]);
 
         String court = " (" + (s.score[s.server] % 2 == 0 ? "R" : "L") + ")";
-        lblServer.setText("Giao cầu: " + (s.server == 0 ? "A" : "B") + court);
+        lblServer.setText((s.server == 0 ? "A" : "B") + court);
 
         boolean manualPaused = false;
         try {
@@ -2603,8 +2562,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         // =========================
         // 2. KẾT THÚC TRẬN – CHỈ THEO EVENT
         // =========================
-        if ("matchEnd".equals(propName)) {
-
+        if ("matchEnd".equals(propName) && ("gameEnd".equals(propName) || match.isMatchFinished())) {
             if (finishScheduled)
                 return;
             finishScheduled = true;
@@ -2614,8 +2572,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
             setScoreButtonsEnabled(false);
             nextGame.setEnabled(false);
-
-            logger.logTs("Match finished detected");
 
             try {
                 btnFinish.setEnabled(false);
@@ -2641,12 +2597,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     }
                 }
             } catch (Exception ex) {
-                logger.logTs("Lỗi cập nhật kết quả thắng: %s", ex.getMessage());
-            }
-
-            if (!screenshotTaken) {
-                screenshotTaken = true;
-                captureMiniScoreboard();
             }
 
             com.example.btms.util.sound.SoundPlayer.playEndIfEnabled();
@@ -2955,7 +2905,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             java.awt.datatransfer.StringSelection stringSelection = new java.awt.datatransfer.StringSelection(pinUrl);
             java.awt.datatransfer.Clipboard clipboard = java.awt.Toolkit.getDefaultToolkit().getSystemClipboard();
             clipboard.setContents(stringSelection, null);
-            logger.logTs("Đã copy link nhập PIN vào clipboard: %s", pinUrl);
 
             // Hiển thị thông báo ngắn
             JOptionPane.showMessageDialog(this,
@@ -2963,7 +2912,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     "Copy thành công",
                     JOptionPane.INFORMATION_MESSAGE);
         } catch (HeadlessException ex) {
-            logger.logTs("Lỗi khi copy link PIN: %s", ex.getMessage());
             JOptionPane.showMessageDialog(this,
                     "Lỗi khi copy link PIN: " + ex.getMessage(),
                     "Lỗi copy",
@@ -2998,7 +2946,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             var clb = clbService.findOne(idClb);
             return clb != null && clb.getTenClb() != null ? clb.getTenClb() : "";
         } catch (Exception ex) {
-            logger.logTs("Lỗi lấy tên CLB theo ID=%s: %s", String.valueOf(idClb), ex.getMessage());
             return "";
         }
     }
@@ -3014,7 +2961,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             String name = vdvService.getClubNameById(vdvId);
             return name != null ? name : "";
         } catch (Exception ex) {
-            logger.logTs("Lỗi lấy tên CLB của VĐV ID=%s: %s", String.valueOf(vdvId), ex.getMessage());
             return "";
         }
     }
@@ -3131,7 +3077,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             String winnerName = (winnerSide == 0) ? nameA : nameB;
             int currentCol = -1;
             if (idVdvA == null || idVdvB == null) {
-                logger.logTs("Lỗi autoAdvanceSingles: idVdvA=%s, idVdvB=%s - hủy bỏ", idVdvA, idVdvB);
                 return;
             }
             for (int col = 1; col <= columns; col++) {
@@ -3166,7 +3111,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 try {
                     existing = soDoCaNhanService.getOne(idGiai, idNoiDung, vitri);
                 } catch (Exception checkEx) {
-                    logger.logTs("Upsert Bước 2: Ngoại lệ khi kiểm tra slot hiện có - %s", checkEx.getMessage());
                 }
 
                 if (existing != null) {
@@ -3181,11 +3125,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                             LocalDateTime.now(), null, null);
                 }
             } catch (Exception ex) {
-                logger.logTs("Upsert NGOẠI LỆ: Upsert slot đơn thất bại - %s", ex.getMessage());
                 ex.printStackTrace();
             }
         } catch (Exception ex) {
-            logger.logTs("Lỗi trong autoAdvanceSingles: %s", ex.getMessage());
         }
     }
 
@@ -3228,17 +3170,12 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
                         }
                     } catch (Exception clbEx) {
-                        logger.logTs("Đôi Bước 8 CẢNH BÁO: Xác định câu lạc bộ thất bại - %s", clbEx.getMessage());
                     }
                     try {
                         SoDoDoi existing = null;
                         existing = soDoDoiService.getOne(idGiai, idNoiDung, vitri);
 
                         if (existing != null) {
-                            logger.logTs("Upsert Bước 3: CẬP NHẬT slot đôi hiện có");
-                            logger.logTs("Upsert Bước 3: Cập nhật từ đội='%s' sang đội='%s', CLB từ %s sang %s",
-                                    existing.getTenTeam(), winnerTeamName, existing.getIdClb(), winnerClb);
-
                             soDoDoiService.update(idGiai, idNoiDung, vitri,
                                     winnerClb, winnerTeamName,
                                     existing.getToaDoX(), existing.getToaDoY(), existing.getSoDo(),
@@ -3250,14 +3187,12 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                                     LocalDateTime.now(), null, null);
                         }
                     } catch (Exception ex) {
-                        logger.logTs("Upsert NGOẠI LỆ: Upsert slot đôi thất bại - %s", ex.getMessage());
                         ex.printStackTrace();
                     }
                     return;
                 }
             }
         } catch (Exception ex) {
-            logger.logTs("Đôi NGOẠI LỆ: Tự động đưa người thắng thất bại - %s", ex.getMessage());
             ex.printStackTrace();
         }
     }
@@ -3482,7 +3417,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
     private void restoreMatchStateFromDatabase(String matchId) {
         if (matchId == null || matchId.isBlank() || conn == null) {
-            logger.logTs("❌ Không thể restore: matchId hoặc connection null");
             return;
         }
 
@@ -3491,7 +3425,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             List<ChiTietVan> sets = chiTietVanService.listByMatch(matchId);
 
             if (sets == null || sets.isEmpty()) {
-                logger.logTs("📊 Không có ván nào để restore cho match %s", matchId);
                 return;
             }
 
@@ -3546,12 +3479,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 var snapshot = match.snapshot();
                 boolean matchFinished = snapshot.matchFinished;
                 if (matchFinished) {
-                    logger.logTs("🏆 Trận đã kết thúc: A thắng %d-%d (BO%d)", gamesA, gamesB, match.getBestOf());
                 }
 
-                logger.logTs("✅ Đã fire property change events để cập nhật UI");
-
-                // Fire property change events để UI cập nhật
                 firePropertyChange("score", null, new int[] { scoreA, scoreB });
                 firePropertyChange("games", null, games);
                 firePropertyChange("gameNumber", null, currentGameNumber);
@@ -3562,11 +3491,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     repaint();
                 });
             } catch (Exception reflectionEx) {
-                logger.logTs("❌ Lỗi reflection khi restore state: %s", reflectionEx.getMessage());
             }
-
         } catch (Exception ex) {
-            logger.logTs("❌ Lỗi restore match state từ database: %s", ex.getMessage());
         }
     }
 }

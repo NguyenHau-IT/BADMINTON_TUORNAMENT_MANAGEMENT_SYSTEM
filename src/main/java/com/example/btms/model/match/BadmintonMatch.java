@@ -181,6 +181,8 @@ public class BadmintonMatch {
         score[side]++;
         server = side;
 
+        pcs.firePropertyChange("score", null, snapshot());
+
         int winner = gameWinner();
         boolean justFinishedMatch = false;
 
@@ -194,14 +196,8 @@ public class BadmintonMatch {
                 betweenGamesInterval = false;
                 justFinishedMatch = true;
             }
-
             pcs.firePropertyChange("gameEnd", null, snapshot());
         }
-
-        // 🔥 BẮN SCORE TRƯỚC
-        pcs.firePropertyChange("score", null, snapshot());
-
-        // 🔥 MATCH END PHẢI SAU CÙNG
         if (justFinishedMatch) {
             pcs.firePropertyChange("matchEnd", null, snapshot());
         }
