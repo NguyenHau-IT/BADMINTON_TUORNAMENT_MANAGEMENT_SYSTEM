@@ -133,8 +133,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             new String[] { "Dọc (vertical)", "Ngang (horizontal)" });
     private final JComboBox<String> cboScreen = new JComboBox<>();
     private JButton btnStart, btnFinish, btnReset, btnOpenDisplay, btnOpenDisplayH, btnCloseDisplay, btnReloadLists;
-    private JButton pauseResume; // Nút tạm dừng/tiếp tục trận
-    // Lưu ID trận (UUID v7) khi bắt đầu để liên kết dữ liệu ván (CHI_TIET_VAN)
+    private JButton pauseResume;
     private String currentMatchId = null;
 
     /* ===== Score buttons ===== */
@@ -150,7 +149,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     /* ===== Remote control (URL + QR) ===== */
     private final JLabel lblRemoteUrl = new JLabel("-");
     private final JLabel lblRemoteQr = new JLabel();
-    // Trạng thái hiển thị link điều khiển và giá trị URL hiện tại
     private boolean remoteUrlVisible = false;
     private boolean qrCodeVisible = false; // Mặc định hiển thị QR code
     private String currentRemoteUrl = null;
@@ -174,8 +172,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private boolean screenshotTaken = false; // Flag để ngăn chụp ảnh nhiều lần cho cùng một match kết thúc
     private long lastScreenshotTime = 0; // Timestamp của lần chụp cuối cùng
     private javax.swing.Timer finishTimer = null;
-    // Khi reset trận và bắt đầu lại ván 1, lần +1 đầu tiên của ván phải "ghi mới"
-    // (xóa bản ghi set cũ, không append)
     private volatile boolean restartSetPending = false;
 
     /* ===== Split panes & prefs ===== */
@@ -196,8 +192,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private static final Font FONT_VALUE = new Font("SansSerif", Font.BOLD, 13);
     private static final Font FONT_SECTION = new Font("SansSerif", Font.BOLD, 15);
     private static final Font FONT_BTN = new Font("SansSerif", Font.BOLD, 14);
-    // private static final Font FONT_BTN_BIG = new Font("SansSerif", Font.BOLD,
-    // 15); // (unused)
 
     private static final Color COL_PRIMARY = new Color(30, 136, 229);
     private static final Color COL_SUCCESS = new Color(46, 204, 113);
@@ -221,7 +215,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     }
 
     private void initializeMatch() {
-        // Khởi tạo với shared match hoặc match của PIN nếu có
         if (courtPinCode != null && !courtPinCode.equals("0000")) {
             BadmintonMatch pinMatch = ScoreboardPinController
                     .getMatchByPin(courtPinCode);
@@ -255,13 +248,10 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             logger.logTs("Fallback to shared match for PIN: %s", courtPinCode);
         }
 
-        // Add listeners to new match
         match.addPropertyChangeListener(this);
 
-        // Recreate mini panel with new match
         recreateMiniPanel();
 
-        // Cập nhật UI với match mới
         SwingUtilities.invokeLater(() -> {
             if (mini != null) {
                 // Force refresh mini panel with new match data
@@ -725,74 +715,153 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         // === ACTION LISTENERS ===
         aPlus.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
+
+                // Không cho cộng nếu trận đã kết thúc
+                if (match.snapshot().matchFinished) {
+                    return;
+                }
+
+                // 1. Cộng điểm
                 match.pointTo(0);
+
+                // 2. Ghi DB NGAY SAU KHI cộng điểm
+                updateChiTietVanOnPoint(0);
             }
+
+            // 3. Log & UI (ngoài lock)
             logger.log("[%s] +1 A", sdf.format(new Date()));
             logScore.run();
-            // Cập nhật CHI_TIET_VAN: cộng điểm A -> ghi P1@ts và tổng điểm
-            updateChiTietVanOnPoint(0);
         });
+
         bPlus.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
+
+                // Không cho cộng nếu trận đã kết thúc
+                if (match.snapshot().matchFinished) {
+                    return;
+                }
+
+                // 1. Cộng điểm
                 match.pointTo(1);
+
+                // 2. Ghi DB NGAY SAU KHI cộng điểm
+                updateChiTietVanOnPoint(1);
             }
+
+            // 3. Log & UI (ngoài lock)
             logger.log("[%s] +1 B", sdf.format(new Date()));
             logScore.run();
-            // Cập nhật CHI_TIET_VAN: cộng điểm B -> ghi P2@ts và tổng điểm
-            updateChiTietVanOnPoint(1);
         });
+
         aMinus.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
+
+                // Không cho trừ điểm nếu trận đã kết thúc
+                if (match.snapshot().matchFinished) {
+                    return;
+                }
+
+                // 1. Trừ điểm
                 match.pointDown(0, -1);
+
+                // 2. Đồng bộ lại tổng điểm (KHÔNG thêm token)
+                updateChiTietVanTotalsOnly();
             }
+
+            // 3. Log & UI ngoài lock
             logger.log("[%s] -1 A", sdf.format(new Date()));
             logScore.run();
-            // Giảm điểm: chỉ đồng bộ tổng điểm nếu set record đã tồn tại, không thêm sự
-            // kiện
-            updateChiTietVanTotalsOnly();
         });
+
         bMinus.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
+
+                // Không cho trừ điểm nếu trận đã kết thúc
+                if (match.snapshot().matchFinished) {
+                    return;
+                }
+
+                // 1. Trừ điểm
                 match.pointDown(1, -1);
+
+                // 2. Đồng bộ lại tổng điểm (KHÔNG thêm token)
+                updateChiTietVanTotalsOnly();
             }
+
+            // 3. Log & UI ngoài lock
             logger.log("[%s] -1 B", sdf.format(new Date()));
             logScore.run();
-            // Giảm điểm: chỉ đồng bộ tổng điểm nếu set record đã tồn tại, không thêm sự
-            // kiện
-            updateChiTietVanTotalsOnly();
         });
+
         undo.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
+
+                // Không undo nếu trận đã kết thúc
+                if (match.snapshot().matchFinished) {
+                    return;
+                }
+
                 match.undo();
+
+                // Đồng bộ lại tổng điểm sau undo
+                updateChiTietVanTotalsOnly();
             }
+
             logger.log("[%s] Hoàn tác", sdf.format(new Date()));
             logScore.run();
-            // Hoàn tác: đồng bộ tổng điểm nếu có bản ghi cho set hiện tại
-            updateChiTietVanTotalsOnly();
         });
+
         nextGame.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
+
+                // Chỉ cho sang ván khi đang giữa các ván
+                if (!match.snapshot().betweenGamesInterval) {
+                    return;
+                }
+
                 match.nextGame();
             }
+
             var s = match.snapshot();
             logger.log("[%s] Sang ván %d (BO%d) — Ván thắng: %d - %d",
-                    sdf.format(new Date()), s.gameNumber, s.bestOf, s.games[0], s.games[1]);
+                    sdf.format(new Date()),
+                    s.gameNumber,
+                    s.bestOf,
+                    s.games[0],
+                    s.games[1]);
         });
+
         swapEnds.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
+
+                if (match.snapshot().matchFinished) {
+                    return;
+                }
+
                 match.swapEnds();
+
+                // Ghi mốc SWAP + sync lại tổng điểm
+                appendSwapMarkerAndResyncChiTietVan();
             }
+
             logger.log("[%s] Đổi sân", sdf.format(new Date()));
             logScore.run();
-            // Ghi dấu mốc SWAP vào CHI_TIET_VAN và đồng bộ tổng điểm theo token
-            appendSwapMarkerAndResyncChiTietVan();
         });
+
         toggleServe.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
+
+                if (match.snapshot().matchFinished) {
+                    return;
+                }
+
                 match.toggleServer();
             }
+
             var s = match.snapshot();
-            logger.log("[%s] Đổi giao cầu → %s", sdf.format(new Date()), s.server == 0 ? "A" : "B");
+            logger.log("[%s] Đổi giao cầu → %s",
+                    sdf.format(new Date()),
+                    s.server == 0 ? "A" : "B");
         });
 
         card.add(scoreButtons, BorderLayout.NORTH);
@@ -2015,9 +2084,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         }
 
         closeDisplays();
-        // Không dừng broadcast để card Monitor vẫn còn. Chỉ dừng khi xoá sân.
-
-        // Nếu có matchId, cập nhật thời gian kết thúc vào CHI_TIET_TRAN_DAU
         try {
             if (conn != null && currentMatchId != null && !currentMatchId.isBlank()) {
                 autoAdvanceWinnerToNextRound(currentMatchId);
@@ -2517,146 +2583,141 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
     @Override
     public void propertyChange(PropertyChangeEvent evt) {
-        String debugId = Integer.toHexString(System.identityHashCode(this));
 
-        // Chỉ log những events quan trọng để tránh spam
         String propName = evt.getPropertyName();
-        if ("matchFinished".equals(propName) || "gameEnd".equals(propName) || "swap".equals(propName) ||
-                (propName != null && propName.contains("score"))) {
-        }
-
         BadmintonMatch.Snapshot s = match.snapshot();
+
+        // === 1. Update UI cơ bản ===
         lblGame.setText("Ván " + s.gameNumber + " / BO" + s.bestOf);
         lblGamesWon.setText("Ván: " + s.games[0] + " - " + s.games[1]);
+
         String court = " (" + (s.score[s.server] % 2 == 0 ? "R" : "L") + ")";
         lblServer.setText("Giao cầu: " + (s.server == 0 ? "A" : "B") + court);
 
-        // Điều khiển enable/disable theo trạng thái
         boolean manualPaused = false;
         try {
             manualPaused = match.isManualPaused();
         } catch (Throwable ignore) {
         }
 
-        if (!hasStarted) {
-            setScoreButtonsEnabled(false);
-            nextGame.setEnabled(false);
-        } else if (s.matchFinished) {
-            logger.logTs("Match finished detected - finishScheduled=%s", finishScheduled);
+        // =========================
+        // 2. KẾT THÚC TRẬN – CHỈ THEO EVENT
+        // =========================
+        if ("matchEnd".equals(propName)) {
+
+            if (finishScheduled)
+                return;
+            finishScheduled = true;
+
             lblStatus.setText("Trận đấu đã kết thúc");
-            lblWinner.setText((s.games[0] > s.games[1] ? s.names[0] : s.names[1]));
+            lblWinner.setText(s.games[0] > s.games[1] ? s.names[0] : s.names[1]);
 
             setScoreButtonsEnabled(false);
             nextGame.setEnabled(false);
 
-            // Cập nhật SO_DO (DIEM) và ID_VDV_THANG ngay khi có kết quả thắng, không đợi
-            // bấm Kết thúc
+            logger.logTs("Match finished detected");
+
+            try {
+                btnFinish.setEnabled(false);
+            } catch (Exception ignored) {
+            }
+
             try {
                 if (conn != null && currentMatchId != null && !currentMatchId.isBlank()) {
-                    // Ghi điểm cuối vào sơ đồ ngay
                     updateBracketScoresOnFinish(currentMatchId);
 
-                    // Ghi ID_VDV_THANG cho trận ĐƠN ngay (nếu xác định được)
                     var cur = chiTietTranDauService.get(currentMatchId);
                     Integer curWinner = cur.getIdVdvThang();
                     int idVdvThang = computeWinnerVdvIdOrDefault(curWinner != null ? curWinner : 0);
+
                     if (idVdvThang != (curWinner != null ? curWinner : 0)) {
-                        // Không đổi thời gian ở đây, chỉ set người thắng; KET_THUC sẽ cập nhật trong
-                        // onFinish()
-                        chiTietTranDauService.update(currentMatchId, cur.getTheThuc(), idVdvThang, cur.getBatDau(),
+                        chiTietTranDauService.update(
+                                currentMatchId,
+                                cur.getTheThuc(),
+                                idVdvThang,
+                                cur.getBatDau(),
                                 cur.getKetThuc(),
                                 cur.getSan());
                     }
                 }
             } catch (Exception ex) {
-                logger.logTs("Lỗi cập nhật kết quả thắng khi kết thúc trận: %s", ex.getMessage());
+                logger.logTs("Lỗi cập nhật kết quả thắng: %s", ex.getMessage());
             }
 
-            if (!finishScheduled) {
-                finishScheduled = true;
-                try {
-                    btnFinish.setEnabled(false);
-                } catch (Exception ignored) {
-                }
-
-                // Chụp ảnh bảng điểm mini khi trận đấu kết thúc (chỉ 1 lần)
-                if (!screenshotTaken) {
-                    screenshotTaken = true;
-                    logger.logTs("Trận kết thúc - chụp ảnh bảng điểm");
-                    // Chụp ảnh ngay lập tức thay vì dùng SwingUtilities.invokeLater
-                    captureMiniScoreboard();
-                } else {
-                    logger.logTs("Trận kết thúc - bỏ qua chụp ảnh (đã chụp rồi)");
-                }
-
-                // Phát âm kết thúc (1 lần)
-                com.example.btms.util.sound.SoundPlayer.playEndIfEnabled();
-
-                cancelFinishTimer();
-                finishTimer = new javax.swing.Timer(3000, e -> {
-                    logger.logWinner(s.games[0] > s.games[1] ? s.names[0] : s.names[1]);
-                    cancelFinishTimer();
-                    onFinish(true);
-                });
-                finishTimer.setRepeats(false);
-                finishTimer.start();
+            if (!screenshotTaken) {
+                screenshotTaken = true;
+                captureMiniScoreboard();
             }
+
+            com.example.btms.util.sound.SoundPlayer.playEndIfEnabled();
+
+            cancelFinishTimer();
+            finishTimer = new javax.swing.Timer(3000, e -> onFinish(true));
+            finishTimer.setRepeats(false);
+            finishTimer.start();
+
+            return; // ⛔ cực kỳ quan trọng
+        }
+
+        // =========================
+        // 3. CÁC TRẠNG THÁI KHÁC
+        // =========================
+        if (!hasStarted) {
+
+            setScoreButtonsEnabled(false);
+            nextGame.setEnabled(false);
+
         } else if (s.betweenGamesInterval) {
-            lblStatus
-                    .setText(
-                            "Nghỉ giữa ván - bấm \"Ván tiếp theo\" hoặc sau 3 giây sẽ tự động chuyển sang ván kế tiếp");
+
+            lblStatus.setText("Nghỉ giữa ván - bấm \"Ván tiếp theo\"");
             setScoreButtonsEnabled(false);
             nextGame.setEnabled(true);
+
             finishScheduled = false;
-            screenshotTaken = false; // Reset screenshot flag
-            // đếm ngược 20 giây r chuyển sang trận kế tiếp
-            new javax.swing.Timer(20000, e -> {
-                match.nextGame();
-            }).start();
+            screenshotTaken = false;
+
             if (pauseResume != null)
                 pauseResume.setEnabled(false);
+
         } else if (manualPaused) {
+
             lblStatus.setText("Tạm dừng");
             setScoreButtonsEnabled(false);
             nextGame.setEnabled(false);
+
             finishScheduled = false;
-            screenshotTaken = false; // Reset screenshot flag
+            screenshotTaken = false;
+
             if (pauseResume != null) {
                 pauseResume.setEnabled(true);
                 pauseResume.setText("Tiếp tục");
             }
+
         } else {
+
             lblStatus.setText("Đang thi đấu");
             setScoreButtonsEnabled(true);
             nextGame.setEnabled(false);
+
             finishScheduled = false;
-            screenshotTaken = false; // Reset screenshot flag
+            screenshotTaken = false;
+
             if (pauseResume != null) {
                 pauseResume.setEnabled(true);
                 pauseResume.setText("Tạm dừng");
             }
         }
 
-        // Xử lý sự kiện swap để cập nhật mini panel
-        if ("swap".equals(evt.getPropertyName()) && mini != null) {
-            BadmintonMatch.Snapshot swapSnapshot = match.snapshot();
-            for (int i = 0; i < swapSnapshot.gameScores.length; i++) {
-                if (swapSnapshot.gameScores[i][0] >= 0 && swapSnapshot.gameScores[i][1] >= 0) {
-                    logger.logTs("  Ván %d: %s=%d, %s=%d",
-                            i + 1,
-                            swapSnapshot.names[0], swapSnapshot.gameScores[i][0],
-                            swapSnapshot.names[1], swapSnapshot.gameScores[i][1]);
-                }
-            }
+        // === 4. Swap ===
+        if ("swap".equals(propName) && mini != null) {
             mini.forceRefresh();
         }
 
-        // Khi kết thúc ván, đồng bộ lại tổng điểm thực tế vào CHI_TIET_VAN
-        if ("gameEnd".equals(evt.getPropertyName())) {
+        // === 5. Kết thúc ván ===
+        if ("gameEnd".equals(propName)) {
             updateChiTietVanTotalsOnly();
         }
     }
-
     /* =================== Misc =================== */
 
     private void setScoreButtonsEnabled(boolean on) {
@@ -3299,41 +3360,56 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         try {
             var s = match.snapshot();
             int setNo = Math.max(1, s.gameNumber);
+
             if (restartSetPending) {
-                try {
-                    if (chiTietVanService.exists(currentMatchId, setNo)) {
-                        chiTietVanService.delete(currentMatchId, setNo);
-                    }
-                } catch (Exception ignore) {
+                if (chiTietVanService.exists(currentMatchId, setNo)) {
+                    chiTietVanService.delete(currentMatchId, setNo);
                 }
             }
+
             String token = (side == 0 ? "P1@" : "P2@") + System.currentTimeMillis();
+
+            String newTime;
             if (chiTietVanService.exists(currentMatchId, setNo)) {
                 var cur = chiTietVanService.get(currentMatchId, setNo);
                 String prev = cur.getDauThoiGian();
-                String newTime;
-                if (prev == null || prev.isBlank()) {
-                    newTime = token;
-                } else {
-                    newTime = prev.endsWith(";") ? (prev + " " + token) : (prev + "; " + token);
-                }
-                int[] totals = computeTokenTotalsConsideringSwap(newTime);
 
-                chiTietVanService.update(currentMatchId, setNo, s.score[0], s.score[1], newTime);
+                newTime = (prev == null || prev.isBlank())
+                        ? token
+                        : (prev.endsWith(";") ? prev + " " + token : prev + "; " + token);
             } else {
-                int[] totals = computeTokenTotalsConsideringSwap(token);
-                chiTietVanService.addSet(currentMatchId, setNo, s.score[0], s.score[1], token);
+                newTime = token;
             }
+
+            int[] totals = computeTokenTotalsConsideringSwap(newTime);
+
+            System.out.printf(
+                    "Updating CHI_TIET_VAN totals to %d - %d based on tokens%n",
+                    totals[0], totals[1]);
+
+            if (chiTietVanService.exists(currentMatchId, setNo)) {
+                chiTietVanService.update(
+                        currentMatchId,
+                        setNo,
+                        totals[0], // ✅ DÙNG TOKEN
+                        totals[1],
+                        newTime);
+            } else {
+                chiTietVanService.addSet(
+                        currentMatchId,
+                        setNo,
+                        totals[0], // ✅
+                        totals[1],
+                        newTime);
+            }
+
             restartSetPending = false;
+
         } catch (Exception ex) {
+            ex.printStackTrace();
         }
     }
 
-    /**
-     * Đồng bộ lại tổng điểm của ván hiện tại vào CHI_TIET_VAN nếu record đã tồn
-     * tại.
-     * Không tạo mới và không append sự kiện.
-     */
     private void updateChiTietVanTotalsOnly() {
         try {
             var s = match.snapshot();

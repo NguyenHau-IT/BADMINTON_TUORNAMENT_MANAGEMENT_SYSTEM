@@ -10,6 +10,7 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.NetworkInterface;
@@ -37,6 +38,7 @@ import com.example.btms.config.Prefs;
 import com.example.btms.model.match.CourtSession;
 import com.example.btms.service.match.CourtManagerService;
 import com.example.btms.service.match.CourtManagerService.CourtStatus;
+import com.example.btms.service.scoreboard.ScoreboardRemote;
 import com.example.btms.util.uuid.UuidV7;
 
 /**
@@ -209,21 +211,16 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
             // Nếu panel đang ở container khác, tháo ra trước khi add vào tab mới
             try {
                 java.awt.Container parent = courtControlPanel.getParent();
-                // Nếu parent hiện tại không phải là chính JTabbedPane của chúng ta,
-                // mới cần remove để tránh component thuộc nhiều container.
                 if (parent != null && parent != courtTabs) {
                     parent.remove(courtControlPanel);
                 }
             } catch (Exception ignore) {
             }
         } else {
-            // Tạo BadmintonControlPanel với kích thước responsive
             courtControlPanel = createResponsiveControlPanel();
             createdNewPanel = true;
-            // Truyền database connection để load dữ liệu chỉ với panel mới
             if (databaseConnection != null) {
                 courtControlPanel.setConnection(databaseConnection);
-                // Reload dữ liệu từ database sau khi set connection
                 try {
                     Method reloadMethod = BadmintonControlPanel.class.getDeclaredMethod("reloadListsFromDb");
                     reloadMethod.setAccessible(true);
@@ -233,11 +230,9 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
                     System.err.println("Không thể reload dữ liệu từ DB: " + e.getMessage());
                 }
             }
-            // Lưu controlPanel vào session (ghi đè panel cũ nếu có)
             session.controlPanel = courtControlPanel;
         }
 
-        // Set network interface nếu đã chọn
         if (selectedIf != null) {
             try {
                 courtControlPanel.setNetworkInterface(selectedIf);
@@ -245,7 +240,6 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
             }
         }
 
-        // Set mã PIN cho BadmintonControlPanel (không ảnh hưởng state trận)
         try {
             Method setPinMethod = courtControlPanel.getClass().getDeclaredMethod("setCourtPinCode", String.class);
             setPinMethod.setAccessible(true);
@@ -255,7 +249,6 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
             System.err.println("Không thể set mã PIN cho BadmintonControlPanel: " + e.getMessage());
         }
 
-        // Set courtId cho BadmintonControlPanel để hiển thị trên monitor
         try {
             Method setCourtIdMethod = courtControlPanel.getClass().getDeclaredMethod("setCourtId", String.class);
             setCourtIdMethod.setAccessible(true);
@@ -265,13 +258,9 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
             System.err.println("Không thể set courtId cho BadmintonControlPanel: " + e.getMessage());
         }
 
-        // Chỉ gắn listeners một lần cho mỗi panel để tránh trùng lặp khi hydrate
         if (!wiredPanels.contains(courtControlPanel)) {
-            // Thêm listener để cập nhật overview khi có thay đổi
             courtControlPanel.addPropertyChangeListener(evt -> SwingUtilities.invokeLater(this::refreshOverview));
-            // Thêm listener cho các sự kiện thay đổi trong BadmintonControlPanel
             addControlPanelListeners(courtControlPanel);
-            // Thêm listener cho thay đổi điểm số từ BadmintonMatch
             addScoreChangeListener(courtControlPanel);
             wiredPanels.add(courtControlPanel);
         }
@@ -295,11 +284,6 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         courtTabs.revalidate();
         courtTabs.repaint();
 
-        // Phát broadcast ở trạng thái chờ để MonitorTab hiện card ngay khi mở sân
-        // Chỉ thực hiện khi:
-        // - KHÔNG bật suppressIdleBroadcastOnce, VÀ
-        // - Panel mới được tạo (không phải hydrate), VÀ
-        // - Trạng thái sân đang idle (không playing/paused/finished)
         boolean shouldStartIdle = false;
         try {
             Map<String, CourtStatus> all = courtManager.getAllCourtStatus();
@@ -773,43 +757,48 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
             Object match = getMatchMethod.invoke(panel);
 
             if (match != null) {
-                Method addPropertyChangeListenerMethod = match.getClass().getDeclaredMethod("addPropertyChangeListener",
-                        java.beans.PropertyChangeListener.class);
-                addPropertyChangeListenerMethod.setAccessible(true);
+                Method addPcl = match.getClass()
+                        .getDeclaredMethod("addPropertyChangeListener", PropertyChangeListener.class);
+                addPcl.setAccessible(true);
 
-                java.beans.PropertyChangeListener scoreListener = evt -> {
-                    String propertyName = evt.getPropertyName();
-                    if ("score".equals(propertyName) || "games".equals(propertyName) ||
-                            "gameNumber".equals(propertyName) || "server".equals(propertyName) ||
-                            "matchFinished".equals(propertyName) || "betweenGamesInterval".equals(propertyName)
-                            || "manualPaused".equals(propertyName) || "status".equals(propertyName)) {
+                PropertyChangeListener l = evt -> {
+                    String p = evt.getPropertyName();
+                    if ("score".equals(p)
+                            || "games".equals(p)
+                            || "gameNumber".equals(p)
+                            || "server".equals(p)) {
                         SwingUtilities.invokeLater(this::refreshOverview);
                     }
                 };
-                addPropertyChangeListenerMethod.invoke(match, scoreListener);
+
+                addPcl.invoke(match, l);
             }
-        } catch (IllegalAccessException | IllegalArgumentException | NoSuchMethodException | SecurityException
-                | InvocationTargetException e) {
-            System.err.println("Không thể thêm listener cho thay đổi điểm số: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Không thể gắn listener điểm: " + e.getMessage());
         }
-
-        // Fallback timer
-        javax.swing.Timer scoreCheckTimer = new javax.swing.Timer(500,
-                evt -> SwingUtilities.invokeLater(this::refreshOverview));
-        scoreCheckTimer.start();
-
-        addScoreButtonListeners(panel);
     }
 
     /** Thêm listener trực tiếp cho các nút điểm số */
     private void addScoreButtonListeners(BadmintonControlPanel panel) {
         try {
-            java.lang.reflect.Field aPlusField = panel.getClass().getDeclaredField("aPlus");
-            java.lang.reflect.Field bPlusField = panel.getClass().getDeclaredField("bPlus");
-            java.lang.reflect.Field aMinusField = panel.getClass().getDeclaredField("aMinus");
-            java.lang.reflect.Field bMinusField = panel.getClass().getDeclaredField("bMinus");
-            java.lang.reflect.Field undoField = panel.getClass().getDeclaredField("undo");
-            java.lang.reflect.Field nextGameField = panel.getClass().getDeclaredField("nextGame");
+            // Lấy match từ panel
+            Method getMatchMethod = panel.getClass().getDeclaredMethod("getMatch");
+            getMatchMethod.setAccessible(true);
+            Object matchObj = getMatchMethod.invoke(panel);
+
+            if (matchObj == null)
+                return;
+
+            // Ép kiểu an toàn (nếu không muốn cast, giữ Object cũng được)
+            final Object match = matchObj;
+
+            // Lấy các nút
+            Field aPlusField = panel.getClass().getDeclaredField("aPlus");
+            Field bPlusField = panel.getClass().getDeclaredField("bPlus");
+            Field aMinusField = panel.getClass().getDeclaredField("aMinus");
+            Field bMinusField = panel.getClass().getDeclaredField("bMinus");
+            Field undoField = panel.getClass().getDeclaredField("undo");
+            Field nextGameField = panel.getClass().getDeclaredField("nextGame");
 
             aPlusField.setAccessible(true);
             bPlusField.setAccessible(true);
@@ -818,47 +807,111 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
             undoField.setAccessible(true);
             nextGameField.setAccessible(true);
 
-            javax.swing.JButton aPlus = (javax.swing.JButton) aPlusField.get(panel);
-            javax.swing.JButton bPlus = (javax.swing.JButton) bPlusField.get(panel);
-            javax.swing.JButton aMinus = (javax.swing.JButton) aMinusField.get(panel);
-            javax.swing.JButton bMinus = (javax.swing.JButton) bMinusField.get(panel);
-            javax.swing.JButton undo = (javax.swing.JButton) undoField.get(panel);
-            javax.swing.JButton nextGame = (javax.swing.JButton) nextGameField.get(panel);
+            JButton aPlus = (JButton) aPlusField.get(panel);
+            JButton bPlus = (JButton) bPlusField.get(panel);
+            JButton aMinus = (JButton) aMinusField.get(panel);
+            JButton bMinus = (JButton) bMinusField.get(panel);
+            JButton undo = (JButton) undoField.get(panel);
+            JButton nextGame = (JButton) nextGameField.get(panel);
 
-            java.awt.event.ActionListener scoreButtonListener = createDebouncedRefreshListener();
+            // Lấy method của match
+            Method pointTo = match.getClass().getDeclaredMethod("pointTo", int.class);
+            Method pointDown = match.getClass().getDeclaredMethod("pointDown", int.class, int.class);
+            Method undoMethod = match.getClass().getDeclaredMethod("undo");
+            Method nextGameMethod = match.getClass().getDeclaredMethod("nextGame");
 
-            aPlus.addActionListener(scoreButtonListener);
-            bPlus.addActionListener(scoreButtonListener);
-            aMinus.addActionListener(scoreButtonListener);
-            bMinus.addActionListener(scoreButtonListener);
-            undo.addActionListener(scoreButtonListener);
-            nextGame.addActionListener(scoreButtonListener);
+            pointTo.setAccessible(true);
+            pointDown.setAccessible(true);
+            undoMethod.setAccessible(true);
+            nextGameMethod.setAccessible(true);
 
-        } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
+            // Gắn listener — KHÔNG refresh UI ở đây
+            aPlus.addActionListener(e -> {
+                synchronized (ScoreboardRemote.get().lock()) {
+                    try {
+                        pointTo.invoke(match, 0);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            });
+
+            bPlus.addActionListener(e -> {
+                synchronized (ScoreboardRemote.get().lock()) {
+                    try {
+                        pointTo.invoke(match, 1);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            });
+
+            aMinus.addActionListener(e -> {
+                synchronized (ScoreboardRemote.get().lock()) {
+                    try {
+                        pointDown.invoke(match, 0, -1);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            });
+
+            bMinus.addActionListener(e -> {
+                synchronized (ScoreboardRemote.get().lock()) {
+                    try {
+                        pointDown.invoke(match, 1, -1);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            });
+
+            undo.addActionListener(e -> {
+                synchronized (ScoreboardRemote.get().lock()) {
+                    try {
+                        undoMethod.invoke(match);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            });
+
+            nextGame.addActionListener(e -> {
+                synchronized (ScoreboardRemote.get().lock()) {
+                    try {
+                        nextGameMethod.invoke(match);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            });
+
+        } catch (Exception e) {
             System.err.println("Không thể thêm listener cho nút điểm số: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
-    /** Debounce refresh để tránh gọi quá dày */
-    private java.awt.event.ActionListener createDebouncedRefreshListener() {
-        return new java.awt.event.ActionListener() {
-            private javax.swing.Timer timer;
+    // /** Debounce refresh để tránh gọi quá dày */
+    // private java.awt.event.ActionListener createDebouncedRefreshListener() {
+    // return new java.awt.event.ActionListener() {
+    // private javax.swing.Timer timer;
 
-            @Override
-            public void actionPerformed(java.awt.event.ActionEvent e) {
-                if (timer != null) {
-                    timer.restart();
-                } else {
-                    timer = new javax.swing.Timer(100, evt -> {
-                        SwingUtilities.invokeLater(MultiCourtControlPanel.this::refreshOverview);
-                        timer = null;
-                    });
-                    timer.setRepeats(false);
-                    timer.start();
-                }
-            }
-        };
-    }
+    // @Override
+    // public void actionPerformed(java.awt.event.ActionEvent e) {
+    // if (timer != null) {
+    // timer.restart();
+    // } else {
+    // timer = new javax.swing.Timer(100, evt -> {
+    // SwingUtilities.invokeLater(MultiCourtControlPanel.this::refreshOverview);
+    // timer = null;
+    // });
+    // timer.setRepeats(false);
+    // timer.start();
+    // }
+    // }
+    // };
+    // }
 
     /**
      * Thêm sân mới từ combo box chọn sân

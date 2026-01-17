@@ -175,41 +175,36 @@ public class BadmintonMatch {
     public void pointTo(int side) {
         if (matchFinished || betweenGamesInterval || manualPaused)
             return;
+
         saveState();
+
         score[side]++;
-        server = side; // rally winner serves next
+        server = side;
 
-        // game 3: đổi sân khi một bên chạm 11
-        if (gameNumber == 3 && !changedEndsThisGame && (score[0] == 11 || score[1] == 11)) {
-            changedEndsThisGame = true;
-            pcs.firePropertyChange("changeEndsAt11", null, snapshot());
-        }
-
-        // kiểm tra kết thúc game
         int winner = gameWinner();
+        boolean justFinishedMatch = false;
+
         if (winner >= 0) {
             games[winner]++;
             betweenGamesInterval = true;
 
-            // Lưu điểm cuối cùng của ván này vào mảng completedGameScores
-            int gameIndex = gameNumber - 1;
-            if (gameIndex >= 0 && gameIndex < completedGameScores.length) {
-                completedGameScores[gameIndex][0] = score[0];
-                completedGameScores[gameIndex][1] = score[1];
-            }
-
-            pcs.firePropertyChange("gameEnd", null, snapshot());
-
-            // kiểm tra kết thúc trận
             int need = (bestOf / 2) + 1;
             if (games[winner] >= need) {
                 matchFinished = true;
                 betweenGamesInterval = false;
-                pcs.firePropertyChange("matchEnd", null, snapshot());
+                justFinishedMatch = true;
             }
+
+            pcs.firePropertyChange("gameEnd", null, snapshot());
         }
 
+        // 🔥 BẮN SCORE TRƯỚC
         pcs.firePropertyChange("score", null, snapshot());
+
+        // 🔥 MATCH END PHẢI SAU CÙNG
+        if (justFinishedMatch) {
+            pcs.firePropertyChange("matchEnd", null, snapshot());
+        }
     }
 
     public void pointDown(int side, int delta) {
