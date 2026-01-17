@@ -32,10 +32,11 @@ import com.example.btms.util.report.RegistrationPdfExporter;
  */
 public class BaoCaoPdfPanel extends JPanel {
     private Connection conn;
-    private final CauLacBoService clbService = new CauLacBoService(new CauLacBoRepository(conn));
+    private final CauLacBoService clbService;
 
     public BaoCaoPdfPanel(Connection conn) {
         this.conn = conn;
+        this.clbService = new CauLacBoService(new CauLacBoRepository(conn));
         setLayout(new BorderLayout(10, 10));
 
         JPanel content = new JPanel();
@@ -110,9 +111,6 @@ public class BaoCaoPdfPanel extends JPanel {
         box.setLayout(new BorderLayout());
         box.setBorder(BorderFactory.createTitledBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)),
                 "Báo cáo huy chương (PDF)", TitledBorder.LEADING, TitledBorder.TOP));
-
-        // Tận dụng panel hiện có – chứa các nút Xuất PDF (Tổng sắp, Danh sách, Tổng
-        // hợp)
         try {
             TongSapHuyChuongPanel medalPanel = new TongSapHuyChuongPanel(conn, clbService);
             medalPanel.setPreferredSize(new Dimension(200, 320));

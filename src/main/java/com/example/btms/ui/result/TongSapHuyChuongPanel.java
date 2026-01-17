@@ -443,12 +443,15 @@ public class TongSapHuyChuongPanel extends JPanel {
             MedalTally prev = null;
             for (var en : entries) {
                 idx++;
-                String clbName = "CLB #" + en.getKey();
+                String clbName = "";
                 try {
                     var c = clbService.findOne(en.getKey());
                     if (c != null && c.getTenClb() != null)
                         clbName = c.getTenClb();
+                    else
+                        clbName = "CLB #" + en.getKey();
                 } catch (RuntimeException ignore) {
+                    clbName = "CLB #" + en.getKey();
                 }
                 MedalTally mt = en.getValue();
                 if (prev == null || !sameTally(prev, mt)) {
