@@ -479,21 +479,17 @@ public class TongSapHuyChuongPanel extends JPanel {
             String path = file.getAbsolutePath().toLowerCase().endsWith(".pdf") ? file.getAbsolutePath()
                     : file.getAbsolutePath() + ".pdf";
 
-            // Build PDF using OpenPDF (increase top margin for a taller header area)
-            com.lowagie.text.Document doc = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4, 36, 36,
-                    84, 36);
+            // Build PDF using OpenPDF with synchronized header
+            com.lowagie.text.Document doc = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4, 10f, 10f,
+                    120f, 36f);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
-                // Header/footer event: show tournament name
                 String tournament = getTournamentNameForHeader();
-                // Ensure a Unicode base font is initialized before page event uses it (for
-                // Vietnamese diacritics)
-                pdfFont(12f, com.lowagie.text.Font.NORMAL);
                 writer.setPageEvent(
-                        new ReportPageEvent(tryLoadReportLogo(), tryLoadSponsorLogo(), ensureBaseFont(), tournament));
+                        new HeaderEvent(tournament, "TỔNG SẮP HUY CHƯƠNG TOÀN ĐOÀN & DANH SÁCH VDV ĐẠT HUY CHƯƠNG"));
                 doc.open();
 
-                // Page 1: only tally table (no body title)
+                // Page 1: only tally table
                 com.lowagie.text.Font titleFont1 = pdfFont(18f, com.lowagie.text.Font.BOLD);
                 com.lowagie.text.Paragraph pTitle1 = new com.lowagie.text.Paragraph("TỔNG SẮP HUY CHƯƠNG TOÀN ĐOÀN",
                         titleFont1);
@@ -536,14 +532,12 @@ public class TongSapHuyChuongPanel extends JPanel {
             String path = file.getAbsolutePath().toLowerCase().endsWith(".pdf") ? file.getAbsolutePath()
                     : file.getAbsolutePath() + ".pdf";
 
-            com.lowagie.text.Document doc = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4, 36, 36,
-                    84, 36);
+            com.lowagie.text.Document doc = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4, 10f, 10f,
+                    100f, 36f);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
                 String tournament = getTournamentNameForHeader();
-                pdfFont(12f, com.lowagie.text.Font.NORMAL);
-                writer.setPageEvent(new ReportPageEvent(tryLoadReportLogo(), tryLoadSponsorLogo(), ensureBaseFont(),
-                        tournament));
+                writer.setPageEvent(new HeaderEvent(tournament, null));
                 doc.open();
 
                 com.lowagie.text.Font titleFont = pdfFont(18f, com.lowagie.text.Font.BOLD);
@@ -579,14 +573,12 @@ public class TongSapHuyChuongPanel extends JPanel {
             String path = file.getAbsolutePath().toLowerCase().endsWith(".pdf") ? file.getAbsolutePath()
                     : file.getAbsolutePath() + ".pdf";
 
-            com.lowagie.text.Document doc = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4, 36, 36,
-                    84, 36);
+            com.lowagie.text.Document doc = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4, 10f, 10f,
+                    100f, 36f);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
                 String tournament = getTournamentNameForHeader();
-                pdfFont(12f, com.lowagie.text.Font.NORMAL);
-                writer.setPageEvent(new ReportPageEvent(tryLoadReportLogo(), tryLoadSponsorLogo(), ensureBaseFont(),
-                        tournament));
+                writer.setPageEvent(new HeaderEvent(tournament, null));
                 doc.open();
 
                 com.lowagie.text.Font titleFont = pdfFont(18f, com.lowagie.text.Font.BOLD);
@@ -601,11 +593,9 @@ public class TongSapHuyChuongPanel extends JPanel {
             }
             JOptionPane.showMessageDialog(this, "Đã xuất PDF:\n" + path, "Xuất PDF - Danh sách VĐV",
                     JOptionPane.INFORMATION_MESSAGE);
-        } catch (java.io.IOException ex) {
-            JOptionPane.showMessageDialog(this, "Lỗi ghi file PDF: " + ex.getMessage(), "Lỗi",
+        } catch (java.io.IOException | com.lowagie.text.DocumentException ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi xuất PDF: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
-        } catch (com.lowagie.text.DocumentException ex) {
-            JOptionPane.showMessageDialog(this, "Lỗi tạo PDF: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
         } catch (RuntimeException ex) {
             JOptionPane.showMessageDialog(this, "Lỗi hệ thống khi xuất PDF: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
@@ -614,47 +604,17 @@ public class TongSapHuyChuongPanel extends JPanel {
 
     private String suggestPdfFileName() {
         String ten = new Prefs().get("selectedGiaiDauName", "giai-dau");
-        String ndLabel = "tat-ca-don-doi";
-        if (selectedNoiDungIds == null) {
-            ndLabel = "tat-ca-don-doi";
-        } else if (selectedNoiDungIds.size() == 1) {
-            String label = findLabelById(selectedNoiDungIds.iterator().next());
-            if (label != null && !label.isBlank())
-                ndLabel = normalizeFileName(label);
-        } else if (!selectedNoiDungIds.isEmpty()) {
-            ndLabel = "nhieu-noi-dung";
-        }
-        return normalizeFileName(ten) + "_tong-sap-huy-chuong_" + ndLabel + ".pdf";
+        return ten + "_Báo_Cáo_Kết_Quả.pdf";
     }
 
     private String suggestPdfFileNameTally() {
         String ten = new Prefs().get("selectedGiaiDauName", "giai-dau");
-        String ndLabel = "tat-ca-don-doi";
-        if (selectedNoiDungIds == null) {
-            ndLabel = "tat-ca-don-doi";
-        } else if (selectedNoiDungIds.size() == 1) {
-            String label = findLabelById(selectedNoiDungIds.iterator().next());
-            if (label != null && !label.isBlank())
-                ndLabel = normalizeFileName(label);
-        } else if (!selectedNoiDungIds.isEmpty()) {
-            ndLabel = "nhieu-noi-dung";
-        }
-        return normalizeFileName(ten) + "_tong-sap-huy-chuong_" + ndLabel + ".pdf";
+        return ten + "_Tổng_Sắp_Huy_Chương.pdf";
     }
 
     private String suggestPdfFileNameMedalist() {
         String ten = new Prefs().get("selectedGiaiDauName", "giai-dau");
-        String ndLabel = "tat-ca-don-doi";
-        if (selectedNoiDungIds == null) {
-            ndLabel = "tat-ca-don-doi";
-        } else if (selectedNoiDungIds.size() == 1) {
-            String label = findLabelById(selectedNoiDungIds.iterator().next());
-            if (label != null && !label.isBlank())
-                ndLabel = normalizeFileName(label);
-        } else if (!selectedNoiDungIds.isEmpty()) {
-            ndLabel = "nhieu-noi-dung";
-        }
-        return normalizeFileName(ten) + "_danh-sach-vdv-dat-huy-chuong_" + ndLabel + ".pdf";
+        return ten + "_Danh_Sách_Thành_Tích.pdf";
     }
 
     private void openSelectNoiDungDialog() {
@@ -979,71 +939,6 @@ public class TongSapHuyChuongPanel extends JPanel {
         }
     }
 
-    // Ensure base font for page event (fall back to default)
-    private com.lowagie.text.pdf.BaseFont ensureBaseFont() {
-        try {
-            if (pdfBaseFont != null)
-                return pdfBaseFont;
-            return com.lowagie.text.pdf.BaseFont.createFont();
-        } catch (com.lowagie.text.DocumentException e) {
-            System.err.println("ensureBaseFont DocumentException: " + e.getMessage());
-            return null;
-        } catch (java.io.IOException e) {
-            System.err.println("ensureBaseFont IOException: " + e.getMessage());
-            return null;
-        }
-    }
-
-    // Load left logo (tournament/org) from settings, scale to header height
-    private com.lowagie.text.Image tryLoadReportLogo() {
-        try {
-            String logoPath = new Prefs().get("report.logo.path", "");
-            if (logoPath == null || logoPath.isBlank())
-                return null;
-            java.io.File f = new java.io.File(logoPath);
-            if (!f.exists())
-                return null;
-            com.lowagie.text.Image img = com.lowagie.text.Image.getInstance(logoPath);
-            float maxH = getHeaderLogoMaxHeightPt(); // allow taller header logo
-            if (img.getScaledHeight() > maxH) {
-                float k = maxH / img.getScaledHeight();
-                img.scalePercent(k * 100f);
-            }
-            return img;
-        } catch (com.lowagie.text.BadElementException e) {
-            System.err.println("Logo load BadElementException: " + e.getMessage());
-            return null;
-        } catch (java.io.IOException e) {
-            System.err.println("Logo load IOException: " + e.getMessage());
-            return null;
-        }
-    }
-
-    // Load right logo (sponsor) from settings, scale to header height
-    private com.lowagie.text.Image tryLoadSponsorLogo() {
-        try {
-            String logoPath = new Prefs().get("report.sponsor.logo.path", "");
-            if (logoPath == null || logoPath.isBlank())
-                return null;
-            java.io.File f = new java.io.File(logoPath);
-            if (!f.exists())
-                return null;
-            com.lowagie.text.Image img = com.lowagie.text.Image.getInstance(logoPath);
-            float maxH = getHeaderLogoMaxHeightPt(); // align visual height with left logo
-            if (img.getScaledHeight() > maxH) {
-                float k = maxH / img.getScaledHeight();
-                img.scalePercent(k * 100f);
-            }
-            return img;
-        } catch (com.lowagie.text.BadElementException e) {
-            System.err.println("Sponsor logo load BadElementException: " + e.getMessage());
-            return null;
-        } catch (java.io.IOException e) {
-            System.err.println("Sponsor logo load IOException: " + e.getMessage());
-            return null;
-        }
-    }
-
     // Read tournament name to display in header
     private String getTournamentNameForHeader() {
         String tournament = new Prefs().get("selectedGiaiDauName", null);
@@ -1052,109 +947,113 @@ public class TongSapHuyChuongPanel extends JPanel {
         return "Giải đấu";
     }
 
-    // Header logos max height (pt). Pref key: result.header.logo.maxH.pt. Default
-    // 46f.
-    private float getHeaderLogoMaxHeightPt() {
-        try {
-            String s = prefs.get("result.header.logo.maxH.pt", null);
-            if (s != null) {
-                double d = Double.parseDouble(s.trim());
-                float val = (float) d;
-                if (Float.isFinite(val) && val >= 24f && val <= 80f)
-                    return val;
-            }
-        } catch (Throwable ignore) {
-        }
-        return 46f;
-    }
-
-    // Page event for header/footer
-    private static final class ReportPageEvent extends com.lowagie.text.pdf.PdfPageEventHelper {
-        private final com.lowagie.text.Image leftLogo;
-        private final com.lowagie.text.Image rightLogo;
-        private final com.lowagie.text.pdf.BaseFont baseFont;
+    // Page event for header (synchronized with RegistrationPdfExporter)
+    private static class HeaderEvent extends com.lowagie.text.pdf.PdfPageEventHelper {
         private final String tournamentName;
-        private final java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
-        private final java.util.Date printDate = new java.util.Date();
+        private final String exportTitle;
+        private final com.lowagie.text.Font tournamentFont;
+        private final com.lowagie.text.Font exportFont;
+        private com.lowagie.text.Image leftLogo; // report.logo.path
+        private com.lowagie.text.Image rightLogo; // report.sponsor.logo.path
 
-        ReportPageEvent(com.lowagie.text.Image leftLogo, com.lowagie.text.Image rightLogo,
-                com.lowagie.text.pdf.BaseFont baseFont, String tournamentName) {
-            this.leftLogo = leftLogo;
-            this.rightLogo = rightLogo;
-            this.baseFont = baseFont;
-            this.tournamentName = tournamentName;
+        HeaderEvent(String giaiName, String title) {
+            this.tournamentName = safe(giaiName);
+            this.exportTitle = safe(title);
+            this.tournamentFont = docFont(15f, com.lowagie.text.Font.BOLD);
+            this.exportFont = docFont(10f, com.lowagie.text.Font.BOLD);
+            try {
+                Prefs prefs = new Prefs();
+                String leftPath = prefs.get("report.logo.path", "");
+                if (leftPath != null && !leftPath.isBlank()) {
+                    this.leftLogo = com.lowagie.text.Image.getInstance(leftPath);
+                }
+            } catch (com.lowagie.text.BadElementException | java.io.IOException ignore) {
+                this.leftLogo = null;
+            }
+            try {
+                Prefs prefs = new Prefs();
+                String rightPath = prefs.get("report.sponsor.logo.path", "");
+                if (rightPath != null && !rightPath.isBlank()) {
+                    this.rightLogo = com.lowagie.text.Image.getInstance(rightPath);
+                }
+            } catch (com.lowagie.text.BadElementException | java.io.IOException ignore) {
+                this.rightLogo = null;
+            }
         }
 
         @Override
         public void onEndPage(com.lowagie.text.pdf.PdfWriter writer, com.lowagie.text.Document document) {
-            com.lowagie.text.pdf.PdfContentByte cb = writer.getDirectContent();
-            float left = document.left();
-            float right = document.right();
-            float top = document.top();
-            float bottom = document.bottom();
+            com.lowagie.text.Rectangle page = document.getPageSize();
+            float pageWidth = page.getWidth();
+            float leftMargin = document.leftMargin();
+            float rightMargin = document.rightMargin();
+            float topY = page.getHeight() - 5f;
+            float maxLogoWLeft = (pageWidth - leftMargin - rightMargin) * 1f;
+            float maxLogoWRight = (pageWidth - leftMargin - rightMargin) * 3f;
+            float maxLogoH = 70f;
 
-            // Header left logo at top-left, drawn above the content area to avoid overlap
             if (leftLogo != null) {
                 try {
-                    float x = left;
-                    float y = top + 6f; // place image fully in header area
-                    leftLogo.setAbsolutePosition(x, y);
-                    cb.addImage(leftLogo);
-                } catch (com.lowagie.text.DocumentException e) {
-                    System.err.println("addImage DocumentException: " + e.getMessage());
+                    com.lowagie.text.Image img = com.lowagie.text.Image.getInstance(leftLogo);
+                    img.scaleToFit(maxLogoWLeft, maxLogoH);
+                    float x = leftMargin;
+                    float y = topY - img.getScaledHeight();
+                    img.setAbsolutePosition(x, y);
+                    writer.getDirectContent().addImage(img);
+                } catch (com.lowagie.text.DocumentException ignore) {
                 }
             }
 
-            // Header right logo at top-right
             if (rightLogo != null) {
                 try {
-                    float x = right - rightLogo.getScaledWidth();
-                    float y = top + 6f; // align with left logo
-                    rightLogo.setAbsolutePosition(x, y);
-                    cb.addImage(rightLogo);
-                } catch (com.lowagie.text.DocumentException e) {
-                    System.err.println("addImage sponsor DocumentException: " + e.getMessage());
+                    com.lowagie.text.Image img = com.lowagie.text.Image.getInstance(rightLogo);
+                    img.scaleToFit(maxLogoWRight, maxLogoH);
+                    float x = pageWidth - rightMargin - img.getScaledWidth();
+                    float y = topY - img.getScaledHeight();
+                    img.setAbsolutePosition(x, y);
+                    writer.getDirectContent().addImage(img);
+                } catch (com.lowagie.text.DocumentException ignore) {
                 }
             }
 
-            // Header: tournament name centered on top
-            if (tournamentName != null && !tournamentName.isBlank()) {
-                cb.beginText();
-                try {
-                    com.lowagie.text.pdf.BaseFont bf = (baseFont != null)
-                            ? baseFont
-                            : com.lowagie.text.pdf.BaseFont.createFont();
-                    cb.setFontAndSize(bf, 14f);
-                } catch (com.lowagie.text.DocumentException e) {
-                    System.err.println("header BaseFont DocumentException: " + e.getMessage());
-                } catch (java.io.IOException e) {
-                    System.err.println("header BaseFont IOException: " + e.getMessage());
-                }
-                // Place centered within the enlarged header area
-                cb.showTextAligned(com.lowagie.text.Element.ALIGN_CENTER, tournamentName, (left + right) / 2f,
-                        top + 28f, 0);
-                cb.endText();
-            }
-
-            // Footer: date/time (left) and page x/y (right)
-            cb.beginText();
-            try {
-                com.lowagie.text.pdf.BaseFont bf = (baseFont != null)
-                        ? baseFont
-                        : com.lowagie.text.pdf.BaseFont.createFont();
-                cb.setFontAndSize(bf, 9f);
-            } catch (com.lowagie.text.DocumentException e) {
-                System.err.println("footer BaseFont DocumentException: " + e.getMessage());
-            } catch (java.io.IOException e) {
-                System.err.println("footer BaseFont IOException: " + e.getMessage());
-            }
-            String leftTxt = "In lúc: " + sdf.format(printDate);
-            String rightTxt = String.format("Trang %d", writer.getPageNumber());
-            cb.showTextAligned(com.lowagie.text.Element.ALIGN_LEFT, leftTxt, left, bottom - 12f, 0);
-            cb.showTextAligned(com.lowagie.text.Element.ALIGN_RIGHT, rightTxt, right, bottom - 12f, 0);
-            cb.endText();
+            float textStartY = topY - 90f;
+            com.lowagie.text.pdf.ColumnText.showTextAligned(writer.getDirectContent(),
+                    com.lowagie.text.Element.ALIGN_CENTER,
+                    new com.lowagie.text.Phrase(this.tournamentName, this.tournamentFont), pageWidth / 2f, textStartY,
+                    0);
+            com.lowagie.text.pdf.ColumnText.showTextAligned(writer.getDirectContent(),
+                    com.lowagie.text.Element.ALIGN_CENTER,
+                    new com.lowagie.text.Phrase(this.exportTitle, this.exportFont), pageWidth / 2f, textStartY - 18f,
+                    0);
         }
     }
+
+    private static String safe(String s) {
+        return s == null ? "" : s;
+    }
+
+    private static com.lowagie.text.Font docFont(float size, int style) {
+        try {
+            com.lowagie.text.FontFactory.registerDirectories();
+            com.lowagie.text.Font f = com.lowagie.text.FontFactory.getFont("Times New Roman",
+                    com.lowagie.text.pdf.BaseFont.IDENTITY_H, com.lowagie.text.pdf.BaseFont.EMBEDDED,
+                    size, style);
+            if (f != null && f.getBaseFont() != null)
+                return f;
+        } catch (com.lowagie.text.DocumentException ignore) {
+        }
+        try {
+            com.lowagie.text.pdf.BaseFont bf = com.lowagie.text.pdf.BaseFont.createFont(
+                    com.lowagie.text.pdf.BaseFont.HELVETICA, com.lowagie.text.pdf.BaseFont.WINANSI,
+                    com.lowagie.text.pdf.BaseFont.NOT_EMBEDDED);
+            return new com.lowagie.text.Font(bf, size, style);
+        } catch (com.lowagie.text.DocumentException | java.io.IOException e) {
+            return new com.lowagie.text.Font(com.lowagie.text.Font.HELVETICA, size, style);
+        }
+    }
+
+    // Page event for header/footer (deprecated - kept for reference only)
+    // Replaced by HeaderEvent for consistency with RegistrationPdfExporter
 
     private String getVdvNameSafe(Integer idVdv) {
         if (idVdv == null)
