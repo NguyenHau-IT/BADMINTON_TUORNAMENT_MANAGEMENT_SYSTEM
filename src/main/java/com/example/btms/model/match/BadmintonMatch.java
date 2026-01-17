@@ -373,7 +373,7 @@ public class BadmintonMatch {
         for (int i = 0; i < 2; i++) {
             if (score[i] >= 21 && (score[i] - score[1 - i]) >= 2)
                 return i;
-            if (score[i] == 30 && score[1 - i] == 29)
+            if (score[i] == 30)
                 return i;
         }
         return -1;
